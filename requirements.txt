@@ -1,0 +1,8 @@
+numpy
+matplotlib
+pandas
+psutil
+pyserial
+pyvisa
+pyvisa-py
+zeroconf
