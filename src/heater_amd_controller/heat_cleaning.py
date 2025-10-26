@@ -56,8 +56,8 @@ STEP_TIME = 10  # second ステップ時間
 
 DATE_DIR_UPDATE = False  # 大気開放ごとにアップデート
 MAJOR_UPDATE = True  # (主に)加熱洗浄ごとにアップデート
-SET_PROTOCOL = HC_PROTOCOL
-# SET_PROTOCOL = "HD"
+PROTOCOL = HC_PROTOCOL
+# PROTOCOL = "HD"
 
 # Setting parameters -----------------------------------------------------
 config_path = Path("config.toml")
@@ -79,6 +79,51 @@ GET_DATA = [
 ]
 
 # ----------------------------------------------------------------------
+
+
+def setup_devices(config: Config) -> tuple[gm10, pfr_100l50, pfr_100l50 | None, pwux | None]:
+    print("Connecting to devices...")
+    rm = pyvisa.ResourceManager()
+
+    try:
+        visa_list = rm.list_resources()
+        print(visa_list)
+
+        logger = gm10(rm, config.devices.gm10_visa)
+
+        hps = pfr_100l50(rm, config.devices.hps_visa)
+        # hps.SetOVP(config.devices.hps.unit, 2, config.devices.hps.ovp)
+        # hps.SetOCP(config.devices.hps.unit, 2, config.devices.hps.ocp)
+
+        aps = None
+        if AMD_DEGAS:
+            aps = pfr_100l50(rm, config.devices.aps_visa)
+            # aps.SetOVP(config.devices.aps.unit, 2, config.devices.aps.ovp)
+            # aps.SetOCP(config.devices.aps.unit, 2, config.devices.aps.ocp)
+
+        rt = None
+        if config.devices.pwux_com_port < 0:
+            rt = pwux(rm, visa_list[config.devices.pwux_com_port - 1])
+
+    except pyvisa.VisaIOError as e:
+        print(e)
+        sys.exit()
+
+    except OSError as e:
+        print(e)
+        sys.exit()
+
+    print("Devices connected.")
+    return logger, hps, aps, rt
+
+
+def setup_logging(config: Config) -> LogFile:
+    log_manager = LogManager(config.common.log_dir)
+    date_directory = log_manager.get_date_directory(DATE_DIR_UPDATE)
+    logfile = date_directory.create_logfile(PROTOCOL, MAJOR_UPDATE)
+
+    print(f"Logging to: {logfile.path}")
+    return logfile
 
 
 def wait(dt: float) -> None:
@@ -146,35 +191,9 @@ def write_log(
 
 def main() -> None:  # noqa: C901, PLR0912, PLR0915
     wait(WAIT_TIME)
-    rm = pyvisa.ResourceManager()
 
-    try:
-        visa_list = rm.list_resources()
-        print(visa_list)
-
-        logger = gm10(rm, config.devices.gm10_visa)
-
-        hps = pfr_100l50(rm, config.devices.hps_visa)
-        # hps.SetOVP(config.devices.hps.unit, 2, config.devices.hps.ovp)
-        # hps.SetOCP(config.devices.hps.unit, 2, config.devices.hps.ocp)
-
-        aps = None
-        if AMD_DEGAS:
-            aps = pfr_100l50(rm, config.devices.aps_visa)
-            # aps.SetOVP(config.devices.aps.unit, 2, config.devices.aps.ovp)
-            # aps.SetOCP(config.devices.aps.unit, 2, config.devices.aps.ocp)
-
-        rt = None
-        if config.devices.pwux_com_port < 0:
-            rt = pwux(rm, visa_list[config.devices.pwux_com_port - 1])
-
-    except pyvisa.VisaIOError as e:
-        print(e)
-        sys.exit()
-
-    except OSError as e:
-        print(e)
-        sys.exit()
+    logger, hps, aps, rt = None, None, None, None
+    logfile = None
 
     try:
         start_time = datetime.datetime.now(TZ)
@@ -183,9 +202,8 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
             "\033[32m" + "{:s} Start".format(start_time.strftime("%Y/%m/%d %H:%M:%S")) + "\033[0m"
         )
 
-        log_manager = LogManager(config.common.log_dir)
-        date_directory = log_manager.get_date_directory(DATE_DIR_UPDATE)
-        logfile = date_directory.create_logfile(SET_PROTOCOL, MAJOR_UPDATE)
+        logger, hps, aps, rt = setup_devices(config)
+        logfile = setup_logging(config)
 
         # -------------------------------------------------------------------------
 
@@ -218,6 +236,8 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
         else:
             logfile.write("\t".join(GET_DATA[:-3]) + "\n")
 
+        # -------------------------------------------------------------------------
+
         hc_current = INITIAL_CURRENT
         hps.set_voltage(config.devices.hps.v_limit)
         hps.set_current(hc_current)
@@ -232,6 +252,7 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
         sequence_start = datetime.datetime.now(TZ)
         t = 0.0
 
+        # メインループ
         # [電流値, 時間(second), Command, Exponent]
         for index, sequence in enumerate(SEQUENCE):
             step_start = t
@@ -267,8 +288,9 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
 
     finally:
         """終わったら電源を閉じる処理をする。"""
-        hps.set_output(0)
-        del hps
+        if hps is not None:
+            hps.set_output(0)
+            del hps
 
         if AMD_DEGAS and aps is not None:
             aps.set_output(0)

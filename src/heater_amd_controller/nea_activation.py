@@ -16,7 +16,7 @@ from heater_amd_controller.const import NEA_PROTOCOL
 from heater_amd_controller.libs.gm10 import gm10
 from heater_amd_controller.libs.ibeam import ibeam
 from heater_amd_controller.utils.calc import ext_calculation_pressure, sip_calculation_pressure
-from heater_amd_controller.utils.log_file import LogManager
+from heater_amd_controller.utils.log_file import LogFile, LogManager
 
 # from OphirUSBI import OphirUSBI
 
@@ -84,10 +84,8 @@ GET_DATA = [
 """----------------------------------------------------------------------------------"""
 
 
-def main() -> None:
-    print(f"NEA activation program (Version: {VERSION})")
-
-    # 機器との接続 ------------------------------------------------------------ #
+def setup_devices(config: Config) -> tuple[gm10, ibeam | None]:
+    print("Connecting to devices...")
     rm = pyvisa.ResourceManager()
 
     try:
@@ -97,11 +95,10 @@ def main() -> None:
         logger = gm10(rm, config.devices.gm10_visa)
 
         laser = None
-        wl = WAVELENGTH
         if USE_LASER and config.devices.ibeam_com_port < 0:
             laser = ibeam(f"COM{config.devices.ibeam_com_port}")
-            laser.ch_on(2)
-            laser.set_lp(2, LASER_POWER)
+            laser.ch_on(config.devices.ibeam.beam_ch)
+            laser.set_lp(config.devices.ibeam.beam_ch, LASER_POWER)
 
     except pyvisa.VisaIOError as e:
         print(e)
@@ -111,7 +108,27 @@ def main() -> None:
         print(e)
         sys.exit()
 
+    print("Devices connected.")
+    return logger, laser
+
+
+def setup_logging(config: Config) -> LogFile:
+    log_manager = LogManager(config.common.log_dir)
+    date_directory = log_manager.get_date_directory()
+    logfile = date_directory.create_logfile(PROTOCOL, MAJOR_UPDATE)
+
+    print(f"Logging to: {logfile.path}")
+    return logfile
+
+
+def main() -> None:
+    print(f"NEA activation program (Version: {VERSION})")
+
     # --------------------------------------------------------------------- #
+
+    logger = None
+    laser = None
+    logfile = None
 
     try:
         # 開始時間
@@ -122,9 +139,9 @@ def main() -> None:
             + "\033[0m"
         )
 
-        log_manager = LogManager(config.common.log_dir)
-        date_directory = log_manager.get_date_directory()
-        logfile = date_directory.create_logfile(PROTOCOL, MAJOR_UPDATE)
+        wl = WAVELENGTH
+        logger, laser = setup_devices(config)
+        logfile = setup_logging(config)
 
         # -------------------------------------------------------------------------
 
@@ -152,6 +169,8 @@ def main() -> None:
 
         logfile.write("\n#Data\n")
         logfile.write("\t".join(GET_DATA) + "\n")
+
+        # -------------------------------------------------------------------------
 
         while 1:
             current_time = datetime.datetime.now(TZ)
