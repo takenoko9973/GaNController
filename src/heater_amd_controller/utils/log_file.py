@@ -2,8 +2,13 @@ import datetime
 import re
 from pathlib import Path
 
-LOG_DIR = "logs"
-JST = datetime.timezone(datetime.timedelta(hours=9), "JST")
+from heater_amd_controller.config import Config
+
+config_path = Path("config.toml")
+config = Config.load_config(config_path)
+
+LOG_DIR = config.common.log_dir
+TZ = config.common.get_tz()
 
 
 class LogFile:
@@ -17,7 +22,7 @@ class LogFile:
 
     def write(self, message: str) -> None:
         try:
-            with self.path.open("a", encoding="utf-8") as f:
+            with self.path.open("a", encoding=config.common.encode) as f:
                 f.write(message)
 
         except OSError as e:
@@ -100,7 +105,7 @@ class DateLogDirectory:
         if not protocol_formatted:
             protocol_formatted = "DEFAULT"
         # タイムスタンプ
-        timestamp = datetime.datetime.now(JST).strftime("%Y%m%d%H%M%S")
+        timestamp = datetime.datetime.now(TZ).strftime("%Y%m%d%H%M%S")
 
         number = f"{new_major}.{new_minor}"
         filename = f"[{number}]{protocol_formatted}-{timestamp}.dat"
@@ -134,7 +139,7 @@ class LogManager:
                 try:
                     # ディレクトリ名を日付オブジェクトに変換
                     current_date = (
-                        datetime.datetime.strptime(entry.name, "%y%m%d").astimezone(JST).date()
+                        datetime.datetime.strptime(entry.name, "%y%m%d").astimezone(TZ).date()
                     )
 
                     # latest_date が未設定、または見つかった日付の方が新しい場合
@@ -156,13 +161,13 @@ class LogManager:
 
         if date_update:
             # 更新する場合は今日の日付
-            target_date = datetime.datetime.now(JST).date()
+            target_date = datetime.datetime.now(TZ).date()
         else:
             # 最新を探す
             latest_date = self._find_latest_date()
             # 最新が見つかればそれを使い、なければ (logsが空なら) 今日の日付を使う
             target_date = (
-                latest_date if latest_date is not None else datetime.datetime.now(JST).date()
+                latest_date if latest_date is not None else datetime.datetime.now(TZ).date()
             )
 
         # 決定した日付で DateLogDirectory を返す

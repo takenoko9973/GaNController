@@ -4,11 +4,14 @@ NEA activation program
 """  # noqa: D205
 
 import datetime
+import sys
 import time
+from pathlib import Path
 
 import pyvisa
 import serial  # pip3 install pyserial  # noqa: F401
 
+from heater_amd_controller.config import Config
 from heater_amd_controller.const import NEA_PROTOCOL
 from heater_amd_controller.libs.gm10 import gm10
 from heater_amd_controller.libs.ibeam import ibeam
@@ -17,8 +20,20 @@ from heater_amd_controller.utils.log_file import LogManager
 
 # from OphirUSBI import OphirUSBI
 
+
 # User setting parameter -------------------------------------------------------
+VERSION = 1.1
+PROTOCOL = NEA_PROTOCOL
+
+MAJOR_UPDATE = False  # 前回のNEA活性化と区別したい場合はTrue
+
 COMMENT = ""
+
+HV = 100  # V
+
+# 100 mW, FilterInでの測定結果: 164 μW
+# 10 mW, FilterInでの測定結果: 70 μW
+LP_PV = 164 * 10 ** (-6)
 
 LOGGER_RANGE = ["20mV", -5000, 20000]  # 表示範囲: -5 ~ 20 mV
 
@@ -26,29 +41,25 @@ S_TIME = 1  # 測定前の待ち時間(安定化時間: Stabilization time)[s]
 INTEGRATED = 1  # 積算回数
 INTERVAL = 0  # 積算時の測定間隔[s](0: MW100の設定上の最小となる -> 500 msとか)
 
-"""----------------------------------------------------------------------------------"""
-VERSION = 1.0
-ENCODE = "utf-8"
-PROTOCOL = NEA_PROTOCOL
-
-VISA_GM10 = "TCPIP0::" + "192.168.1.105" + "::" + "34434" + "::SOCKET"
-GM10_EXT = 1  # 真空度測定Ch番号
-GM10_SIP = 2  # SIP測定Ch番号
-GM10_PC = 10  # フォトカレント測定Ch番号
-GM10_HV = 22  # HV制御出力Ch番号
-GM10_TC = -1  # TC測定Ch番号
-
-COM_IBEAM = 3
 WAVELENGTH = 406  # nm
 LASER_POWER = 120  # mW
 
-# 100 mW, FilterInでの測定結果: 164 μW
-# 10 mW, FilterInでの測定結果: 70 μW
-LP_PV = 164 * 10 ** (-6)
+USE_LASER = False
+if not USE_LASER:
+    COMMENT += "405nm15mW,BG=0.7mV"
+    WAVELENGTH = 405  # nm
+    LASER_POWER = 15  # mW
+    # VP>>試料: 実際に試料に照射されるパワー10 mWと仮定
+    LP_PV = 10 * 10 ** (-3)
 
-HV = 100  # V
+    BG_PC = 0.7 * 10 ** (-3)  # V
 
-LOG_DIR = "logs"
+
+# Setting parameters -----------------------------------------------------
+config_path = Path("config.toml")
+config = Config.load_config(config_path)
+
+TZ = config.common.get_tz()
 
 GET_DATA = [
     "Time[s]",
@@ -70,18 +81,6 @@ GET_DATA = [
     #'DPcAll[A]']
 ]
 
-TZ = datetime.timezone(datetime.timedelta(hours=9))
-
-USE_LASER = False
-if not USE_LASER:
-    COMMENT += "405nm15mW,BG=0.7mV"
-    WAVELENGTH = 405  # nm
-    LASER_POWER = 15  # mW
-    # VP>>試料: 実際に試料に照射されるパワー10 mWと仮定
-    LP_PV = 10 * 10 ** (-3)
-
-    BG_PC = 0.7 * 10 ** (-3)  # V
-
 """----------------------------------------------------------------------------------"""
 
 
@@ -90,23 +89,44 @@ def main() -> None:
 
     # 機器との接続 ------------------------------------------------------------ #
     rm = pyvisa.ResourceManager()
-    logger = gm10(rm, VISA_GM10)
 
-    wl = WAVELENGTH
-    if USE_LASER:
-        laser = ibeam(f"COM{COM_IBEAM}")
-        laser.ch_on(2)
-        laser.set_lp(2, LASER_POWER)
+    try:
+        visa_list = rm.list_resources()
+        print(visa_list)
 
-    log_manager = LogManager(LOG_DIR)
-    date_directory = log_manager.get_date_directory()
-    logfile = date_directory.create_logfile(PROTOCOL)
+        logger = gm10(rm, config.devices.gm10_visa)
+
+        laser = None
+        wl = WAVELENGTH
+        if USE_LASER and config.devices.ibeam_com_port < 0:
+            laser = ibeam(f"COM{config.devices.ibeam_com_port}")
+            laser.ch_on(2)
+            laser.set_lp(2, LASER_POWER)
+
+    except pyvisa.VisaIOError as e:
+        print(e)
+        sys.exit()
+
+    except OSError as e:
+        print(e)
+        sys.exit()
 
     # --------------------------------------------------------------------- #
 
     try:
         # 開始時間
         start_time = datetime.datetime.now(TZ)
+        print(
+            "\033[32m"
+            + "{:s}\nExperiment start".format(start_time.strftime("%Y/%m/%d %H:%M:%S"))
+            + "\033[0m"
+        )
+
+        log_manager = LogManager(config.common.log_dir)
+        date_directory = log_manager.get_date_directory()
+        logfile = date_directory.create_logfile(PROTOCOL, MAJOR_UPDATE)
+
+        # -------------------------------------------------------------------------
 
         logfile.write("#NEA activation monitor\n")
         logfile.write(f"\n#Protocol:\t{logfile.protocol}\n")
@@ -115,7 +135,7 @@ def main() -> None:
         logfile.write(f"#Number:\t{logfile.number}\n")
         logfile.write(f"#Date:\t{start_time.strftime('%Y/%m/%d')}\n")
         logfile.write(f"#Time:\t{start_time.strftime('%H:%M:%S')}\n")
-        logfile.write(f"#Encode:\t{ENCODE}\n")
+        logfile.write(f"#Encode:\t{config.common.encode}\n")
         logfile.write(f"#Version:\t{VERSION}\n")
 
         logfile.write("\n#Condition\n")
@@ -133,19 +153,13 @@ def main() -> None:
         logfile.write("\n#Data\n")
         logfile.write("\t".join(GET_DATA) + "\n")
 
-        print(
-            "\033[32m"
-            + "{:s}\nExperiment start".format(start_time.strftime("%Y/%m/%d %H:%M:%S"))
-            + "\033[0m"
-        )
-
         while 1:
             current_time = datetime.datetime.now(TZ)
 
             t = (current_time - start_time).total_seconds()
             print("\033[32m" + f"{t:.1f}[s]\t" + "\033[0m")
 
-            if USE_LASER:
+            if USE_LASER and laser is not None:
                 laser.laser_on()
 
             time.sleep(S_TIME)
@@ -154,28 +168,33 @@ def main() -> None:
             # bpc = bpc_all[0]
             # blp = float(powermeter.read_data()) * ratio
             # logger_range = logger.GetInputChSetting(pc_ch)[0]['Range']
-            bright_data = float(logger.get_data(GM10_PC))
+            bright_data = float(logger.get_data(config.devices.gm10.pc_ch))
 
-            # """
-
-            if USE_LASER:
+            if USE_LASER and laser is not None:
                 laser.laser_off()
 
             time.sleep(S_TIME)
 
-            dark_data = float(logger.get_data(GM10_PC)) if USE_LASER else BG_PC
+            dark_data = (
+                float(logger.get_data(config.devices.gm10.pc_ch))
+                if USE_LASER and laser is not None
+                else BG_PC
+            )
 
             # dpc_all = logger.PhotocurrentMeasurement(pc_ch, shunt_r, INTEGRATED, INTERVAL, 0)
             # dpc = dpc_all[0]
             # dlp = float(powermeter.read_data()) * ratio
-            # """
 
             # get_pc = bpc - dpc
             # get_lp = blp - dlp
             # qe = 1240 * get_pc / (wl * get_lp) * 100
 
-            pressure_ext = ext_calculation_pressure(float(logger.get_data(GM10_EXT)))
-            pressure_sip = sip_calculation_pressure(float(logger.get_data(GM10_SIP)))
+            pressure_ext = ext_calculation_pressure(
+                float(logger.get_data(config.devices.gm10.ext_ch))
+            )
+            pressure_sip = sip_calculation_pressure(
+                float(logger.get_data(config.devices.gm10.sip_ch))
+            )
 
             # spot_area = math.pi*(spot_size*10**(-4)/2)**2 #[cm^2]
             # pd = get_lp / spot_area
@@ -208,7 +227,6 @@ def main() -> None:
                 # bpc_all[2],
                 # dpc_all[2]
             ]
-
             data = "\t".join(get_data)
             logfile.write(data + "\n")
 
@@ -223,7 +241,7 @@ def main() -> None:
         del logfile
         # del(powermeter)
 
-        if USE_LASER == 1:
+        if USE_LASER and laser is not None:
             laser.set_lp(2, 0)
             laser.laser_off()
             laser.ch_off(2)
@@ -240,6 +258,6 @@ if __name__ == "__main__":
     main()
 
 """
-20250415 Version1.0 Created a program @出射 幹也
-
+20250415 Version1.0 Created a program @Idei
+20251026 Version 1.1 @Takeichi
 """
