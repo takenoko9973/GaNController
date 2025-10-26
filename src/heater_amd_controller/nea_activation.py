@@ -9,11 +9,11 @@ import time
 import pyvisa
 import serial  # pip3 install pyserial  # noqa: F401
 
-from heater_amd_controller.const import HC_PROTOCOL, NEA_PROTOCOL
+from heater_amd_controller.const import NEA_PROTOCOL
 from heater_amd_controller.libs.gm10 import gm10
 from heater_amd_controller.libs.ibeam import ibeam
 from heater_amd_controller.utils.calc import ext_calculation_pressure, sip_calculation_pressure
-from heater_amd_controller.utils.log_file import LogFileManager
+from heater_amd_controller.utils.log_file import LogManager
 
 # from OphirUSBI import OphirUSBI
 
@@ -98,11 +98,9 @@ def main() -> None:
         laser.ch_on(2)
         laser.set_lp(2, LASER_POWER)
 
-    log_file_manager = LogFileManager(LOG_DIR)
-
-    latest_log = log_file_manager.get_latest_log_file()
-    update_major = latest_log.protocol == HC_PROTOCOL if latest_log is not None else True
-    log_file = log_file_manager.create_log_file(PROTOCOL, update_major)
+    log_manager = LogManager(LOG_DIR)
+    date_directory = log_manager.get_date_directory()
+    logfile = date_directory.create_logfile(PROTOCOL)
 
     # --------------------------------------------------------------------- #
 
@@ -110,30 +108,30 @@ def main() -> None:
         # 開始時間
         start_time = datetime.datetime.now(TZ)
 
-        log_file.write("#NEA activation monitor\n")
-        log_file.write(f"\n#Protocol:\t{log_file.protocol}\n")
+        logfile.write("#NEA activation monitor\n")
+        logfile.write(f"\n#Protocol:\t{logfile.protocol}\n")
 
-        log_file.write("\n#Measurement\n")
-        log_file.write(f"#Number:\t{log_file.number}\n")
-        log_file.write(f"#Date:\t{start_time.strftime('%Y/%m/%d')}\n")
-        log_file.write(f"#Time:\t{start_time.strftime('%H:%M:%S')}\n")
-        log_file.write(f"#Encode:\t{ENCODE}\n")
-        log_file.write(f"#Version:\t{VERSION}\n")
+        logfile.write("\n#Measurement\n")
+        logfile.write(f"#Number:\t{logfile.number}\n")
+        logfile.write(f"#Date:\t{start_time.strftime('%Y/%m/%d')}\n")
+        logfile.write(f"#Time:\t{start_time.strftime('%H:%M:%S')}\n")
+        logfile.write(f"#Encode:\t{ENCODE}\n")
+        logfile.write(f"#Version:\t{VERSION}\n")
 
-        log_file.write("\n#Condition\n")
-        log_file.write(f"#Wavelength:\t{wl:d}[nm]\n")
-        log_file.write(f"#LaserPower(SV):\t{LASER_POWER:d}[mW]\n")
+        logfile.write("\n#Condition\n")
+        logfile.write(f"#Wavelength:\t{wl:d}[nm]\n")
+        logfile.write(f"#LaserPower(SV):\t{LASER_POWER:d}[mW]\n")
 
-        log_file.write(f"#StabilizationTime:\t{S_TIME:.1f}[s]\n")
-        log_file.write(f"#IntegratedTimes:\t{INTEGRATED:.1f}[-]\n")
-        log_file.write(f"#IntervalTime:\t{INTERVAL:.1f}[s]\n")
-        log_file.write(f"#ExtractionVoltage:\t{HV:d}[V]\n")
+        logfile.write(f"#StabilizationTime:\t{S_TIME:.1f}[s]\n")
+        logfile.write(f"#IntegratedTimes:\t{INTEGRATED:.1f}[-]\n")
+        logfile.write(f"#IntervalTime:\t{INTERVAL:.1f}[s]\n")
+        logfile.write(f"#ExtractionVoltage:\t{HV:d}[V]\n")
 
-        log_file.write("\n#Comment\n")
-        log_file.write(f"#{COMMENT}\n")
+        logfile.write("\n#Comment\n")
+        logfile.write(f"#{COMMENT}\n")
 
-        log_file.write("\n#Data\n")
-        log_file.write("\t".join(GET_DATA) + "\n")
+        logfile.write("\n#Data\n")
+        logfile.write("\t".join(GET_DATA) + "\n")
 
         print(
             "\033[32m"
@@ -212,7 +210,7 @@ def main() -> None:
             ]
 
             data = "\t".join(get_data)
-            log_file.write(data + "\n")
+            logfile.write(data + "\n")
 
     except Exception as e:  # noqa: BLE001
         print("Error stop:", e)
@@ -222,7 +220,7 @@ def main() -> None:
         # print("\tPD={:.2E} W/cm^2, CD={:.2E} A/cm^2".format(pd, cd))
 
         del logger
-        del log_file
+        del logfile
         # del(powermeter)
 
         if USE_LASER == 1:

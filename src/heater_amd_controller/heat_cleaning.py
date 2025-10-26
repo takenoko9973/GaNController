@@ -15,7 +15,7 @@ from heater_amd_controller.libs.gm10 import gm10
 from heater_amd_controller.libs.pfr_100l50 import pfr_100l50
 from heater_amd_controller.libs.pwux import pwux
 from heater_amd_controller.utils.calc import ext_calculation_pressure, sip_calculation_pressure
-from heater_amd_controller.utils.log_file import LogFile, LogFileManager
+from heater_amd_controller.utils.log_file import LogFile, LogManager
 from heater_amd_controller.utils.sequence import Decrease, HeatCleaning, Rising, Sequence, Wait
 
 # User setting parmeters -----------------------------------------------------
@@ -54,7 +54,8 @@ AMD_CURRENT = 3.0
 
 STEP_TIME = 10  # second ステップ時間
 
-NUMBER_RESET = True
+DATE_DIR_UPDATE = False  # 大気開放ごとにアップデート
+MAJOR_UPDATE = True  # (主に)加熱洗浄ごとにアップデート
 SET_PROTOCOL = HC_PROTOCOL
 # SET_PROTOCOL = "HD"
 
@@ -95,20 +96,20 @@ GET_DATA = [
     "Power(AMD)[W]",
 ]
 
-TZ = datetime.timezone(datetime.timedelta(hours=9))
+JST_TZ = datetime.timezone(datetime.timedelta(hours=9))
 
 # ----------------------------------------------------------------------
 
 
 def wait(dt: float) -> None:
-    st = datetime.datetime.now(TZ)
+    st = datetime.datetime.now(JST_TZ)
     t = 0.0
 
     while t < dt:
         sys.stdout.write(f"\rWait for{dt - t:6.0f} s")
         sys.stdout.flush()
         time.sleep(1)
-        t = (datetime.datetime.now(TZ) - st).total_seconds()
+        t = (datetime.datetime.now(JST_TZ) - st).total_seconds()
 
     sys.stdout.write(f"\rWait for{0:6.0f} s")
     sys.stdout.flush()
@@ -193,45 +194,46 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
         sys.exit()
 
     try:
-        start_time = datetime.datetime.now(TZ)
+        start_time = datetime.datetime.now(JST_TZ)
         print("HC program")
         print(
             "\033[32m" + "{:s} Start".format(start_time.strftime("%Y/%m/%d %H:%M:%S")) + "\033[0m"
         )
 
-        log_file_manager = LogFileManager(LOG_DIR)
-        log_file = log_file_manager.create_log_file(SET_PROTOCOL, NUMBER_RESET)
+        log_manager = LogManager(LOG_DIR)
+        date_directory = log_manager.get_date_directory(DATE_DIR_UPDATE)
+        logfile = date_directory.create_logfile(SET_PROTOCOL, MAJOR_UPDATE)
 
         # -------------------------------------------------------------------------
 
-        log_file.write("#Heat Cleaning monitor\n")
+        logfile.write("#Heat Cleaning monitor\n")
 
-        log_file.write(f"\n#Protocol:\t{log_file.protocol}\n")
+        logfile.write(f"\n#Protocol:\t{logfile.protocol}\n")
 
-        log_file.write("\n#Measurement\n")
-        log_file.write(f"#Number:\t{log_file.number}\n")
-        log_file.write(f"#Date:\t{start_time.strftime('%Y/%m/%d')}\n")
-        log_file.write(f"#Time:\t{start_time.strftime('%H:%M:%S')}\n")
-        log_file.write(f"#ProgramVersion:\t{VERSION}\n")
-        log_file.write(f"#Encode:\t{ENCODE}\n")
+        logfile.write("\n#Measurement\n")
+        logfile.write(f"#Number:\t{logfile.number}\n")
+        logfile.write(f"#Date:\t{start_time.strftime('%Y/%m/%d')}\n")
+        logfile.write(f"#Time:\t{start_time.strftime('%H:%M:%S')}\n")
+        logfile.write(f"#ProgramVersion:\t{VERSION}\n")
+        logfile.write(f"#Encode:\t{ENCODE}\n")
 
-        log_file.write("\n#Condition\n")
+        logfile.write("\n#Condition\n")
         # log_file.write('#HeaterVoltageLimit:\t{}[V]\n'.format(HPS_V_LIMIT))
         # log_file.write('#InitialCurrent:\t{:.2f}[A]\n'.format(INITIAL_CURRENT))
-        log_file.write(f"#HC_CURRENT:\t{HC_CURRENT}[A]\n")
+        logfile.write(f"#HC_CURRENT:\t{HC_CURRENT}[A]\n")
         if AMD_DEGAS == 1:
-            log_file.write(f"#AMD_CURRENT:\t{AMD_CURRENT}[A]\n")
+            logfile.write(f"#AMD_CURRENT:\t{AMD_CURRENT}[A]\n")
         for index, sequence in enumerate(SEQUENCE):
-            log_file.write(f"#Sequence{index + 1}: {sequence}\n")
+            logfile.write(f"#Sequence{index + 1}: {sequence}\n")
 
-        log_file.write("\n#Comment\n")
-        log_file.write(f"#{COMMENT}\n")
+        logfile.write("\n#Comment\n")
+        logfile.write(f"#{COMMENT}\n")
 
-        log_file.write("\n#Data\n")
+        logfile.write("\n#Data\n")
         if AMD_DEGAS == 1:
-            log_file.write("\t".join(GET_DATA) + "\n")
+            logfile.write("\t".join(GET_DATA) + "\n")
         else:
-            log_file.write("\t".join(GET_DATA[:-3]) + "\n")
+            logfile.write("\t".join(GET_DATA[:-3]) + "\n")
 
         hc_current = INITIAL_CURRENT
         hps.set_voltage(HPS_V_LIMIT)
@@ -244,7 +246,7 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
             aps.set_current(amd_current)
             aps.set_output(1)
 
-        sequence_start = datetime.datetime.now(TZ)
+        sequence_start = datetime.datetime.now(JST_TZ)
         t = 0.0
 
         # [電流値, 時間(second), Command, Exponent]
@@ -262,10 +264,10 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
                     amd_current = sequence.current(AMD_CURRENT, t - step_start)
                     aps.set_current(amd_current)
 
-                write_log(log_file, sequence, t, hps, logger, rt, aps)
+                write_log(logfile, sequence, t, hps, logger, rt, aps)
 
                 time.sleep(STEP_TIME)
-                t = (datetime.datetime.now(TZ) - sequence_start).total_seconds()
+                t = (datetime.datetime.now(JST_TZ) - sequence_start).total_seconds()
 
             hc_current = sequence.current(HC_CURRENT, t - step_start)
             hps.set_current(hc_current)
@@ -290,9 +292,9 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
             aps.set_output(0)
             del aps
 
-        del log_file
+        del logfile
 
-        finish_time = datetime.datetime.now(TZ)
+        finish_time = datetime.datetime.now(JST_TZ)
         print(
             "\033[31m" + "{:s} Finish".format(finish_time.strftime("%Y/%m/%d %H:%M:%S")) + "\033[0m"
         )
