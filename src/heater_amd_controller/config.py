@@ -23,7 +23,7 @@ class PFR100l50Config(BaseModel):
 
 
 class IBeamConfig(BaseModel):
-    beam_ch = Field(description="ビームチャンネル")
+    beam_ch: int = Field(description="ビームチャンネル")
 
 
 # [common] セクション
