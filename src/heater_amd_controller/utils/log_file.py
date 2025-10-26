@@ -33,16 +33,28 @@ class LogFile:
 class DateLogDirectory:
     LOGFILE_PATTERN = re.compile(r"^\[(\d+)\.(\d+)\]([A-Z]+)\-(\d+)\.dat")
 
-    def __init__(self, base_path: Path, date: datetime.date) -> None:
-        self.base_path = base_path
-        self.date = date
-
-        dir_name = self.date.strftime("%y%m%d")
-        self.path = self.base_path / dir_name
+    def __init__(self, path: Path) -> None:
+        self.path = path
         self.path.mkdir(exist_ok=True)
 
     def __str__(self) -> str:
         return f"DateLogDirectory(path={self.path})"
+
+    def get_logfile_paths(self) -> list[Path]:
+        """すべてのlogfileを取得"""
+        logfile_paths = []
+
+        for entry in self.path.iterdir():
+            if not entry.is_file():
+                continue
+
+            match = self.LOGFILE_PATTERN.match(entry.name)
+            if match is None:
+                continue
+
+            logfile_paths.append(entry)
+
+        return logfile_paths
 
     def _find_current_version(self) -> tuple[int, int]:
         """最新のバージョン番号を取得
@@ -56,11 +68,8 @@ class DateLogDirectory:
         current_minor = 0
 
         try:
-            for entry in self.path.iterdir():
-                if not entry.is_file():
-                    continue
-
-                match = self.LOGFILE_PATTERN.match(entry.name)
+            for logfile_path in self.get_logfile_paths():
+                match = self.LOGFILE_PATTERN.match(logfile_path.name)
                 if match is None:
                     continue
 
@@ -115,31 +124,42 @@ class DateLogDirectory:
 
 
 class LogManager:
+    date_dir_pattern = re.compile(r"^\d{6}$")
+
     def __init__(self, base_dir: str | Path = LOG_DIR) -> None:
         self.base_path = Path(base_dir)
         self.base_path.mkdir(parents=True, exist_ok=True)
 
-        self.date_dir_pattern = re.compile(r"^\d{6}$")
-
     def __str__(self) -> str:
         return f"LogFileManager(path={self.base_path})"
+
+    def get_date_dir_paths(self) -> list[Path]:
+        """すべてのdate directoryを取得"""
+        date_dir_paths = []
+
+        for entry in self.base_path.iterdir():
+            # ディレクトリ
+            if not entry.is_dir():
+                continue
+            # 'yymmdd' 形式か
+            if self.date_dir_pattern.match(entry.name) is None:
+                continue
+
+            date_dir_paths.append(entry)
+
+        return date_dir_paths
 
     def _find_latest_date(self) -> datetime.date | None:
         latest_date = None
 
         try:
-            for entry in self.base_path.iterdir():
-                # ディレクトリ
-                if not entry.is_dir():
-                    continue
-                # 'yymmdd' 形式か
-                if self.date_dir_pattern.match(entry.name) is None:
-                    continue
-
+            for date_dir_path in self.get_date_dir_paths():
                 try:
                     # ディレクトリ名を日付オブジェクトに変換
                     current_date = (
-                        datetime.datetime.strptime(entry.name, "%y%m%d").astimezone(TZ).date()
+                        datetime.datetime.strptime(date_dir_path.name, "%y%m%d")
+                        .astimezone(TZ)
+                        .date()
                     )
 
                     # latest_date が未設定、または見つかった日付の方が新しい場合
@@ -171,4 +191,6 @@ class LogManager:
             )
 
         # 決定した日付で DateLogDirectory を返す
-        return DateLogDirectory(self.base_path, target_date)
+        dir_name = target_date.strftime("%y%m%d")
+        dir_path = self.base_path / dir_name
+        return DateLogDirectory(dir_path)
