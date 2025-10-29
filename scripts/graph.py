@@ -1,25 +1,46 @@
+import sys
 from pathlib import Path
 
-import pandas as pd
-from matplotlib import pyplot as plt
+from heater_amd_controller.config import Config
+from heater_amd_controller.utils.log_file import DateLogDirectory, LogFile, LogManager
 
-path = Path(r"logs/[15.2]HC-20250912103013.dat")
-data = pd.read_csv(path, sep="\t", comment="#")
+sys.path.append(str(Path(__file__).parent.parent))
+from scripts.data_plot.plot_HC import plot_hc
+from scripts.data_plot.plot_HD import plot_hd
+from scripts.data_plot.plot_NEGHD import plot_neghd
+
+config_path = Path("config.toml")
+config = Config.load_config(config_path)
+
+PLOT_DIR = "plots"
+root_path = Path(__file__).parent.parent
 
 
-fig, ax1 = plt.subplots()
-ax2 = ax1.twinx()
-ax1.set_xlabel("time [s]")
-ax1.set_ylabel("power [W]")
-ax2.set_ylabel("temp [deg.C]")
-ax1.set_ylim(top=20, bottom=-1)
-ax2.set_ylim(top=1000)
-ax1.plot(data["Time[s]"], data["Power[W]"], "C0", label="HC Power")
-ax1.plot(data["Time[s]"], data["Power(AMD)[W]"], "C1", label="AMD Power")
-ax2.plot(data["Time[s]"], data["Temp(TC)[deg.C]"], "C2", label="Temp")
+def plots(logfile: LogFile) -> None:
+    parts = list(logfile.path.parent.absolute().relative_to(root_path).parts)
+    parts[0] = PLOT_DIR
+    save_dir = root_path / Path(*parts)
+    save_dir.mkdir(exist_ok=True, parents=True)
 
-h1, l1 = ax1.get_legend_handles_labels()
-h2, l2 = ax2.get_legend_handles_labels()
-ax1.legend(h1 + h2, l1 + l2, loc="upper right")
+    if logfile.protocol == "HC":
+        plot_hc(logfile, save_dir)
+    elif logfile.protocol == "HD":
+        plot_hd(logfile, save_dir)
+    elif logfile.protocol == "NEGHD":
+        plot_neghd(logfile, save_dir)
 
-plt.show()
+
+def main() -> None:
+    log_manager = LogManager(config.common.log_dir)
+
+    for date_dir_path in log_manager.get_date_dir_paths():
+        date_dir = DateLogDirectory(date_dir_path)
+
+        for logfile_path in date_dir.get_logfile_paths():
+            logfile = LogFile(logfile_path)
+
+            plots(logfile)
+
+
+if __name__ == "__main__":
+    main()
