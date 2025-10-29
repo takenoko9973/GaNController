@@ -12,13 +12,23 @@ TZ = config.common.get_tz()
 
 
 class LogFile:
-    def __init__(self, file_path: Path, protocol: str, number: str) -> None:
+    def __init__(self, file_path: Path) -> None:
         self.path = file_path
-        self.protocol = protocol
-        self.number = number
 
     def __str__(self) -> str:
         return str(self.path)
+
+    @property
+    def number(self) -> str:
+        pattern = re.compile(r"^\[(\d+\.\d+)\]([A-Z]+)\-(\d+)\.dat")
+        match = pattern.match(self.path.name)
+        return match[1] if match is not None else "0.0"
+
+    @property
+    def protocol(self) -> str:
+        pattern = re.compile(r"^\[(\d+\.\d+)\]([A-Z]+)\-(\d+)\.dat")
+        match = pattern.match(self.path.name)
+        return match[2] if match is not None else "ERROR"
 
     def write(self, message: str) -> None:
         try:
@@ -120,7 +130,7 @@ class DateLogDirectory:
         filename = f"[{number}]{protocol_formatted}-{timestamp}.dat"
         file_path = self.path / filename
 
-        return LogFile(file_path, protocol_formatted, number)
+        return LogFile(file_path)
 
 
 class LogManager:
