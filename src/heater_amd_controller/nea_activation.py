@@ -3,11 +3,13 @@ NEA activation program
 ----------------------------------------------------------------------
 """  # noqa: D205
 
+from collections import deque
 import datetime
 import sys
 import time
 from pathlib import Path
 
+from matplotlib import pyplot as plt
 import pyvisa
 import serial  # pip3 install pyserial  # noqa: F401
 
@@ -22,7 +24,7 @@ from heater_amd_controller.utils.log_file import LogFile, LogManager
 
 
 # User setting parameter -------------------------------------------------------
-VERSION = 1.1
+VERSION = 1.2
 PROTOCOL = NEA_PROTOCOL
 
 MAJOR_UPDATE = False  # 前回のNEA活性化と区別したい場合はTrue
@@ -95,10 +97,11 @@ def setup_devices(config: Config) -> tuple[gm10, ibeam | None]:
         logger = gm10(rm, config.devices.gm10_visa)
 
         laser = None
-        if USE_LASER and config.devices.ibeam_com_port < 0:
+        if USE_LASER and config.devices.ibeam_com_port > 0:
             laser = ibeam(f"COM{config.devices.ibeam_com_port}")
             laser.ch_on(config.devices.ibeam.beam_ch)
             laser.set_lp(config.devices.ibeam.beam_ch, LASER_POWER)
+            print("Connected toptica laser")
 
     except pyvisa.VisaIOError as e:
         print(e)
@@ -142,6 +145,18 @@ def main() -> None:
         wl = WAVELENGTH
         logger, laser = setup_devices(config)
         logfile = setup_logging(config)
+
+        # -------------------- グラフ描画設定 --------------------
+        plt.ion()  # インタラクティブモードON
+        fig, ax = plt.subplots()
+        ax.set_xlabel("Time [min]")
+        ax.set_ylabel("QE [%]")
+        ax.set_title("Quantum Efficiency")
+        ax.grid(True, which="both", ls="--")
+        ax.set_yscale("log")
+
+        xdata, ydata = deque(maxlen=2000), deque(maxlen=2000)
+        (line,) = ax.plot([], [], color="C0")
 
         # -------------------------------------------------------------------------
 
@@ -223,6 +238,28 @@ def main() -> None:
 
             pc = ((bright_data - dark_data) * 10 ** (-3)) / 10000
             qe = 1240 * pc / (wl * LP_PV) * 100
+            # qe = max(qe, 1e-12)  # 負値・ゼロを回避
+
+            # ==============================================
+
+            t_min = t/60
+            if qe > 0:
+                xdata.append(t_min)
+                ydata.append(qe)
+
+            line.set_data(xdata, ydata)
+            ax.set_xlim(max(0, t_min - 30), t_min + 30/60)  # 直近30分表示
+            if len(ydata) > 5:
+                # Y軸自動スケーリング
+                ymin = min(ydata)
+                ymax = max(ydata)
+                ax.set_ylim(ymin ** 0.8, ymax ** 1.2)
+
+
+            plt.tight_layout()
+            plt.pause(0.01)  # 再描画
+
+            # ==============================================
 
             print(f"{qe:.3e}%, {pressure_ext:.2e} Pa(EXT)")
 

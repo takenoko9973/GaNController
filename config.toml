@@ -7,6 +7,7 @@ encode = "utf-8"
 # タイムゾーン (JST)
 tz_offset_hours = 9
 
+# ===============================
 
 [devices]
 # Logger (gm10)
@@ -20,7 +21,9 @@ aps_visa = "TCPIP0::192.168.1.112::2268::SOCKET"
 # PWUX (Temp)
 pwux_com_port = -1
 # Laser (ibeam)
-ibeam_com_port = -1
+ibeam_com_port = 3
+
+# ==============================
 
 [devices.gm10]
 ext_ch = 1 # 真空度測定Ch番号
