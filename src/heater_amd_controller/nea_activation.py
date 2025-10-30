@@ -145,29 +145,29 @@ def main() -> None:
 
         # -------------------------------------------------------------------------
 
-        logfile.write("#NEA activation monitor\n")
-        logfile.write(f"\n#Protocol:\t{logfile.protocol}\n")
+        logfile.write("#NEA activation monitor\n\n")
+        logfile.write(f"#Protocol:\t{logfile.protocol}\n\n")
 
-        logfile.write("\n#Measurement\n")
+        logfile.write("#Measurement\n")
         logfile.write(f"#Number:\t{logfile.number}\n")
         logfile.write(f"#Date:\t{start_time.strftime('%Y/%m/%d')}\n")
         logfile.write(f"#Time:\t{start_time.strftime('%H:%M:%S')}\n")
         logfile.write(f"#Encode:\t{config.common.encode}\n")
-        logfile.write(f"#Version:\t{VERSION}\n")
+        logfile.write(f"#Version:\t{VERSION}\n\n")
 
-        logfile.write("\n#Condition\n")
+        logfile.write("#Condition\n")
         logfile.write(f"#Wavelength:\t{wl:d}[nm]\n")
         logfile.write(f"#LaserPower(SV):\t{LASER_POWER:d}[mW]\n")
 
         logfile.write(f"#StabilizationTime:\t{S_TIME:.1f}[s]\n")
         logfile.write(f"#IntegratedTimes:\t{INTEGRATED:.1f}[-]\n")
         logfile.write(f"#IntervalTime:\t{INTERVAL:.1f}[s]\n")
-        logfile.write(f"#ExtractionVoltage:\t{HV:d}[V]\n")
+        logfile.write(f"#ExtractionVoltage:\t{HV:d}[V]\n\n")
 
-        logfile.write("\n#Comment\n")
-        logfile.write(f"#{COMMENT}\n")
+        logfile.write("#Comment\n")
+        logfile.write(f"#{COMMENT}\n\n")
 
-        logfile.write("\n#Data\n")
+        logfile.write("#Data\n")
         logfile.write("\t".join(GET_DATA) + "\n")
 
         # -------------------------------------------------------------------------
