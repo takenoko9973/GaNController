@@ -3,15 +3,15 @@ NEA activation program
 ----------------------------------------------------------------------
 """  # noqa: D205
 
-from collections import deque
 import datetime
 import sys
 import time
+from collections import deque
 from pathlib import Path
 
-from matplotlib import pyplot as plt
 import pyvisa
 import serial  # pip3 install pyserial  # noqa: F401
+from matplotlib import pyplot as plt
 
 from heater_amd_controller.config import Config
 from heater_amd_controller.const import NEA_PROTOCOL
@@ -46,7 +46,7 @@ INTERVAL = 0  # 積算時の測定間隔[s](0: MW100の設定上の最小とな�
 WAVELENGTH = 406  # nm
 LASER_POWER = 120  # mW
 
-USE_LASER = False
+USE_LASER = True
 if not USE_LASER:
     COMMENT += "405nm15mW,BG=0.7mV"
     WAVELENGTH = 405  # nm
@@ -60,6 +60,9 @@ if not USE_LASER:
 # Setting parameters -----------------------------------------------------
 config_path = Path("config.toml")
 config = Config.load_config(config_path)
+
+DISPLAY_WINDOW_MIN = 30  # 表示範囲[分]
+QE_MIN_VALUE = 1e-12  # 対数スケール用最小値
 
 TZ = config.common.get_tz()
 
@@ -86,234 +89,255 @@ GET_DATA = [
 """----------------------------------------------------------------------------------"""
 
 
-def setup_devices(config: Config) -> tuple[gm10, ibeam | None]:
-    print("Connecting to devices...")
-    rm = pyvisa.ResourceManager()
+class RealtimePlot:
+    """QEリアルタイムプロット管理クラス"""
 
-    try:
-        visa_list = rm.list_resources()
-        print(visa_list)
+    def __init__(self) -> None:
+        plt.ion()
+        self.fig, self.ax = plt.subplots()
+        self.ax.set_xlabel("Time [min]")
+        self.ax.set_ylabel("QE [%]")
+        self.ax.set_title("Quantum Efficiency (Real-time)")
+        self.ax.grid(True, which="both", ls="--")  # noqa: FBT003
+        self.ax.set_yscale("log")
 
-        logger = gm10(rm, config.devices.gm10_visa)
+        self.xdata, self.ydata = deque(maxlen=2000), deque(maxlen=2000)
+        (self.line,) = self.ax.plot([], [], color="C0")
 
-        laser = None
-        if USE_LASER and config.devices.ibeam_com_port > 0:
-            laser = ibeam(f"COM{config.devices.ibeam_com_port}")
-            laser.ch_on(config.devices.ibeam.beam_ch)
-            laser.set_lp(config.devices.ibeam.beam_ch, LASER_POWER)
-            print("Connected toptica laser")
+    def update(self, t_min: float, qe: float) -> None:
+        """グラフをリアルタイム更新"""
+        # qe = max(qe, QE_MIN_VALUE)  # 対数用の下限処理
+        if qe > 0:
+            self.xdata.append(t_min)
+            self.ydata.append(qe)
 
-    except pyvisa.VisaIOError as e:
-        print(e)
-        sys.exit()
+        self.line.set_data(self.xdata, self.ydata)
+        self.ax.set_xlim(max(0, t_min - DISPLAY_WINDOW_MIN), t_min + 0.5)
 
-    except OSError as e:
-        print(e)
-        sys.exit()
+        if len(self.ydata) > 1:
+            ymin, ymax = min(self.ydata), max(self.ydata)
+            self.ax.set_ylim(ymin * 0.8, ymax * 1.2)
 
-    print("Devices connected.")
-    return logger, laser
+        plt.tight_layout()
+        plt.pause(0.01)
 
-
-def setup_logging(config: Config) -> LogFile:
-    log_manager = LogManager(config.common.log_dir)
-    date_directory = log_manager.get_date_directory()
-    logfile = date_directory.create_logfile(PROTOCOL, MAJOR_UPDATE)
-
-    print(f"Logging to: {logfile.path}")
-    return logfile
+    def close(self) -> None:
+        plt.ioff()
+        plt.close(self.fig)
 
 
-def main() -> None:
-    print(f"NEA activation program (Version: {VERSION})")
+class NEAActivationExperiment:
+    def __init__(self, config: Config) -> None:
+        self.config = config
+        self.logger: gm10 | None = None
+        self.laser: ibeam | None = None
+        self.logfile: LogFile | None = None
+        self.plotter = RealtimePlot()
 
-    # --------------------------------------------------------------------- #
+    # ================ 初期設定 ================
 
-    logger = None
-    laser = None
-    logfile = None
+    def _setup_devices(self) -> None:
+        print("Connecting to devices...")
+        rm = pyvisa.ResourceManager()
 
-    try:
-        # 開始時間
+        try:
+            visa_list = rm.list_resources()
+            print("Detected VISA devices:", visa_list)
+
+            self.logger = gm10(rm, self.config.devices.gm10_visa)
+
+            if USE_LASER and self.config.devices.ibeam_com_port > 0:
+                self.laser = ibeam(f"COM{self.config.devices.ibeam_com_port}")
+                self.laser.ch_on(self.config.devices.ibeam.beam_ch)
+                self.laser.set_lp(self.config.devices.ibeam.beam_ch, LASER_POWER)
+                print("Toptica Laser connected.")
+
+        except (pyvisa.VisaIOError, OSError) as e:
+            print("Device connection error:", e)
+            self.cleanup()
+            sys.exit(1)
+
+        print("Devices connected.")
+
+    def _setup_logging(self) -> None:
+        log_manager = LogManager(self.config.common.log_dir)
+        date_directory = log_manager.get_date_directory()
+        self.logfile = date_directory.create_logfile(PROTOCOL, MAJOR_UPDATE)
+        print(f"Logging to: {self.logfile.path}")
+
+    def run(self) -> None:
+        print(f"NEA activation program (Version: {VERSION})")
+
         start_time = datetime.datetime.now(TZ)
-        print(
-            "\033[32m"
-            + "{:s}\nExperiment start".format(start_time.strftime("%Y/%m/%d %H:%M:%S"))
-            + "\033[0m"
-        )
+        print(f"\033[32m{start_time:%Y/%m/%d %H:%M:%S} Experiment start\033[0m")
 
-        wl = WAVELENGTH
-        logger, laser = setup_devices(config)
-        logfile = setup_logging(config)
+        self._setup_devices()
+        self._setup_logging()
 
-        # -------------------- グラフ描画設定 --------------------
-        plt.ion()  # インタラクティブモードON
-        fig, ax = plt.subplots()
-        ax.set_xlabel("Time [min]")
-        ax.set_ylabel("QE [%]")
-        ax.set_title("Quantum Efficiency")
-        ax.grid(True, which="both", ls="--")
-        ax.set_yscale("log")
+        assert self.logger is not None
+        assert self.logfile is not None
+        self.write_log_header(start_time)
 
-        xdata, ydata = deque(maxlen=2000), deque(maxlen=2000)
-        (line,) = ax.plot([], [], color="C0")
+        try:
+            while True:
+                current_time = datetime.datetime.now(TZ)
+                t = (current_time - start_time).total_seconds()
+                t_min = t / 60.0
+                print("\033[32m" + f"{t:.1f}[s]\t" + "\033[0m")
 
-        # -------------------------------------------------------------------------
+                # ======
 
-        logfile.write("#NEA activation monitor\n\n")
-        logfile.write(f"#Protocol:\t{logfile.protocol}\n\n")
+                if USE_LASER and self.laser:
+                    self.laser.laser_on()
+                time.sleep(S_TIME)
 
-        logfile.write("#Measurement\n")
-        logfile.write(f"#Number:\t{logfile.number}\n")
-        logfile.write(f"#Date:\t{start_time.strftime('%Y/%m/%d')}\n")
-        logfile.write(f"#Time:\t{start_time.strftime('%H:%M:%S')}\n")
-        logfile.write(f"#Encode:\t{config.common.encode}\n")
-        logfile.write(f"#Version:\t{VERSION}\n\n")
+                # bpc_all = logger.PhotocurrentMeasurement(pc_ch, shunt_r, INTEGRATED, INTERVAL, 0)
+                # bpc = bpc_all[0]
+                # blp = float(powermeter.read_data()) * ratio
+                # logger_range = logger.GetInputChSetting(pc_ch)[0]['Range']
+                bright_data = float(self.logger.get_data(self.config.devices.gm10.pc_ch))
 
-        logfile.write("#Condition\n")
-        logfile.write(f"#Wavelength:\t{wl:d}[nm]\n")
-        logfile.write(f"#LaserPower(SV):\t{LASER_POWER:d}[mW]\n")
+                # ======
 
-        logfile.write(f"#StabilizationTime:\t{S_TIME:.1f}[s]\n")
-        logfile.write(f"#IntegratedTimes:\t{INTEGRATED:.1f}[-]\n")
-        logfile.write(f"#IntervalTime:\t{INTERVAL:.1f}[s]\n")
-        logfile.write(f"#ExtractionVoltage:\t{HV:d}[V]\n\n")
+                if USE_LASER and self.laser:
+                    self.laser.laser_off()
+                time.sleep(S_TIME)
 
-        logfile.write("#Comment\n")
-        logfile.write(f"#{COMMENT}\n\n")
+                dark_data = (
+                    float(self.logger.get_data(self.config.devices.gm10.pc_ch))
+                    if USE_LASER and self.laser
+                    else BG_PC
+                )
 
-        logfile.write("#Data\n")
-        logfile.write("\t".join(GET_DATA) + "\n")
+                # ======
 
-        # -------------------------------------------------------------------------
+                # dpc_all = logger.PhotocurrentMeasurement(pc_ch, shunt_r, INTEGRATED, INTERVAL, 0)
+                # dpc = dpc_all[0]
+                # dlp = float(powermeter.read_data()) * ratio
 
-        while 1:
-            current_time = datetime.datetime.now(TZ)
+                # get_pc = bpc - dpc
+                # get_lp = blp - dlp
+                # qe = 1240 * get_pc / (wl * get_lp) * 100
 
-            t = (current_time - start_time).total_seconds()
-            print("\033[32m" + f"{t:.1f}[s]\t" + "\033[0m")
+                pressure_ext = ext_calculation_pressure(
+                    float(self.logger.get_data(self.config.devices.gm10.ext_ch))
+                )
+                pressure_sip = sip_calculation_pressure(
+                    float(self.logger.get_data(self.config.devices.gm10.sip_ch))
+                )
 
-            if USE_LASER and laser is not None:
-                laser.laser_on()
+                # spot_area = math.pi*(spot_size*10**(-4)/2)**2 #[cm^2]
+                # pd = get_lp / spot_area
+                # cd = get_pc / spot_area
 
-            time.sleep(S_TIME)
+                # get_tc = logger.GetMeasurementData(tc_ch)['Value']
 
-            # bpc_all = logger.PhotocurrentMeasurement(pc_ch, shunt_r, INTEGRATED, INTERVAL, 0)
-            # bpc = bpc_all[0]
-            # blp = float(powermeter.read_data()) * ratio
-            # logger_range = logger.GetInputChSetting(pc_ch)[0]['Range']
-            bright_data = float(logger.get_data(config.devices.gm10.pc_ch))
+                pc = ((bright_data - dark_data) * 1e-3) / 1e4
+                qe = 1240 * pc / (WAVELENGTH * LP_PV) * 100
 
-            if USE_LASER and laser is not None:
-                laser.laser_off()
+                # =========================================
 
-            time.sleep(S_TIME)
+                self.plotter.update(t_min, qe)
 
-            dark_data = (
-                float(logger.get_data(config.devices.gm10.pc_ch))
-                if USE_LASER and laser is not None
-                else BG_PC
-            )
+                print(f"{qe:.3e}%, {pressure_ext:.2e} Pa(EXT)")
 
-            # dpc_all = logger.PhotocurrentMeasurement(pc_ch, shunt_r, INTEGRATED, INTERVAL, 0)
-            # dpc = dpc_all[0]
-            # dlp = float(powermeter.read_data()) * ratio
+                event = ""
+                self.write_data_line(
+                    t, qe, pc, pressure_ext, pressure_sip, bright_data, dark_data, event
+                )
 
-            # get_pc = bpc - dpc
-            # get_lp = blp - dlp
-            # qe = 1240 * get_pc / (wl * get_lp) * 100
+        except Exception as e:  # noqa: BLE001
+            print("Error stop:", e)
+        finally:
+            self.cleanup()
 
-            pressure_ext = ext_calculation_pressure(
-                float(logger.get_data(config.devices.gm10.ext_ch))
-            )
-            pressure_sip = sip_calculation_pressure(
-                float(logger.get_data(config.devices.gm10.sip_ch))
-            )
+    def write_log_header(self, start_time: datetime.datetime) -> None:
+        # ヘッダ書き込み
+        lf = self.logfile
+        if lf is None:
+            return
 
-            # spot_area = math.pi*(spot_size*10**(-4)/2)**2 #[cm^2]
-            # pd = get_lp / spot_area
-            # cd = get_pc / spot_area
+        lf.write("#NEA activation monitor\n\n")
+        lf.write(f"#Protocol:\t{lf.protocol}\n\n")
 
-            # get_tc = logger.GetMeasurementData(tc_ch)['Value']
+        lf.write("#Measurement\n")
+        lf.write(f"#Number:\t{lf.number}\n")
+        lf.write(f"#Date:\t{start_time.strftime('%Y/%m/%d')}\n")
+        lf.write(f"#Time:\t{start_time.strftime('%H:%M:%S')}\n")
+        lf.write(f"#Encode:\t{config.common.encode}\n")
+        lf.write(f"#Version:\t{VERSION}\n\n")
 
-            pc = ((bright_data - dark_data) * 10 ** (-3)) / 10000
-            qe = 1240 * pc / (wl * LP_PV) * 100
-            # qe = max(qe, 1e-12)  # 負値・ゼロを回避
+        lf.write("#Condition\n")
+        lf.write(f"#Wavelength:\t{WAVELENGTH:d}[nm]\n")
+        lf.write(f"#LaserPower(SV):\t{LASER_POWER:d}[mW]\n")
 
-            # ==============================================
+        lf.write(f"#StabilizationTime:\t{S_TIME:.1f}[s]\n")
+        lf.write(f"#IntegratedTimes:\t{INTEGRATED:.1f}[-]\n")
+        lf.write(f"#IntervalTime:\t{INTERVAL:.1f}[s]\n")
+        lf.write(f"#ExtractionVoltage:\t{HV:d}[V]\n\n")
 
-            t_min = t/60
-            if qe > 0:
-                xdata.append(t_min)
-                ydata.append(qe)
+        lf.write("#Comment\n")
+        lf.write(f"#{COMMENT}\n\n")
 
-            line.set_data(xdata, ydata)
-            ax.set_xlim(max(0, t_min - 30), t_min + 30/60)  # 直近30分表示
-            if len(ydata) > 5:
-                # Y軸自動スケーリング
-                ymin = min(ydata)
-                ymax = max(ydata)
-                ax.set_ylim(ymin ** 0.8, ymax ** 1.2)
+        lf.write("#Data\n")
+        lf.write("\t".join(GET_DATA) + "\n")
 
+    def write_data_line(
+        self,
+        t: float,
+        qe: float,
+        pc: float,
+        pressure_ext: float,
+        pressure_sip: float,
+        bright_data: float,
+        dark_data: float,
+        event: str,
+    ) -> None:
+        if self.logfile is None:
+            return
+        data = [
+            f"{t:.1f}",
+            f"{LP_PV:.4E}",  # Laser power (PV)
+            f"{qe:.4E}",  # Quantum efficiency
+            f"{pc:.4E}",  # Photocurrent
+            f"{pressure_ext:.4E}",
+            f"{pressure_sip:.4E}",
+            f"{bright_data}",  # Bright photocurrent
+            f"{dark_data}",  # Dark photocurrent
+            #'{:.4E}'.format(blp), #Bright laser power
+            #'{:.4E}'.format(dlp), #Dark laser power
+            #'{:.2E}'.format(pd), #Power density
+            #'{:.2E}'.format(cd), #Current density
+            f"{event}",  # Event
+            #'{}'.format(logger_range),
+            #'{:.2f}'.format(get_tc)]
+            # bpc_all[2],
+            # dpc_all[2]
+        ]
+        self.logfile.write("\t".join(data) + "\n")
 
-            plt.tight_layout()
-            plt.pause(0.01)  # 再描画
+    def cleanup(self) -> None:
+        """全リソースの安全な破棄"""
+        print("Cleaning up resources...")
 
-            # ==============================================
+        del self.logger
+        del self.logfile
 
-            print(f"{qe:.3e}%, {pressure_ext:.2e} Pa(EXT)")
+        if self.laser:
+            try:
+                self.laser.set_lp(2, 0)
+                self.laser.laser_off()
+                self.laser.ch_off(2)
+            except Exception:  # noqa: BLE001, S110
+                pass
+            finally:
+                del self.laser
 
-            event = ""
-            get_data = [
-                f"{t:.1f}",
-                f"{LP_PV:.4E}",  # Laser power (PV)
-                f"{qe:.4E}",  # Quantum efficiency
-                f"{pc:.4E}",  # Photocurrent
-                f"{pressure_ext:.4E}",
-                f"{pressure_sip:.4E}",
-                f"{bright_data}",  # Bright photocurrent
-                f"{dark_data}",  # Dark photocurrent
-                #'{:.4E}'.format(blp), #Bright laser power
-                #'{:.4E}'.format(dlp), #Dark laser power
-                #'{:.2E}'.format(pd), #Power density
-                #'{:.2E}'.format(cd), #Current density
-                f"{event}",  # Event
-                #'{}'.format(logger_range),
-                #'{:.2f}'.format(get_tc)]
-                # bpc_all[2],
-                # dpc_all[2]
-            ]
-            data = "\t".join(get_data)
-            logfile.write(data + "\n")
+        self.plotter.close()
 
-    except Exception as e:  # noqa: BLE001
-        print("Error stop:", e)
-
-    finally:
-        # print("End:\tQE={:.4E}%, Pc={:.4E} A @{:.4E} W".format(qe, get_pc, get_lp))
-        # print("\tPD={:.2E} W/cm^2, CD={:.2E} A/cm^2".format(pd, cd))
-
-        del logger
-        del logfile
-        # del(powermeter)
-
-        if USE_LASER and laser is not None:
-            laser.set_lp(2, 0)
-            laser.laser_off()
-            laser.ch_off(2)
-            del laser
-
-        # print("End: QE={:.3E}%, Pc={:.2E} A".format(QE, Photocurrent))
         finish_time = datetime.datetime.now(TZ)
-        print(
-            "\033[31m" + "{:s} Finish".format(finish_time.strftime("%Y/%m/%d %H:%M:%S")) + "\033[0m"
-        )
+        print(f"\033[31m{finish_time:%Y/%m/%d %H:%M:%S} Finish\033[0m")
 
 
 if __name__ == "__main__":
-    main()
-
-"""
-20250415 Version1.0 Created a program @Idei
-20251026 Version 1.1 @Takeichi
-"""
+    NEAActivationExperiment(config).run()
