@@ -225,7 +225,7 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
         if AMD_DEGAS:
             logfile.write(f"#AMD_CURRENT:\t{AMD_CURRENT}[A]\n")
         for index, sequence in enumerate(SEQUENCE):
-            logfile.write(f"#Sequence{index + 1}: {sequence}\n")
+            logfile.write(f"#Sequence{index + 1}:\t{sequence}\n")
 
         logfile.write("\n#Comment\n")
         logfile.write(f"#{COMMENT}\n")
