@@ -1,13 +1,17 @@
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from heater_amd_controller.config import Config
 from heater_amd_controller.utils.log_file import DateLogDirectory, LogFile, LogManager
 
 sys.path.append(str(Path(__file__).parent.parent))
-from scripts.data_plot.plot_HC import plot_hc
-from scripts.data_plot.plot_HD import plot_hd
-from scripts.data_plot.plot_NEGHD import plot_neghd
+from scripts.data_plot.plot_hc import HCPlotter
+from scripts.data_plot.plot_hd import HDPlotter
+from scripts.data_plot.plot_neghd import NEGHDPlotter
+
+if TYPE_CHECKING:
+    from scripts.data_plot.base_plotter import BasePlotter
 
 config_path = Path("config.toml")
 config = Config.load_config(config_path)
@@ -22,12 +26,16 @@ def plots(logfile: LogFile) -> None:
     save_dir = root_path / Path(*parts)
     save_dir.mkdir(exist_ok=True, parents=True)
 
-    if logfile.protocol == "HC":
-        plot_hc(logfile, save_dir)
-    elif logfile.protocol == "HD":
-        plot_hd(logfile, save_dir)
-    elif logfile.protocol == "NEGHD":
-        plot_neghd(logfile, save_dir)
+    plotters = {
+        "HC": HCPlotter,
+        "HD": HDPlotter,
+        "NEGHD": NEGHDPlotter,
+    }
+
+    cls = plotters.get(logfile.protocol)
+    if cls:
+        plotter: BasePlotter = cls(logfile, save_dir)
+        plotter.plot()
 
 
 def main() -> None:

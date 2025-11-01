@@ -1,84 +1,64 @@
-import sys
-from pathlib import Path
+import re
 
-import pandas as pd
-from matplotlib import pyplot as plt
-
-from heater_amd_controller.config import Config
-from heater_amd_controller.utils.log_file import DateLogDirectory, LogFile, LogManager
-
-from .plot_util import PlotInfo, plot_twinx_multi_y
-
-config_path = Path("config.toml")
-config = Config.load_config(config_path)
-
-PLOT_DIR = "plots"
+from .base_plotter import BasePlotter
+from .plot_util import AxisSide, PlotInfo, ScaleEnum
 
 
-def plot_hc(logfile: LogFile, save_dir: Path) -> None:
-    log_df = pd.read_csv(logfile.path, comment="#", sep="\t")
+class HCPlotter(BasePlotter):
+    def plot(self) -> None:
+        self.plot_power()
+        self.plot_pressure()
 
-    time_h = log_df["Time[s]"] / 3600
+    def plot_power(self) -> None:
+        df = self.log_df
 
-    temp_plot_info = PlotInfo(log_df["Temp(TC)[deg.C]"], "left", "TC (℃)", "red")
-    heater_plot_info = PlotInfo(
-        log_df["Volt[V]"] * log_df["Current[A]"], "right", "Heater(3.5A)", "orange"
-    )
+        if "Volt(AMD)[V]" in df and "Current(AMD)[A]" in df:
+            hc_power = df["Volt[V]"] * df["Current[A]"]
+            amd_power = df["Volt(AMD)[V]"] * df["Current(AMD)[A]"]
+            hc_current = re.sub(r"[\[\]]", "", self.conditions["Condition"]["HC_CURRENT"])
+            amd_current = re.sub(r"[\[\]]", "", self.conditions["Condition"]["AMD_CURRENT"])
 
-    plot_info_list = [temp_plot_info, heater_plot_info]
+            temp = PlotInfo(df["Temp(TC)[deg.C]"], AxisSide.LEFT, "TC (℃)", "red")
+            heater = PlotInfo(hc_power, AxisSide.RIGHT, f"Heater({hc_current})", "orange")
+            amd = PlotInfo(amd_power, AxisSide.RIGHT, f"AMD({amd_current})", "gold")
+            plot_info_list = [temp, heater, amd]
+        else:
+            hc_power = df["Volt[V]"] * df["Current[A]"]
+            hc_current = re.sub(r"[\[\]]", "", self.conditions["Condition"]["HC_CURRENT"])
 
-    if "Volt(AMD)[V]" in log_df and "Current(AMD)[A]" in log_df:
-        amd_plot_info = PlotInfo(
-            log_df["Volt(AMD)[V]"] * log_df["Current(AMD)[A]"], "right", "AMD(3.0A)", "gold"
+            temp = PlotInfo(df["Temp(TC)[deg.C]"], AxisSide.LEFT, "TC (℃)", "red")
+            heater = PlotInfo(hc_power, AxisSide.RIGHT, f"Heater({hc_current})", "orange")
+            plot_info_list = [temp, heater]
+
+        self._plot_save(
+            f"{self.logfile.path.stem}_power.svg",
+            plot_info_list,
+            "Time (h)",
+            "Temperature (℃)",
+            "Power (W)",
+            ylim_left=(0, 800),
+            ylim_right=(0, 20),
         )
-        plot_info_list.append(amd_plot_info)
 
-    # ==================================================================
+    def plot_pressure(self) -> None:
+        df = self.log_df
 
-    fig, ax1, ax2 = plot_twinx_multi_y(
-        time_h,
-        plot_info_list,
-        (900, 500),
-        "Time (h)",
-        "Temperature (deg.C)",
-        "Power (W)",
-        logfile.path.stem,
-    )
-    ax1.set_xlim(0, time_h.max())
-    ax1.set_ylim(0, 800)
-    if ax2:
-        ax2.set_ylim(0, 20)
-    fig.tight_layout()
+        temp = PlotInfo(df["Temp(TC)[deg.C]"], AxisSide.LEFT, "TC (℃)", "red")
+        pressure_ext = PlotInfo(
+            df["Pressure(EXT)[Pa]"], AxisSide.RIGHT, "Pressure(EXT)", "green", scale=ScaleEnum.LOG
+        )
+        pressure_sip = PlotInfo(
+            df["Pressure(SIP)[Pa]"], AxisSide.RIGHT, "Pressure(SIP)", "purple", scale=ScaleEnum.LOG
+        )
 
-    plt.savefig(save_dir / (logfile.path.stem + "_power.svg"), format="svg")
-    plt.close(fig)  # メモリを解放
+        plot_info_list = [temp, pressure_ext, pressure_sip]
 
-    # ===================================================
-
-    pressure_ext_plot_info = PlotInfo(
-        log_df["Pressure(EXT)[Pa]"], "right", "Pressure(EXT) (Pa)", "green"
-    )
-    pressure_sip_plot_info = PlotInfo(
-        log_df["Pressure(SIP)[Pa]"], "right", "Pressure(SIP) (Pa)", "purple"
-    )
-
-    plot_info_list = [temp_plot_info, pressure_ext_plot_info, pressure_sip_plot_info]
-
-    fig, ax1, ax2 = plot_twinx_multi_y(
-        time_h,
-        plot_info_list,
-        (900, 500),
-        "Time (h)",
-        "Temperature (℃)",
-        "Pressure (Pa)",
-        logfile.path.stem,
-    )
-    ax1.set_xlim(0, time_h.max())
-    ax1.set_ylim(0, 800)
-    if ax2:
-        ax2.set_yscale("log")
-        ax2.set_ylim(1e-9, 1e-3)
-    fig.tight_layout()
-
-    plt.savefig(save_dir / (logfile.path.stem + "_pressure.svg"), format="svg")
-    plt.close(fig)  # メモリを解放
+        self._plot_save(
+            f"{self.logfile.path.stem}_pressure.svg",
+            plot_info_list,
+            "Time (h)",
+            "Temperature (℃)",
+            "Pressure (Pa)",
+            ylim_left=(0, 800),
+            ylim_right=(1e-9, 1e-3),
+        )

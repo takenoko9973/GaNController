@@ -1,17 +1,29 @@
 from dataclasses import dataclass
+from enum import Enum
 
 import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 
 
+class AxisSide(Enum):
+    LEFT = "left"
+    RIGHT = "right"
+
+
+class ScaleEnum(Enum):
+    LINEAR = "linear"
+    LOG = "log"
+
+
 @dataclass
 class PlotInfo:
     data: pd.Series
-    axis: str = "left"
+    axis: AxisSide = AxisSide.LEFT
     label: str = ""
     color: str | None = None
     style: str = "-"
+    scale: ScaleEnum = ScaleEnum.LINEAR
 
 
 def plot_twinx_multi_y(
@@ -67,9 +79,9 @@ def plot_twinx_multi_y(
         color = plot_info.color
         style = plot_info.style
 
-        if plot_info.axis == "left":
+        if plot_info.axis == AxisSide.LEFT:
             (line,) = ax1.plot(x, y_data, linestyle=style, color=color, label=label)
-        elif plot_info.axis == "right" and ax2 is not None:
+        elif plot_info.axis == AxisSide.RIGHT and ax2 is not None:
             (line,) = ax2.plot(x, y_data, linestyle=style, color=color, label=label)
         else:
             (line,) = ax1.plot(x, y_data, linestyle=style, color=color, label=label)

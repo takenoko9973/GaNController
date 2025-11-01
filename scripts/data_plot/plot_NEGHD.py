@@ -1,51 +1,34 @@
-import sys
-from pathlib import Path
+import re
 
-import pandas as pd
-from matplotlib import pyplot as plt
+from scripts.data_plot.base_plotter import BasePlotter
 
-from heater_amd_controller.config import Config
-from heater_amd_controller.utils.log_file import DateLogDirectory, LogFile, LogManager
-
-from .plot_util import PlotInfo, plot_twinx_multi_y
-
-config_path = Path("config.toml")
-config = Config.load_config(config_path)
-
-PLOT_DIR = "plots"
+from .plot_util import AxisSide, PlotInfo, ScaleEnum
 
 
-def plot_neghd(logfile: LogFile, save_dir: Path) -> None:
-    log_df = pd.read_csv(logfile.path, comment="#", sep="\t")
+class NEGHDPlotter(BasePlotter):
+    def plot(self) -> None:
+        self.plot_power()
 
-    time_h = log_df["Time[s]"] / 3600
+    def plot_power(self) -> None:
+        df = self.log_df
 
-    heater_plot_info = PlotInfo(
-        log_df["Volt[V]"] * log_df["Current[A]"], "left", "NEG power", "chocolate"
-    )
-    pressure_ext_plot_info = PlotInfo(
-        log_df["Pressure(EXT)[Pa]"], "right", "Pressure(EXT) (Pa)", "green"
-    )
+        neg_power = df["Volt[V]"] * df["Current[A]"]
+        neg_current = re.sub(r"[\[\]]", "", self.conditions["Condition"]["HC_CURRENT"])
 
-    plot_info_list = [heater_plot_info, pressure_ext_plot_info]
+        heater_plot_info = PlotInfo(
+            neg_power, AxisSide.LEFT, f"NEG power({neg_current})", "chocolate"
+        )
+        pressure_ext_plot_info = PlotInfo(
+            df["Pressure(EXT)[Pa]"], AxisSide.RIGHT, "Pressure(EXT)", "green", scale=ScaleEnum.LOG
+        )
+        plot_info_list = [heater_plot_info, pressure_ext_plot_info]
 
-    # ==================================================================
-
-    fig, ax1, ax2 = plot_twinx_multi_y(
-        time_h,
-        plot_info_list,
-        (900, 500),
-        "Time (h)",
-        "Power (W)",
-        "Pressure (Pa)",
-        logfile.path.stem,
-    )
-    ax1.set_xlim(0, time_h.max())
-    ax1.set_ylim(0, 100)
-    if ax2:
-        ax2.set_yscale("log")
-        ax2.set_ylim(1e-9, 1e-3)
-    fig.tight_layout()
-
-    plt.savefig(save_dir / (logfile.path.stem + ".svg"), format="svg")
-    plt.close(fig)  # メモリを解放
+        self._plot_save(
+            f"{self.logfile.path.stem}.svg",
+            plot_info_list,
+            "Time (h)",
+            "Power (W)",
+            "Pressure (Pa)",
+            ylim_left=(0, 100),
+            ylim_right=(1e-9, 1e-3),
+        )
