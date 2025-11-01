@@ -232,7 +232,8 @@ class NEAActivationExperiment:
 
                 # get_tc = logger.GetMeasurementData(tc_ch)['Value']
 
-                pc = ((bright_data - dark_data) * 1e-3) / 1e4
+                pc = ((bright_data - dark_data) * 1e-3) / 1e4  # photocurrent[A]
+                # 1240 = hc/e * 1e-6 [J*m/C], λ[nm] * PV[W]
                 qe = 1240 * pc / (WAVELENGTH * LP_PV) * 100
 
                 # =========================================
@@ -298,7 +299,7 @@ class NEAActivationExperiment:
         data = [
             f"{t:.1f}",
             f"{LP_PV:.4E}",  # Laser power (PV)
-            f"{qe:.4E}",  # Quantum efficiency
+            f"{qe:.4E}",  # Quantum efficiency (%)
             f"{pc:.4E}",  # Photocurrent
             f"{pressure_ext:.4E}",
             f"{pressure_sip:.4E}",
