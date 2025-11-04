@@ -55,13 +55,14 @@ class NEAPlotter(BasePlotter):
 
     @property
     def time_axis(self) -> pd.Series:
-        return self.log_df["Time[s]"] / 60  # minute
+        df = self.log_df[self.log_df["PC[A]"] > 0]
+        return df["Time[s]"] / 60  # minute
 
     def plot(self) -> None:
         self.plot_photocurrent()
 
     def plot_photocurrent(self) -> None:
-        df = self.log_df
+        df = self.log_df[self.log_df["PC[A]"] > 0]
 
         # nea_current = re.sub(r"[\[\]]", "", self.conditions["Condition"]["HC_CURRENT"])
 

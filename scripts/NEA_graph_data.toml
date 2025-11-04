@@ -25,3 +25,15 @@ event_spans = [
     #
     { event_name = "LaserEngChange", start_sec = 1191.4, end_sec = 1415.9, label = "Laser \n 3mW → 6mW → 25mW", label_y = 0.7 },
 ]
+
+[251015."[3.3]NEA-20251104140916"]
+event_spans = [
+    { event_name = "Cs", start_sec = 146.9, end_sec = 2410.6, label = "Cs (3.5A)" },
+    { event_name = "O2", start_sec = 2792.8, end_sec = 2998.3, label = "$\\mathrm{O_2}$" },
+    #
+    { event_name = "Cs", start_sec = 3064.3, end_sec = 3064.3 },
+    { event_name = "Cs(3.8A)", start_sec = 3064.3, end_sec = 4094.8, label = "Cs (3.8A)", label_dx_sec = 200.0, label_y = 0.98 },
+    { event_name = "O2", start_sec = 4188.8, end_sec = 4270.9 },
+    #
+    { event_name = "Cs(3.8A)", start_sec = 4333.2, end_sec = 4636.3 },
+]
