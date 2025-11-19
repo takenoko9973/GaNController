@@ -70,8 +70,20 @@ class HeatCleaningController(QObject):
             else:
                 return  # キャンセル
 
-        elif current_combo_name != self.manager.NEW_PROTOCOL_NAME:
-            # 既存ファイルは上書き
+        else:
+            # 既存ファイル
+            if self._last_loaded_data and current_data != self._last_loaded_data:  # 差分確認
+                # 確認ダイアログ
+                reply = QMessageBox.question(
+                    self.view,
+                    "変更の確認",
+                    f"プロトコル '{current_combo_name}' に変更があります。\n上書き保存しますか？",  # noqa: RUF001
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,  # デフォルトはNo (安全側)
+                )
+                if reply != QMessageBox.StandardButton.Yes:
+                    return  # 保存中止
+
             save_name = current_combo_name
 
         # Managerに保存
