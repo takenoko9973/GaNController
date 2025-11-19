@@ -1,13 +1,9 @@
-from typing import TYPE_CHECKING
-
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QInputDialog, QMessageBox
 
 from heater_amd_controller.logics.protocol_manager import ProtocolManager
+from heater_amd_controller.models.protocol import ProtocolConfig
 from heater_amd_controller.views.tabs.heat_cleaning_tab import HeatCleaningTab
-
-if TYPE_CHECKING:
-    from heater_amd_controller.models.protocol import ProtocolConfig
 
 
 class HeatCleaningController(QObject):
@@ -57,46 +53,59 @@ class HeatCleaningController(QObject):
     def on_save_requested(self) -> None:
         """プロトコル保存時"""
         # データ読み込み
+        current_name = self.view.get_current_protocol_name()
         current_data = self.view.get_current_ui_data()
-        current_combo_name = self.view.get_current_protocol_name()
 
-        # 「新しいプロトコル...」の場合、名前入力
-        if current_combo_name == self.manager.NEW_PROTOCOL_NAME:
+        # 保存する名前を決定
+        save_name = self._determine_save_name(current_name)
+        if not save_name:
+            return
+
+        # 変更があるか確認し、必要ならユーザーに聞く
+        if not self._confirm_overwrite_if_needed(save_name, current_data):
+            return
+
+        # 保存実行
+        self._protocol_save(save_name, current_data)
+
+    def _determine_save_name(self, current_name: str) -> str | None:
+        """新規ならダイアログ、既存ならそのまま名前を返す"""
+        if current_name == self.manager.NEW_PROTOCOL_NAME:
             text, ok = QInputDialog.getText(
                 self.view, "プロトコル保存", "新しいプロトコル名を入力してください:"
             )
-            if ok and text:
-                save_name = text.strip()
-            else:
-                return  # キャンセル
+            return text.strip() if ok and text else None
 
+        return current_name
+
+    def _confirm_overwrite_if_needed(self, current_name: str, current_data: ProtocolConfig) -> bool:
+        """変更がある場合の上書き確認。保存してよければ True を返す"""
+        if self._last_loaded_data and current_data != self._last_loaded_data:  # 差分確認
+            # 確認ダイアログ
+            reply = QMessageBox.question(
+                self.view,
+                "変更の確認",
+                f"プロトコル '{current_name}' に変更があります。\n上書き保存しますか？",  # noqa: RUF001
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,  # デフォルトはNo (安全側)
+            )
+
+            if reply != QMessageBox.StandardButton.Yes:
+                return False  # 保存中止
+
+        return True
+
+    def _protocol_save(self, current_name: str, current_data: ProtocolConfig) -> None:
+        """Managerを呼んで保存し、UI更新"""
+        success = self.manager.save_protocol(current_name, current_data)
+        if success:
+            print(f"[HC_Ctrl] 保存: {current_name}")
+
+            msg = f"保存完了: {current_name} を保存しました。"
+            self.status_message_requested.emit(msg, 5000)
+
+            self._last_loaded_data = current_data  # 保存直後のデータに更新
+
+            self.refresh_list(select_name=current_name)
         else:
-            # 既存ファイル
-            if self._last_loaded_data and current_data != self._last_loaded_data:  # 差分確認
-                # 確認ダイアログ
-                reply = QMessageBox.question(
-                    self.view,
-                    "変更の確認",
-                    f"プロトコル '{current_combo_name}' に変更があります。\n上書き保存しますか？",  # noqa: RUF001
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.No,  # デフォルトはNo (安全側)
-                )
-                if reply != QMessageBox.StandardButton.Yes:
-                    return  # 保存中止
-
-            save_name = current_combo_name
-
-        # Managerに保存
-        if save_name:
-            success = self.manager.save_protocol(save_name, current_data)
-            if success:
-                print(f"[HC_Ctrl] 保存: {save_name}")
-
-                msg = f"保存完了: {save_name} を保存しました。"
-                self.status_message_requested.emit(msg, 5000)
-
-                self._last_loaded_data = current_data  # 保存直後のデータに更新
-
-                self.refresh_list(select_name=save_name)
-            else:
-                self.status_message_requested.emit("エラー: 保存に失敗しました。", 10000)
+            self.status_message_requested.emit("エラー: 保存に失敗しました。", 10000)

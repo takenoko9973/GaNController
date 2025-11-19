@@ -8,15 +8,14 @@ from heater_amd_controller.models.protocol import ProtocolConfig
 
 class ProtocolManager:
     NEW_PROTOCOL_NAME = "新しいプロトコル..."
-    SAVE_DIR = Path("protocols")  # 保存先ディレクトリ
 
-    def __init__(self) -> None:
-        # 保存ディレクトリがなければ作成
-        self.SAVE_DIR.mkdir(exist_ok=True)
+    def __init__(self, save_dir: Path | str = "protocols") -> None:
+        self.save_dir = Path(save_dir)  # 保存先ディレクトリ
+        self.save_dir.mkdir(exist_ok=True, parents=True)
 
     def get_protocol_names(self) -> list[str]:
         """保存されているファイル名の一覧を取得し、最後に「新しいプロトコル...」を追加して返す"""
-        files = list(self.SAVE_DIR.glob("*.toml"))
+        files = list(self.save_dir.glob("*.toml"))
         names = [f.stem for f in files]  # 拡張子(.toml)を除く
         names.sort()
 
@@ -30,7 +29,7 @@ class ProtocolManager:
         if name == self.NEW_PROTOCOL_NAME:
             return ProtocolConfig.default()
 
-        file_path = self.SAVE_DIR / f"{name}.toml"
+        file_path = self.save_dir / f"{name}.toml"
 
         if not file_path.exists():
             return ProtocolConfig.default()  # ファイルがない場合
@@ -53,7 +52,7 @@ class ProtocolManager:
             # 名前をデータにも反映
             data.name = name
 
-            file_path = self.SAVE_DIR / f"{name}.toml"
+            file_path = self.save_dir / f"{name}.toml"
 
             # 辞書化して保存
             with file_path.open("wb") as f:

@@ -87,28 +87,40 @@ class HeatCleaningTab(QWidget):
         group_box = QGroupBox("シーケンス")
         main_v_layout = QVBoxLayout()
 
-        # =================================================
+        sequence_layout = self._create_sequence_grid_layout()
+        setting_layout = self._create_settings_layout()
 
+        main_v_layout.addLayout(sequence_layout)
+        main_v_layout.addSpacing(20)
+        main_v_layout.addLayout(setting_layout)
+
+        group_box.setLayout(main_v_layout)
+        return group_box
+
+    def _create_sequence_grid_layout(self) -> QGridLayout:
         # === 各シーケンス時間
-        sequence_layout = QGridLayout()
-        sequence_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        sequence_layout.setColumnStretch(1, 1)
+        layout = QGridLayout()
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        layout.setColumnStretch(1, 1)
 
         self.sequence_time_spins: dict[str, QDoubleSpinBox] = {}
 
-        sequence_layout.addWidget(QLabel("時間 (hour)"), 0, 1)
+        layout.addWidget(QLabel("時間 (hour)"), 0, 1)
         for i, section_name in enumerate(SEQUENCE_NAMES):
             col = 1 + i
             double_spin_box = QDoubleSpinBox(minimum=0, decimals=1, singleStep=0.5)
 
-            sequence_layout.addWidget(QLabel(section_name), col, 0)
-            sequence_layout.addWidget(double_spin_box, col, 1)
+            layout.addWidget(QLabel(section_name), col, 0)
+            layout.addWidget(double_spin_box, col, 1)
 
             self.sequence_time_spins[section_name] = double_spin_box
 
+        return layout
+
+    def _create_settings_layout(self) -> QHBoxLayout:
         # === シーケンス設定
-        config_layout = QHBoxLayout()
-        config_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        setting_layout = QHBoxLayout()
+        setting_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         config_layout1 = QGridLayout()
         self.sequence_repeat_spin = QDoubleSpinBox(value=1, minimum=1, decimals=0)
@@ -124,18 +136,11 @@ class HeatCleaningTab(QWidget):
         config_layout2.addWidget(self.hc_checked_spin, 0, 0, 1, 2)
         config_layout2.addWidget(self.amd_checked_spin, 1, 0, 1, 2)
 
-        config_layout.addLayout(config_layout1)
-        config_layout.addSpacing(20)
-        config_layout.addLayout(config_layout2)
+        setting_layout.addLayout(config_layout1)
+        setting_layout.addSpacing(20)
+        setting_layout.addLayout(config_layout2)
 
-        # =================================================
-
-        main_v_layout.addLayout(sequence_layout)
-        main_v_layout.addSpacing(20)
-        main_v_layout.addLayout(config_layout)
-
-        group_box.setLayout(main_v_layout)
-        return group_box
+        return setting_layout
 
     def create_log_settings_group(self) -> QWidget:
         group_box = QGroupBox("Log設定")
