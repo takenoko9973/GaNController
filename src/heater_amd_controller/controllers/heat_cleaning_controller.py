@@ -1,17 +1,25 @@
-from PySide6.QtCore import QObject
+from typing import TYPE_CHECKING
+
+from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QInputDialog, QMessageBox
 
 from heater_amd_controller.logics.protocol_manager import ProtocolManager
 from heater_amd_controller.views.tabs.heat_cleaning_tab import HeatCleaningTab
 
+if TYPE_CHECKING:
+    from heater_amd_controller.models.protocol import ProtocolConfig
+
 
 class HeatCleaningController(QObject):
-    """SequenceTab (実験実行画面) 専用のコントローラー"""
+    status_message_requested = Signal(str, int)  # メッセージシグナル (メッセージ内容, 表示時間ms)
 
     def __init__(self, view: HeatCleaningTab, manager: ProtocolManager) -> None:
         super().__init__()
         self.view = view
         self.manager = manager
+
+        # 読み込み直後、保存直後のデータ
+        self._last_loaded_data: ProtocolConfig | None = None
 
         # --- シグナル接続 ---
         self.view.protocol_changed.connect(self.on_protocol_selected)
@@ -39,9 +47,11 @@ class HeatCleaningController(QObject):
 
     def on_protocol_selected(self, protocol_name: str) -> None:
         """プロトコル変更"""
-        print(f"[SeqCtrl] プロトコル変更: {protocol_name}")
+        print(f"[HC_Ctrl] プロトコル変更: {protocol_name}")
 
         data = self.manager.get_protocol(protocol_name)
+        self._last_loaded_data = data  # 読み込み直後のデータを取得
+
         self.view.update_ui_from_data(data)
 
     def on_save_requested(self) -> None:
@@ -49,8 +59,6 @@ class HeatCleaningController(QObject):
         # データ読み込み
         current_data = self.view.get_current_ui_data()
         current_combo_name = self.view.get_current_protocol_name()
-
-        save_name = current_combo_name
 
         # 「新しいプロトコル...」の場合、名前入力
         if current_combo_name == self.manager.NEW_PROTOCOL_NAME:
@@ -70,7 +78,13 @@ class HeatCleaningController(QObject):
         if save_name:
             success = self.manager.save_protocol(save_name, current_data)
             if success:
-                QMessageBox.information(self.view, "保存完了", f"{save_name} を保存しました。")
+                print(f"[HC_Ctrl] 保存: {save_name}")
+
+                msg = f"保存完了: {save_name} を保存しました。"
+                self.status_message_requested.emit(msg, 5000)
+
+                self._last_loaded_data = current_data  # 保存直後のデータに更新
+
                 self.refresh_list(select_name=save_name)
             else:
-                QMessageBox.critical(self.view, "エラー", "保存に失敗しました。")
+                self.status_message_requested.emit("エラー: 保存に失敗しました。", 10000)

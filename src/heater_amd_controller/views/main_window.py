@@ -1,6 +1,6 @@
 import sys
 
-from PySide6.QtWidgets import QMainWindow, QTabWidget, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QMainWindow, QStatusBar, QTabWidget, QVBoxLayout, QWidget
 
 from heater_amd_controller.views.tabs.config_tab import ConfigTab
 
@@ -21,6 +21,9 @@ class MainWindowView(QMainWindow):
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(5, 5, 5, 5)  # 余白を少し詰める
 
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+
         # ==================
 
         self.tabs = QTabWidget()
@@ -34,6 +37,10 @@ class MainWindowView(QMainWindow):
         # ==================
 
         main_layout.addWidget(self.tabs)
+
+    def show_status_message(self, message: str, timeout: int = 5000) -> None:
+        """ステータスバーにメッセージを表示する (デフォルト5秒で消える)"""
+        self.status_bar.showMessage(message, timeout)
 
 
 # テスト実行用

@@ -18,3 +18,5 @@ class MainController(QObject):
             view=self.view.sequence_tab,
             manager=self.protocol_manager,
         )
+
+        self.sequence_ctrl.status_message_requested.connect(self.view.show_status_message)
