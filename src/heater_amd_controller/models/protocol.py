@@ -1,5 +1,7 @@
 from dataclasses import asdict, dataclass, field
 
+SEQUENCE_NAMES = ["Rising", "HeatCleaning", "Decrease", "Wait"]
+
 
 @dataclass
 class ProtocolConfig:
