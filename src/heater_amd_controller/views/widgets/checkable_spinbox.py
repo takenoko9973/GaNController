@@ -1,5 +1,5 @@
 from PySide6.QtGui import QPalette
-from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QLabel, QStyle, QWidget
+from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QWidget
 
 
 class CheckableSpinBox(QWidget):
@@ -18,37 +18,26 @@ class CheckableSpinBox(QWidget):
         super().__init__(parent)
 
         # 構成要素
-        self.checkbox = QCheckBox()
-        self.label = QLabel(label_text)
+        self.checkbox = QCheckBox(label_text)
+        self.checkbox.setChecked(checked)
         self.spinbox = QDoubleSpinBox(
             suffix=suffix, decimals=decimals, minimum=minimum, value=value
         )
 
-        # チェックボックスの削れ防止
-        indicator_w = self.checkbox.style().pixelMetric(QStyle.PixelMetric.PM_IndicatorWidth)
-        indicator_h = self.checkbox.style().pixelMetric(QStyle.PixelMetric.PM_IndicatorHeight)
-        self.checkbox.setMinimumWidth(indicator_w + 4)
-        self.checkbox.setMinimumHeight(indicator_h + 4)
-
-        self.checkbox.setChecked(checked)
-
         layout = QGridLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.checkbox, 0, 0)
-        layout.addWidget(self.label, 0, 1)
-        layout.addWidget(self.spinbox, 0, 2)
-
+        layout.addWidget(self.spinbox, 0, 1)
         # 列幅を適切に調整したい場合は以下を利用
-        layout.setColumnStretch(1, 1)  # label column stretch
-        layout.setColumnStretch(2, 1)  # spin column stretch
-
+        layout.setColumnStretch(0, 1)  # label column stretch
+        layout.setColumnStretch(1, 1)  # spin column stretch
         self.setLayout(layout)
 
         self.checkbox.stateChanged.connect(self._update_state)
         self._update_state()
 
-    # 内部ロジック完全カプセル化
     def _update_state(self) -> None:
+        """チェックボックスに連動して、入力欄の見た目を変化"""
         checked = self.checkbox.isChecked()
         palette = self.palette()
 
