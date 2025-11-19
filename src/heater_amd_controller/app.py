@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QApplication
 
+from heater_amd_controller.controllers.main_controller import MainController
 from heater_amd_controller.views.main_window import MainWindowView
 
 
@@ -8,6 +9,7 @@ class Application:
         # インスタンス変数として参照を保持する
         self.app = QApplication(argv)
         self.window = MainWindowView()
+        self.controller = MainController(self.window)
 
     def run(self) -> int:
         self.window.show()

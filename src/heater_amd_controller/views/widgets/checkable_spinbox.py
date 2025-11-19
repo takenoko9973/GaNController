@@ -8,7 +8,7 @@ class CheckableSpinBox(QWidget):
     def __init__(
         self,
         label_text: str,
-        enable: bool = True,
+        checked: bool = True,
         suffix: str = "",
         decimals: int | None = None,
         minimum: float | None = None,
@@ -30,8 +30,7 @@ class CheckableSpinBox(QWidget):
         self.checkbox.setMinimumWidth(indicator_w + 4)
         self.checkbox.setMinimumHeight(indicator_h + 4)
 
-        if enable:
-            self.checkbox.toggle()
+        self.checkbox.setChecked(checked)
 
         layout = QGridLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -66,6 +65,17 @@ class CheckableSpinBox(QWidget):
         )
 
         self.spinbox.setPalette(palette)
+
+    def set_data(self, checked: bool, value: float) -> None:
+        """外部からデータをセット"""
+        # ブロックシグナルで、無駄なイベント発火防止
+        self.checkbox.blockSignals(True)  # noqa: FBT003
+
+        self.checkbox.setChecked(checked)
+        self.spinbox.setValue(value)
+        self._update_state()
+
+        self.checkbox.blockSignals(False)  # noqa: FBT003
 
     def value(self) -> float:
         return self.spinbox.value()

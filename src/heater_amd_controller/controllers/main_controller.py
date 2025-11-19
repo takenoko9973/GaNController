@@ -1,10 +1,20 @@
-class MainController:
-    def __init__(self, view) -> None:
-        self.view = view
+# サブコントローラーをインポート
+from PySide6.QtCore import QObject
 
-        # シグナル接続
-        # view.ui.pushButton_run.clicked.connect(self.on_run_clicked)
+from heater_amd_controller.controllers.heat_cleaning_controller import HeatCleaningController
+from heater_amd_controller.logics.protocol_manager import ProtocolManager
+from heater_amd_controller.views.main_window import MainWindowView
 
-    # def on_run_clicked(self):
-    #     result = self.model.compute_value()
-    #     self.view.ui.label_output.setText(str(result))
+
+class MainController(QObject):
+    def __init__(self, main_window: MainWindowView) -> None:
+        super().__init__()
+        self.view = main_window
+
+        self.protocol_manager = ProtocolManager()
+
+        # HC sub controller
+        self.sequence_ctrl = HeatCleaningController(
+            view=self.view.sequence_tab,
+            manager=self.protocol_manager,
+        )
