@@ -15,11 +15,13 @@ from PySide6.QtWidgets import (
 
 from heater_amd_controller.models.protocol import SEQUENCE_NAMES, ProtocolConfig
 from heater_amd_controller.views.widgets.checkable_spinbox import CheckableSpinBox
+from heater_amd_controller.views.widgets.hc_execution_group import HCExecutionControlGroup
 
 
 class HeatCleaningTab(QWidget):
     protocol_changed = Signal(str)
     save_requested = Signal()
+    execution_toggled = Signal(bool)
 
     def __init__(self) -> None:
         super().__init__()
@@ -29,16 +31,21 @@ class HeatCleaningTab(QWidget):
         # メインのレイアウト (左右分割)
         main_layout = QHBoxLayout(self)
 
-        # --- 1. 左側のコントロールパネル ---
+        # --- 左側のコントロールパネル ---
         left_panel_layout = QVBoxLayout()
         left_panel_layout.addLayout(self.create_protocol_selector_layout())
+        left_panel_layout.addSpacing(10)
         left_panel_layout.addWidget(self.create_sequence_group())
+        left_panel_layout.addSpacing(10)
+        left_panel_layout.addWidget(self.create_log_settings_group())
+        left_panel_layout.addSpacing(10)
 
-        settings_layout = QHBoxLayout()
-        settings_layout.addWidget(self.create_log_settings_group())
-        left_panel_layout.addLayout(settings_layout)
+        self.execution_group = HCExecutionControlGroup()
+        left_panel_layout.addWidget(self.execution_group)
 
-        # --- 2. 右側の表示エリア ---
+        left_panel_layout.addStretch()
+
+        # --- 右側の表示エリア ---
         right_panel_layout = QVBoxLayout()
         graph_placeholder_1 = QWidget()
         graph_placeholder_1.setStyleSheet("background-color: #f0f0f0; border: 1px solid #ccc;")
@@ -60,9 +67,9 @@ class HeatCleaningTab(QWidget):
         right_panel_layout.addWidget(log_display)
 
         # --- レイアウトの統合 ---
-        left_widget = QWidget()
+        left_widget = QWidget()  # 横幅固定用
         left_widget.setLayout(left_panel_layout)
-        left_widget.setFixedWidth(450)
+        left_widget.setFixedWidth(400)
 
         main_layout.addWidget(left_widget)
         main_layout.addLayout(right_panel_layout)
@@ -150,7 +157,6 @@ class HeatCleaningTab(QWidget):
         log_checks_layout = QVBoxLayout()
         log_checks_layout.addWidget(QCheckBox("日付フォルダ更新"))
         log_checks_layout.addWidget(QCheckBox("メジャー番号更新"))
-        log_checks_layout.addStretch()
 
         main_layout.addLayout(log_checks_layout)
 

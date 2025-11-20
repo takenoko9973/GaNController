@@ -24,14 +24,12 @@ class CheckableSpinBox(QWidget):
             suffix=suffix, decimals=decimals, minimum=minimum, value=value
         )
 
-        layout = QGridLayout()
+        layout = QGridLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.checkbox, 0, 0)
         layout.addWidget(self.spinbox, 0, 1)
-        # 列幅を適切に調整したい場合は以下を利用
-        layout.setColumnStretch(0, 1)  # label column stretch
+        layout.setColumnStretch(0, 1)  # checkbox column stretch
         layout.setColumnStretch(1, 1)  # spin column stretch
-        self.setLayout(layout)
 
         self.checkbox.stateChanged.connect(self._update_state)
         self._update_state()
