@@ -14,8 +14,8 @@ from PySide6.QtWidgets import (
 )
 
 from heater_amd_controller.models.protocol import SEQUENCE_NAMES, ProtocolConfig
+from heater_amd_controller.views.tabs.hc_execution_group import HCExecutionControlGroup
 from heater_amd_controller.views.widgets.checkable_spinbox import CheckableSpinBox
-from heater_amd_controller.views.widgets.hc_execution_group import HCExecutionControlGroup
 
 
 class HeatCleaningTab(QWidget):
@@ -41,6 +41,7 @@ class HeatCleaningTab(QWidget):
         left_panel_layout.addSpacing(10)
 
         self.execution_group = HCExecutionControlGroup()
+        self.execution_group.execution_toggled.connect(self.execution_toggled.emit)
         left_panel_layout.addWidget(self.execution_group)
 
         left_panel_layout.addStretch()
@@ -131,7 +132,7 @@ class HeatCleaningTab(QWidget):
 
         config_layout1 = QGridLayout()
         self.sequence_repeat_spin = QDoubleSpinBox(value=1, minimum=1, decimals=0)
-        self.step_interval_spin = QDoubleSpinBox(value=10, minimum=0, decimals=0, suffix="s")
+        self.step_interval_spin = QDoubleSpinBox(value=10, minimum=1, decimals=0, suffix="s")
         config_layout1.addWidget(QLabel("繰り返し回数"), 0, 0)
         config_layout1.addWidget(self.sequence_repeat_spin, 0, 1)
         config_layout1.addWidget(QLabel("ステップ間隔"), 1, 0)
@@ -183,7 +184,7 @@ class HeatCleaningTab(QWidget):
 
     def update_ui_from_data(self, data: ProtocolConfig) -> None:
         """データを受け取って、全入力欄に反映"""
-        for step_name, time_value in data.sequence_times.items():
+        for step_name, time_value in data.sequence_hours.items():
             if step_name in self.sequence_time_spins:
                 self.sequence_time_spins[step_name].setValue(time_value)
 
@@ -207,7 +208,7 @@ class HeatCleaningTab(QWidget):
 
         return ProtocolConfig(
             name=self.protocol_combo.currentText(),
-            sequence_times=sequence_times,
+            sequence_hours=sequence_times,
             repeat_count=int(self.sequence_repeat_spin.value()),
             step_interval=int(self.step_interval_spin.value()),
             hc_enabled=self.hc_checked_spin.is_checked(),
@@ -215,3 +216,8 @@ class HeatCleaningTab(QWidget):
             amd_enabled=self.amd_checked_spin.is_checked(),
             amd_current=self.amd_checked_spin.value(),
         )
+
+    def update_execution_status(
+        self, status_text: str, step_time: str, total_time: str, is_running: bool
+    ) -> None:
+        self.execution_group.update_status(status_text, step_time, total_time, is_running)

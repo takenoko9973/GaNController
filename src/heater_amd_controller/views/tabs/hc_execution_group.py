@@ -59,7 +59,7 @@ class HCExecutionControlGroup(QGroupBox):
         time_layout.addWidget(LabeledItem("状態:", self.status_value_label))
         time_layout.addStretch()
         time_layout.addWidget(LabeledItem("Sequence:", self.step_time_label))
-        time_layout.addSpacing(15)
+        time_layout.addSpacing(5)
         time_layout.addWidget(LabeledItem("Total:", self.total_time_label))
 
         return time_layout

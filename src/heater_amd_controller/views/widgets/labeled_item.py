@@ -17,7 +17,7 @@ class LabeledItem(QWidget):
 
         layout = QGridLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(10)
+        layout.setSpacing(5)
 
         self.label = QLabel(label_text)
         if label_width:

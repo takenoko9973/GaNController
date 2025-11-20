@@ -8,7 +8,7 @@ class ProtocolConfig:
     name: str
 
     # --- シーケンス時間設定 ---
-    sequence_times: dict[str, float] = field(default_factory=dict)
+    sequence_hours: dict[str, float] = field(default_factory=dict)
 
     # --- HC電流 ---
     hc_enabled: bool = True
