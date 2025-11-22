@@ -4,6 +4,7 @@ from PySide6.QtCore import QObject, QTimer, Signal, SignalInstance
 
 from heater_amd_controller.logics.hardware_manager import HardwareManager, SensorData
 from heater_amd_controller.models.protocol import SEQUENCE_NAMES, ProtocolConfig
+from heater_amd_controller.models.sequence import Decrease, HeatCleaning, Rising, Sequence, Wait
 
 
 class HCExecutionEngine(QObject):
@@ -28,20 +29,30 @@ class HCExecutionEngine(QObject):
         self.timer.timeout.connect(self._on_tick)
 
         self._config: ProtocolConfig | None = None
+        self._sequence_objects: list[Sequence] = []
 
         self._start_time: float = 0.0  # プロトコル開始時刻
         self._seq_start_time: float = 0.0  # 現在のステップ開始時刻
 
         self._next_log_sec = 0
         self._sequence_idx = 0
+        self._current_loop = 1
 
-    # ==== 公開操作メソッド
+    # ================================================
+    # 公開操作メソッド
+    # ================================================
 
     def start(self, config: ProtocolConfig) -> None:
         print("[HC Engine] Start")
         self.hw_manager.connect_devices()
 
         self._config = config  # プロトコル設定を保存
+        self._sequence_objects = self._create_sequence_objects(config)
+
+        if not self._sequence_objects:
+            # もし有効なステップが一つもない場合は即終了
+            self._finish(0)
+            return
 
         now = time.monotonic()
         self._start_time = now
@@ -49,6 +60,7 @@ class HCExecutionEngine(QObject):
 
         self._next_log_sec = 0
         self._sequence_idx = 0
+        self._current_loop = 1
 
         self.timer.start()
         self._on_tick()  # 初回即時更新
@@ -62,28 +74,61 @@ class HCExecutionEngine(QObject):
 
         self._end_session(self.stopped, current_total_sec)
 
-    # ==== 公開プロパティ
+    def _create_sequence_objects(self, config: ProtocolConfig) -> list[Sequence]:
+        """設定からSequenceのリスト作成"""
+        objects = []
+
+        class_map = {
+            "Rising": Rising,
+            "HeatCleaning": HeatCleaning,
+            "Decrease": Decrease,
+            "Wait": Wait,
+        }
+
+        for name in SEQUENCE_NAMES:
+            # 設定時間 (hour) -> 秒
+            hours = config.sequence_hours.get(name, 0.0)
+            duration_sec = int(hours * 3600)
+
+            if duration_sec <= 0:  # 0秒以下ならスキップ
+                continue
+
+            # クラスを取得、インスタンス化
+            seq_class = class_map.get(name)
+            if seq_class:
+                seq_obj = seq_class(duration_sec, 0.33)
+                objects.append(seq_obj)
+
+        return objects
+
+    # ================================================
+    # 公開プロパティ
+    # ================================================
 
     @property
-    def current_step_name(self) -> str:
-        """現在のステップ名を取得"""
-        return SEQUENCE_NAMES[self._sequence_idx % len(SEQUENCE_NAMES)]
+    def current_sequence(self) -> Sequence | None:
+        """現在のシーケンスをを取得"""
+        if 0 <= self._sequence_idx < len(self._sequence_objects):
+            return self._sequence_objects[self._sequence_idx]
 
-    @property
-    def current_loop_count(self) -> int:
-        """現在のループ回数を取得"""
-        return (self._sequence_idx // len(SEQUENCE_NAMES)) + 1
+        return None
 
-    # ==== 内部メソッド
+    # ================================================
+    # 内部メソッド
+    # ================================================
 
     def _on_tick(self) -> None:
-        if not self._config:
+        if not self._config or not self.current_sequence:
             return
 
         # 経過時間
         now = time.monotonic()
-        seq_elapsed_sec = now - self._seq_start_time
         total_elapsed_sec = now - self._start_time
+        seq_elapsed_sec = now - self._seq_start_time
+
+        # 現在のシーケンスに基づいて、設定電流値を計算
+        # target_current = self.current_sequence.current(self._config.hc_current, seq_elapsed_sec)
+        # print(f"Target Current: {target_current:.2f} A")
 
         # 測定
         data = self.hw_manager.read_all()
@@ -92,7 +137,8 @@ class HCExecutionEngine(QObject):
         # 通知 (UI更新用)
         self._emit_status_update(data, seq_elapsed_sec, total_elapsed_sec)
 
-        self._check_sequence_transition(seq_elapsed_sec, total_elapsed_sec)
+        if seq_elapsed_sec >= self.current_sequence.duration_second:
+            self._advance_step(total_elapsed_sec)
 
     def _handle_logging(self, data: SensorData, total_elapsed: float) -> None:
         """指定間隔でのログ書き込み判定"""
@@ -109,42 +155,44 @@ class HCExecutionEngine(QObject):
         self, data: SensorData, seq_elapsed: float, total_elapsed: float
     ) -> None:
         """UI更新用シグナル発信"""
-        if not self._config:
+        if not self._config or not self.current_sequence:
             return
 
         # ステータス文字列作成: "1. Rising"
-        status_text = f"{self._sequence_idx + 1}. {self.current_step_name}"
+        ong_loop_len = len(self._sequence_objects)
+        seq_num = ong_loop_len * (self._current_loop - 1) + self._sequence_idx + 1
+        seq_name = self.current_sequence.mode_name
+        status_text = f"{seq_num}. {seq_name}"
+
         self.tick_updated.emit(
             status_text, self._time_fmt(seq_elapsed), self._time_fmt(total_elapsed), data
         )
 
-    def _check_sequence_transition(
-        self, current_seq_elapsed: float, current_total_elapsed: float
-    ) -> None:
-        """シーケンス遷移"""
-        if self._config is None:
-            return
+    def _advance_step(self, total_elapsed: float) -> None:
+        """次のステップへ進む"""
+        self._sequence_idx += 1
 
-        target_hours = self._config.sequence_hours.get(self.current_step_name, 0.0)
-        target_sec = max(self.MIN_STEP_DURATION_SEC, int(target_hours * 3600))
+        # リストの最後まで行ったらループ処理
+        if self._sequence_idx >= len(self._sequence_objects):
+            self._sequence_idx = 0
+            self._current_loop += 1
 
-        if current_seq_elapsed >= target_sec:
-            self._sequence_idx += 1
-            self._seq_start_time = time.monotonic()
+        self._seq_start_time = time.monotonic()
 
-            # 終了判定
-            if self.is_finished():
-                self._finish(current_total_elapsed)
+        if self.is_finished():
+            self._finish(total_elapsed)
 
     def is_finished(self) -> bool:
         """完了判定"""
-        if not self._config:
+        if not self._config or not self._sequence_objects:
             return True
 
-        total_steps = len(SEQUENCE_NAMES) * self._config.repeat_count
-        return self._sequence_idx >= total_steps
+        # ループ回数が設定を超えたら終了
+        return self._current_loop > self._config.repeat_count
 
-    # === 終了・ヘルパー
+    # ================================================
+    # 終了・ヘルパー
+    # ================================================
 
     def _finish(self, final_total_sec: float) -> None:
         print("[HC Engine] Finish")
@@ -159,7 +207,9 @@ class HCExecutionEngine(QObject):
         # 後処理
         self.timer.stop()  # タイマー停止
         self.hw_manager.disconnect_devices()  # 装置切断
-        self._config = None  # 設定破棄
+        # 設定破棄
+        self._config = None
+        self._sequence_objects = []
 
         # 指定されたシグナルを発信 (stop or finish)
         time_str = self._time_fmt(total_sec)
