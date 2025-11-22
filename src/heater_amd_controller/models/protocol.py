@@ -31,7 +31,7 @@ class ProtocolConfig:
         """新規作成用のデフォルト設定"""
         return cls(
             name="新しいプロトコル...",
-            sequence_times={"Rising": 1.0, "HeatCleaning": 1.0, "Decrease": 0.5, "Wait": 7.5},
+            sequence_hours={"Rising": 1.0, "HeatCleaning": 1.0, "Decrease": 0.5, "Wait": 7.5},
             repeat_count=1,
             step_interval=10,
             hc_enabled=True,
