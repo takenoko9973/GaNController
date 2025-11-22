@@ -13,7 +13,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from heater_amd_controller.models.protocol import SEQUENCE_NAMES, ProtocolConfig
+from heater_amd_controller.models.protocol import ProtocolConfig
+from heater_amd_controller.models.sequence import SequenceMode
 from heater_amd_controller.views.tabs.hc_execution_group import HCExecutionControlGroup
 from heater_amd_controller.views.widgets.checkable_spinbox import CheckableSpinBox
 
@@ -114,14 +115,14 @@ class HeatCleaningTab(QWidget):
         self.sequence_time_spins: dict[str, QDoubleSpinBox] = {}
 
         layout.addWidget(QLabel("時間 (hour)"), 0, 1)
-        for i, section_name in enumerate(SEQUENCE_NAMES):
+        for i, section_mode in enumerate(SequenceMode):
             col = 1 + i
-            double_spin_box = QDoubleSpinBox(minimum=0, decimals=1, singleStep=0.5)
+            double_spin_box = QDoubleSpinBox(minimum=0, decimals=3, singleStep=0.5)
 
-            layout.addWidget(QLabel(section_name), col, 0)
+            layout.addWidget(QLabel(section_mode.value), col, 0)
             layout.addWidget(double_spin_box, col, 1)
 
-            self.sequence_time_spins[section_name] = double_spin_box
+            self.sequence_time_spins[section_mode.value] = double_spin_box
 
         return layout
 

@@ -3,8 +3,8 @@ import time
 from PySide6.QtCore import QObject, QTimer, Signal, SignalInstance
 
 from heater_amd_controller.logics.hardware_manager import HardwareManager, SensorData
-from heater_amd_controller.models.protocol import SEQUENCE_NAMES, ProtocolConfig
-from heater_amd_controller.models.sequence import Decrease, HeatCleaning, Rising, Sequence, Wait
+from heater_amd_controller.models.protocol import ProtocolConfig
+from heater_amd_controller.models.sequence import Sequence, SequenceMode
 
 
 class HCExecutionEngine(QObject):
@@ -78,25 +78,17 @@ class HCExecutionEngine(QObject):
         """設定からSequenceのリスト作成"""
         objects = []
 
-        class_map = {
-            "Rising": Rising,
-            "HeatCleaning": HeatCleaning,
-            "Decrease": Decrease,
-            "Wait": Wait,
-        }
-
-        for name in SEQUENCE_NAMES:
+        for mode in SequenceMode:
             # 設定時間 (hour) -> 秒
-            hours = config.sequence_hours.get(name, 0.0)
+            hours = config.sequence_hours.get(mode.value, 0.0)
             duration_sec = int(hours * 3600)
 
             if duration_sec <= 0:  # 0秒以下ならスキップ
                 continue
 
             # クラスを取得、インスタンス化
-            seq_class = class_map.get(name)
-            if seq_class:
-                seq_obj = seq_class(duration_sec, 0.33)
+            seq_obj = Sequence.create(mode, duration_sec, 0.33)
+            if seq_obj:
                 objects.append(seq_obj)
 
         return objects

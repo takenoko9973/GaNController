@@ -1,6 +1,6 @@
 from dataclasses import asdict, dataclass, field
 
-SEQUENCE_NAMES = ["Rising", "HeatCleaning", "Decrease", "Wait"]
+from heater_amd_controller.models.sequence import SequenceMode
 
 
 @dataclass
@@ -31,7 +31,12 @@ class ProtocolConfig:
         """新規作成用のデフォルト設定"""
         return cls(
             name="新しいプロトコル...",
-            sequence_hours={"Rising": 1.0, "HeatCleaning": 1.0, "Decrease": 0.5, "Wait": 7.5},
+            sequence_hours={
+                SequenceMode.RISING.value: 1.0,
+                SequenceMode.HEAT_CLEANING.value: 1.0,
+                SequenceMode.DECREASE.value: 0.5,
+                SequenceMode.WAIT.value: 7.5,
+            },
             repeat_count=1,
             step_interval=10,
             hc_enabled=True,
