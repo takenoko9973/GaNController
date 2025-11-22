@@ -55,7 +55,7 @@ class ProtocolHandler(QObject):
 
     def _confirm_overwrite(self, name: str, new_data: ProtocolConfig) -> bool:
         # 新規作成時は上書き確認しない
-        if name == self.manager.NEW_PROTOCOL_NAME:
+        if name == self.manager.NEW_PROTOCOL_NAME or name not in self.manager.get_protocol_names():
             return True
 
         # 差分チェック
