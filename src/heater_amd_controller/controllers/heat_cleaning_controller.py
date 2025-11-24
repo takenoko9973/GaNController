@@ -31,7 +31,10 @@ class HeatCleaningController(QObject):
 
         # --- シグナル接続 ---
         self.view.protocol_changed.connect(self.proto_handler.load_protocol)
-        self.view.save_requested.connect(self._on_save_clicked)
+
+        self.view.save_requested.connect(self._on_save_clicked)  # 保存ボタン or 上書き (Ctrl+S)
+        self.view.save_as_requested.connect(self._on_save_as_clicked)  # 別名 (Ctrl+Shift+S)
+
         self.view.execution_toggled.connect(self._on_exec_toggled)
 
         # 初期化処理
@@ -52,9 +55,16 @@ class HeatCleaningController(QObject):
             self.proto_handler.load_protocol(target_name)
 
     def _on_save_clicked(self) -> None:
+        """上書き保存 (Ctrl+S)"""
         name = self.view.get_current_protocol_name()
         data = self.view.get_current_ui_data()
-        self.proto_handler.save_protocol_flow(name, data)
+        self.proto_handler.save_overwrite(name, data)
+
+    def _on_save_as_clicked(self) -> None:
+        """名前を付けて保存 (Ctrl+Shift+S)"""
+        name = self.view.get_current_protocol_name()
+        data = self.view.get_current_ui_data()
+        self.proto_handler.save_as(name, data)
 
     def _on_exec_toggled(self, is_running: bool) -> None:
         if is_running:

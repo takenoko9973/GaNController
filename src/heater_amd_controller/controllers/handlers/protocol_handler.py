@@ -26,8 +26,13 @@ class ProtocolHandler(QObject):
         self._last_loaded_data = data
         self.data_loaded.emit(data)
 
-    def save_protocol_flow(self, current_name: str, current_data: ProtocolConfig) -> None:
-        """プロトコルの保存"""
+    # ==================================================
+    # 公開メソッド
+    # ==================================================
+
+    def save_overwrite(self, current_name: str, current_data: ProtocolConfig) -> None:
+        """プロトコルの保存 (is_save_as=True なら強制名前を付けて保存)"""
+        # 保存名決定
         save_name = self._determine_save_name(current_name)
         if not save_name:
             return
@@ -37,21 +42,48 @@ class ProtocolHandler(QObject):
             return
 
         # 保存実行
-        success = self.manager.save_protocol(save_name, current_data)
-        if success:
-            self._last_loaded_data = current_data
-            self.status_message.emit(f"保存完了: {save_name}", 5000)
-            self.list_update_requested.emit(save_name)
-        else:
-            self.status_message.emit("エラー: 保存失敗", 10000)
+        self._perform_save(save_name, current_data)
+
+    def save_as(self, current_name: str, current_data: ProtocolConfig) -> None:
+        """名前を付けて保存フロー (Ctrl+Shift+S)"""
+        # 保存名決定
+        default_text = current_name if current_name != self.manager.NEW_PROTOCOL_NAME else ""
+        save_name = self._ask_save_name(default_text=default_text)
+        if not save_name:
+            return
+
+        # 保存実行
+        if self._confirm_overwrite(save_name, current_data):  # 重複チェック
+            self._perform_save(save_name, current_data)
+
+    # ==================================================
+    # 内部フロー & チェックメソッド
+    # ==================================================
+    def _save_as_flow(self, default_text: str, current_data: ProtocolConfig) -> None:
+        # 保存名決定
+        save_name = self._ask_save_name(default_text=default_text)
+        if not save_name:
+            return
+
+        # 保存実行
+        if self._confirm_overwrite(save_name, current_data):  # 重複チェック
+            self._perform_save(save_name, current_data)
 
     def _determine_save_name(self, current_name: str) -> str | None:
         if current_name == self.manager.NEW_PROTOCOL_NAME:
-            text, ok = QInputDialog.getText(
-                self.view_widget, "プロトコル保存", "新しいプロトコル名を入力:"
-            )
-            return text.strip() if ok and text else None
+            return self._ask_save_name()
+
         return current_name
+
+    def _ask_save_name(self, default_text: str = "") -> str | None:
+        """名前入力ダイアログを表示"""
+        text, ok = QInputDialog.getText(
+            self.view_widget,
+            "プロトコル新規保存",
+            "プロトコル名を入力してください:",
+            text=default_text,
+        )
+        return text.strip() if ok and text else None
 
     def _confirm_overwrite(self, name: str, new_data: ProtocolConfig) -> bool:
         # 新規作成時は上書き確認しない
@@ -71,3 +103,13 @@ class ProtocolHandler(QObject):
                 return False
 
         return True
+
+    def _perform_save(self, name: str, data: ProtocolConfig) -> None:
+        """実際に保存を実行し、結果を通知する"""
+        success = self.manager.save_protocol(name, data)
+        if success:
+            self._last_loaded_data = data
+            self.status_message.emit(f"保存完了: {name}", 5000)
+            self.list_update_requested.emit(name)
+        else:
+            self.status_message.emit("エラー: 保存失敗", 10000)

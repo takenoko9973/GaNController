@@ -1,4 +1,5 @@
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -21,12 +22,24 @@ from heater_amd_controller.views.widgets.checkable_spinbox import CheckableSpinB
 
 class HeatCleaningTab(QWidget):
     protocol_changed = Signal(str)
-    save_requested = Signal()
+    save_requested = Signal()  # 通常保存
+    save_as_requested = Signal()  # 名前をつけて保存
     execution_toggled = Signal(bool)
 
     def __init__(self) -> None:
         super().__init__()
+        self._init_shortcuts()
         self.init_ui()
+
+    def _init_shortcuts(self) -> None:
+        """ショートカットキーの設定"""
+        # Ctrl+S -> 上書き保存
+        self.shortcut_save = QShortcut(QKeySequence("Ctrl+S"), self)
+        self.shortcut_save.activated.connect(self.save_requested.emit)
+
+        # Ctrl+Shift+S -> 名前を付けて保存
+        self.shortcut_save_as = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
+        self.shortcut_save_as.activated.connect(self.save_as_requested.emit)
 
     def init_ui(self) -> None:
         # メインのレイアウト (左右分割)
