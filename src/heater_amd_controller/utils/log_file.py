@@ -2,10 +2,10 @@ import datetime
 import re
 from pathlib import Path
 
-from heater_amd_controller.models.config import Config
+from heater_amd_controller.models.app_config import AppConfig
 
 config_path = Path("config.toml")
-config = Config.load_config(config_path)
+config = AppConfig.load(config_path)
 
 LOG_DIR = config.common.log_dir
 TZ = config.common.get_tz()

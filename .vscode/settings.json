@@ -1,5 +1,10 @@
 {
     "terminal.integrated.env.windows": {
         "PSExecutionPolicyPreference": "RemoteSigned"
-    }
+    },
+    "cSpell.words": [
+        "ibeam",
+        "PWUX",
+        "TCPIP"
+    ]
 }

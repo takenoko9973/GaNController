@@ -2,12 +2,13 @@ import datetime
 import tomllib
 from pathlib import Path
 
+import tomli_w
 from pydantic import BaseModel, Field
 
 
 # gm10 セクション
 class GM10Config(BaseModel):
-    ext_ch: int = Field(description="真空度測定Ch番号")
+    ext_ch: int = Field(description="真空度(EXT)測定Ch番号")
     sip_ch: int = Field(description="SIP測定Ch番号")
     pc_ch: int = Field(description="フォトカレント測定Ch番号")
     hv_ch: int = Field(description="HV制御出力Ch番号")
@@ -42,8 +43,8 @@ class DevicesConfig(BaseModel):
     gm10_visa: str = Field(description="Logger (gm10)")
     hps_visa: str = Field(description="Heater Power Supply (pfr_100l50)")
     aps_visa: str = Field(description="AMD Power Supply (pfr_100l50)")
-    pwux_com_port: int = Field(description="PWUX (Temp) COMポート番号")
-    ibeam_com_port: int = Field(description="Laser (ibeam) COMポート番号")
+    pwux_com_port: str = Field(description="PWUX (Temp) COMポート名")
+    ibeam_com_port: str = Field(description="Laser (ibeam) COMポート名")
 
     # ネストされたテーブル
     gm10: GM10Config
@@ -52,20 +53,31 @@ class DevicesConfig(BaseModel):
     ibeam: IBeamConfig
 
 
-class Config(BaseModel):
+class AppConfig(BaseModel):
     common: CommonConfig
     devices: DevicesConfig
 
     @classmethod
-    def load_config(cls, config_path: str | Path) -> "Config":
+    def load(cls, path: str | Path = "config.toml") -> "AppConfig":
         try:
-            with Path(config_path).open("rb") as f:
+            with Path(path).open("rb") as f:
                 data = tomllib.load(f)
-                return cls.model_validate(data)
+
+            return cls.model_validate(data)
 
         except FileNotFoundError:
-            print(f"エラー: 設定ファイルが見つかりません: {config_path}")
+            print(f"エラー: 設定ファイルが見つかりません: {path}")
             raise
         except Exception as e:
             print(f"エラー: 設定ファイルの読み込みまたは検証に失敗しました: {e}")
             raise
+
+    def save(self, path: Path | str = "config.toml") -> None:
+        try:
+            data = self.model_dump()
+
+            with Path(path).open("wb") as f:
+                tomli_w.dump(data, f)
+
+        except Exception as e:  # noqa: BLE001
+            print(f"Config saving failed: {e}")
