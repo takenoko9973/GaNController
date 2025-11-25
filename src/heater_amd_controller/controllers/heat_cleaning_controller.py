@@ -68,7 +68,7 @@ class HeatCleaningController(QObject):
 
     def _on_exec_toggled(self, is_running: bool) -> None:
         if is_running:
-            config = self.view.get_current_ui_data()
+            config = self.view.get_current_ui_data()  # 現在の設定取得
             self.engine.start(config)
         else:
             self.engine.stop()

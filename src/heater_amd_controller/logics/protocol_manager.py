@@ -3,7 +3,7 @@ from pathlib import Path
 
 import tomli_w  # なぜかtomllibに書き込みがないため、サードパーティ製を使用
 
-from heater_amd_controller.models.protocol import ProtocolConfig
+from heater_amd_controller.models.protocol_config import ProtocolConfig
 
 
 class ProtocolManager:
@@ -39,7 +39,6 @@ class ProtocolManager:
                 data_dict = tomllib.load(f)
 
             # 辞書からデータクラスを復元
-            # ※本来はバリデーションが必要ですが簡易的に実装
             return ProtocolConfig(**data_dict)
 
         except Exception as e:  # noqa: BLE001

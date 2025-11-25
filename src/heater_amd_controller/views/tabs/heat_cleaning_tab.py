@@ -8,13 +8,14 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
-from heater_amd_controller.models.protocol import ProtocolConfig
+from heater_amd_controller.models.protocol_config import ProtocolConfig
 from heater_amd_controller.models.sequence import SequenceMode
 from heater_amd_controller.views.tabs.hc_execution_group import HCExecutionControlGroup
 from heater_amd_controller.views.widgets.checkable_spinbox import CheckableSpinBox
@@ -165,15 +166,26 @@ class HeatCleaningTab(QWidget):
         return setting_layout
 
     def create_log_settings_group(self) -> QWidget:
+        """Log設定グループ"""
         group_box = QGroupBox("Log設定")
-        main_layout = QHBoxLayout()
+        main_layout = QVBoxLayout()
 
         # 右側 (Log設定のチェックボックス)
-        log_checks_layout = QVBoxLayout()
-        log_checks_layout.addWidget(QCheckBox("日付フォルダ更新"))
-        log_checks_layout.addWidget(QCheckBox("メジャー番号更新"))
+        checks_layout = QHBoxLayout()
+        self.chk_date_update = QCheckBox("日付フォルダ更新")
+        self.chk_major_update = QCheckBox("メジャー番号更新")
+        checks_layout.addWidget(self.chk_date_update)
+        checks_layout.addWidget(self.chk_major_update)
+        checks_layout.addStretch()
 
-        main_layout.addLayout(log_checks_layout)
+        comment_layout = QHBoxLayout()
+        comment_layout.addWidget(QLabel("コメント:"))
+        self.comment_edit = QLineEdit()
+        self.comment_edit.setPlaceholderText("Comment... (don't save for protocol config)")
+        comment_layout.addWidget(self.comment_edit)
+
+        main_layout.addLayout(checks_layout)
+        main_layout.addLayout(comment_layout)
 
         group_box.setLayout(main_layout)
         return group_box
@@ -210,12 +222,16 @@ class HeatCleaningTab(QWidget):
         self.sequence_repeat_spin.setValue(data.repeat_count)
         self.step_interval_spin.setValue(data.step_interval)
 
+        # ログ設定
+        self.chk_date_update.setChecked(data.log_date_update)
+        self.chk_major_update.setChecked(data.log_major_update)
+
     def get_current_protocol_name(self) -> str:
         """現在のプロトコルの名前を取得"""
         return self.protocol_combo.currentText()
 
     def get_current_ui_data(self) -> ProtocolConfig:
-        """現在の画面の入力値を取得 (保存用)"""
+        """現在の画面の入力値を取得"""
         sequence_times = {}
         for step_name, spin_widget in self.sequence_time_spins.items():
             sequence_times[step_name] = spin_widget.value()
@@ -225,10 +241,15 @@ class HeatCleaningTab(QWidget):
             sequence_hours=sequence_times,
             repeat_count=int(self.sequence_repeat_spin.value()),
             step_interval=int(self.step_interval_spin.value()),
+            # HC, AMD設定
             hc_enabled=self.hc_checked_spin.is_checked(),
             hc_current=self.hc_checked_spin.value(),
             amd_enabled=self.amd_checked_spin.is_checked(),
             amd_current=self.amd_checked_spin.value(),
+            # Log設定
+            log_date_update=self.chk_date_update.isChecked(),
+            log_major_update=self.chk_major_update.isChecked(),
+            comment=self.comment_edit.text(),
         )
 
     def update_execution_status(

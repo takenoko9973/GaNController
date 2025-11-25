@@ -1,10 +1,15 @@
+import datetime
 import time
 
 from PySide6.QtCore import QObject, QTimer, Signal, SignalInstance
 
 from heater_amd_controller.logics.hardware_manager import HardwareManager, SensorData
-from heater_amd_controller.models.protocol import ProtocolConfig
+from heater_amd_controller.logics.hc_logger import HCLogger
+from heater_amd_controller.models.protocol_config import ProtocolConfig
 from heater_amd_controller.models.sequence import Sequence, SequenceMode
+from heater_amd_controller.utils.log_file import LogManager
+
+TZ = datetime.timezone(datetime.timedelta(hours=8))
 
 
 class HCExecutionEngine(QObject):
@@ -31,6 +36,8 @@ class HCExecutionEngine(QObject):
         self._config: ProtocolConfig | None = None
         self._sequence_objects: list[Sequence] = []
 
+        self._logger: HCLogger | None = None
+
         self._start_time: float = 0.0  # プロトコル開始時刻
         self._seq_start_time: float = 0.0  # 現在のステップ開始時刻
 
@@ -42,16 +49,34 @@ class HCExecutionEngine(QObject):
     # 公開操作メソッド
     # ================================================
 
-    def start(self, config: ProtocolConfig) -> None:
+    def start(self, protocol_config: ProtocolConfig) -> None:
         print("[HC Engine] Start")
+        start_time = datetime.datetime.now(TZ)
+
         self.hw_manager.connect_devices()
 
-        self._config = config  # プロトコル設定を保存
-        self._sequence_objects = self._create_sequence_objects(config)
+        self._config = protocol_config  # プロトコル設定を保存
+        self._sequence_objects = self._create_sequence_objects(protocol_config)
 
         if not self._sequence_objects:
             # もし有効なステップが一つもない場合は即終了
             self._finish(0)
+            return
+
+        # ログ準備
+        try:
+            log_manager = LogManager()
+            date_dir = log_manager.get_date_directory(date_update=protocol_config.log_date_update)
+            log_file = date_dir.create_logfile(
+                protocol_config.name, major_update=protocol_config.log_major_update
+            )
+
+            self._logger = HCLogger(log_file, protocol_config)
+            self._logger.write_header(start_time, self._sequence_objects)
+
+        except Exception as e:  # noqa: BLE001
+            print(f"Log creation failed: {e}")
+            self.stop()
             return
 
         now = time.monotonic()
@@ -74,13 +99,13 @@ class HCExecutionEngine(QObject):
 
         self._end_session(self.stopped, current_total_sec)
 
-    def _create_sequence_objects(self, config: ProtocolConfig) -> list[Sequence]:
+    def _create_sequence_objects(self, protocol_config: ProtocolConfig) -> list[Sequence]:
         """設定からSequenceのリスト作成"""
         objects = []
 
         for mode in SequenceMode:
             # 設定時間 (hour) -> 秒
-            hours = config.sequence_hours.get(mode.value, 0.0)
+            hours = protocol_config.sequence_hours.get(mode.value, 0.0)
             duration_sec = int(hours * 3600)
 
             if duration_sec <= 0:  # 0秒以下ならスキップ
@@ -213,6 +238,12 @@ class HCExecutionEngine(QObject):
 
         self._end_session(self.finished, final_total_sec)
 
+    def _write_log(self, data: SensorData, elapsed_time: float) -> None:
+        """ログ保存処理"""
+        if self._logger:
+            self._logger.write_record(elapsed_time, data)
+            print(f"[Log] {elapsed_time:.1f}s: Temp={data.temperature:.1f}")
+
     def _end_session(self, signal_to_emit: SignalInstance, total_sec: float) -> None:
         """停止・完了の後処理"""
         # 後処理
@@ -222,13 +253,11 @@ class HCExecutionEngine(QObject):
         self._config = None
         self._sequence_objects = []
 
+        self._logger = None
+
         # 指定されたシグナルを発信 (stop or finish)
         time_str = self._time_fmt(total_sec)
         signal_to_emit.emit(time_str)
-
-    def _write_log(self, data: SensorData, elapsed_time: float) -> None:
-        # TODO: CSV書き込みクラス等に委譲
-        print(f"[Log] {elapsed_time:.1f}s: Temp={data.temperature:.1f}")
 
     @staticmethod
     def _time_fmt(sec: float) -> str:
