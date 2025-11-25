@@ -2,7 +2,7 @@ import datetime
 import re
 from pathlib import Path
 
-from heater_amd_controller.config import Config
+from heater_amd_controller.models.config import Config
 
 config_path = Path("config.toml")
 config = Config.load_config(config_path)

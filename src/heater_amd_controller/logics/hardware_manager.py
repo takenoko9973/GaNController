@@ -25,21 +25,38 @@ class HardwareManager:
         # self.hc_device = HeaterDevice(...)
         # self.amd_device = AmdDevice(...)
         # self.gauge_device = VacuumGauge(...)
-        self._is_connected = False
+        self._is_hc_connected = False
+        self._is_amd_connected = False
 
     def connect_devices(self) -> bool:
         """全装置への接続処理"""
         # success = self.hc_device.connect() and ...
-        self._is_connected = True
+        self._is_hc_connected = True
+        self._is_amd_connected = True
         return True
 
     def disconnect_devices(self) -> None:
         """全装置の切断処理"""
-        self._is_connected = False
+        self._is_hc_connected = False
+        self._is_amd_connected = False
+
+    def set_hc_current(self, hc_current: float) -> None:
+        """ヒーター電源に電流値を設定する"""
+        if not self._is_hc_connected:
+            return
+
+        self._last_set_hc = hc_current
+
+    def set_amd_current(self, amd_current: float) -> None:
+        """AMD用電源に電流値を設定する"""
+        if not self._is_amd_connected:
+            return
+
+        self._last_set_amd = amd_current
 
     def read_all(self) -> SensorData:
         """全センサーから最新の値を取得して返す"""
-        if not self._is_connected:
+        if not self._is_hc_connected:
             # 未接続時はゼロ埋めデータを返す、などの安全策
             return SensorData()
 

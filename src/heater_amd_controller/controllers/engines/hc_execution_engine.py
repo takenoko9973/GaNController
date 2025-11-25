@@ -110,6 +110,7 @@ class HCExecutionEngine(QObject):
     # ================================================
 
     def _on_tick(self) -> None:
+        """tick毎の処理"""
         if not self._config or not self.current_sequence:
             return
 
@@ -118,30 +119,48 @@ class HCExecutionEngine(QObject):
         total_elapsed_sec = now - self._start_time
         seq_elapsed_sec = now - self._seq_start_time
 
-        # 現在のシーケンスに基づいて、設定電流値を計算
-        # target_current = self.current_sequence.current(self._config.hc_current, seq_elapsed_sec)
-        # print(f"Target Current: {target_current:.2f} A")
-
-        # 測定
-        data = self.hw_manager.read_all()
-        self._handle_logging(data, total_elapsed_sec)
-
-        # 通知 (UI更新用)
-        self._emit_status_update(data, seq_elapsed_sec, total_elapsed_sec)
-
-        if seq_elapsed_sec >= self.current_sequence.duration_second:
-            self._advance_step(total_elapsed_sec)
-
-    def _handle_logging(self, data: SensorData, total_elapsed: float) -> None:
-        """指定間隔でのログ書き込み判定"""
-        if not self._config:
-            return
-
-        if total_elapsed >= self._next_log_sec:
-            self._write_log(data, total_elapsed)
-
+        # ログ間隔判定
+        is_log_interval = total_elapsed_sec >= self._next_log_sec
+        if is_log_interval:
+            # 次のログ保存時刻を更新
             interval = max(1, int(self._config.step_interval))
             self._next_log_sec += interval
+
+        # ================= tick毎の処理パイプライン =================
+
+        # 1. 電流値設定
+        if is_log_interval:
+            self._set_current(seq_elapsed_sec)
+
+        # 2. 測定
+        data = self.hw_manager.read_all()
+
+        # 3. ログ処理
+        if is_log_interval:
+            self._write_log(data, total_elapsed_sec)
+
+        # 4. 通知 (UI更新用)
+        self._emit_status_update(data, seq_elapsed_sec, total_elapsed_sec)
+
+        # シーケンス進行判定
+        if seq_elapsed_sec >= self.current_sequence.duration_second:
+            # ステップ終了時も最後に値をセット
+            self._set_current(self.current_sequence.duration_second)
+            self._advance_step(total_elapsed_sec)
+
+    def _set_current(self, seq_elapsed_sec: float) -> None:
+        """指定時間での電流値設定"""
+        if not self._config or not self.current_sequence:
+            return
+
+        # 現在のシーケンスに基づいて、設定電流値を計算
+        if self._config.hc_enabled:
+            hc_target = self.current_sequence.current(self._config.hc_current, seq_elapsed_sec)
+            self.hw_manager.set_hc_current(hc_target)
+
+        if self._config.amd_enabled:
+            amd_target = self.current_sequence.current(self._config.amd_current, seq_elapsed_sec)
+            self.hw_manager.set_amd_current(amd_target)
 
     def _emit_status_update(
         self, data: SensorData, seq_elapsed: float, total_elapsed: float
