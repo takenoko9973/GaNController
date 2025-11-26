@@ -8,6 +8,10 @@ class Application:
     def __init__(self, argv: list[str]) -> None:
         # インスタンス変数として参照を保持する
         self.app = QApplication(argv)
+        font = self.app.font()
+        font.setPointSize(9)
+        self.app.setFont(font)
+
         self.window = MainWindowView()
         self.controller = MainController(self.window)
 
