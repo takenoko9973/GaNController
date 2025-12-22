@@ -8,21 +8,24 @@ version = "1.0"
 requires-python = "==3.12.*"
 
 dependencies = [
-    "matplotlib>=3.10.7",
-    "numpy>=2.3.4",
+    "matplotlib>=3.10.8",
+    "numpy>=2.4",
     "pandas>=2.3.3",
-    "psutil>=7.1.2",
-    "pydantic>=2.12.3",
+    "psutil>=7.1.3",
+    "pydantic>=2.12.5",
     "pyserial>=3.5",
-    "pyside6>=6.10.0",
-    "pyvisa>=1.15.0",
+    "pyside6>=6.10.1",
+    "pyvisa>=1.16",
     "pyvisa-py>=0.8.1",
     "tomli-w>=1.2.0",
     "zeroconf>=0.148.0",
 ]
 
+[dependency-groups]
+dev = ["ruff>=0.14.2"]
+
 [project.scripts]
-run-app = "heater_amd_controller.main:main"
+main = "heater_amd_controller.main:main"
 
 [tool.uv.sources]
 my-pyside-app = { url = "https://pypi.org/simple" }
@@ -32,7 +35,6 @@ dev = ["ruff", "ty"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/heater_amd_controller"]
-
 
 [tool.ruff]
 target-version = "py312"
@@ -60,6 +62,7 @@ ignore = [
     "TD002",
     "TD003",
     "FIX002",
+    "FBT003",
 ]
 # 警告はするが、自動修正はしないエラー
 unfixable = [
