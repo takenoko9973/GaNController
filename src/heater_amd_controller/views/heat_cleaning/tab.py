@@ -17,9 +17,9 @@ from PySide6.QtWidgets import (
 
 from heater_amd_controller.models.protocol_config import ProtocolConfig
 from heater_amd_controller.models.sequence import SequenceMode
-from heater_amd_controller.views.widgets import CheckableSpinBox
+from heater_amd_controller.views.widgets.checkable_spinbox import CheckableSpinBox
 
-from .hc_execution_group import HCExecutionControlGroup
+from .execution_panel import HCExecutionControlGroup
 
 
 class HeatCleaningTab(QWidget):

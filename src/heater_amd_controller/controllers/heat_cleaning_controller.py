@@ -4,7 +4,7 @@ from heater_amd_controller.controllers.handlers.protocol_handler import Protocol
 from heater_amd_controller.logics.hardware_manager import HardwareManager, SensorData
 from heater_amd_controller.logics.hc_execution_engine import HCExecutionEngine
 from heater_amd_controller.logics.protocol_manager import ProtocolManager
-from heater_amd_controller.views.tabs import HeatCleaningTab
+from heater_amd_controller.views.heat_cleaning import HeatCleaningTab
 
 
 class HeatCleaningController(QObject):

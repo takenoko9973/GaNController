@@ -2,8 +2,8 @@ import sys
 
 from PySide6.QtWidgets import QMainWindow, QStatusBar, QTabWidget, QVBoxLayout, QWidget
 
-from heater_amd_controller.views.tabs import ConfigTab
-from heater_amd_controller.views.tabs.heat_cleaning import HeatCleaningTab
+from heater_amd_controller.views.config import ConfigTab
+from heater_amd_controller.views.heat_cleaning import HeatCleaningTab
 
 
 class MainWindowView(QMainWindow):
