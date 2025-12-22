@@ -1,8 +1,7 @@
 import re
 
 from scripts.data_plot.base_plotter import BasePlotter
-
-from .plot_util import AxisSide, PlotInfo, ScaleEnum
+from scripts.data_plot.plot_util import AxisSide, PlotInfo, ScaleEnum
 
 
 class NEGHDPlotter(BasePlotter):

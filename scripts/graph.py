@@ -2,19 +2,17 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from heater_amd_controller.config import Config
+from heater_amd_controller.models.app_config import AppConfig
 from heater_amd_controller.utils.log_file import DateLogDirectory, LogFile, LogManager
 
 sys.path.append(str(Path(__file__).parent.parent))
-from scripts.data_plot.plot_hc import HCPlotter
-from scripts.data_plot.plot_hd import HDPlotter
-from scripts.data_plot.plot_neghd import NEGHDPlotter
+from scripts.data_plot import HCPlotter, HDPlotter, NEGHDPlotter
 
 if TYPE_CHECKING:
     from scripts.data_plot.base_plotter import BasePlotter
 
 config_path = Path("config.toml")
-config = Config.load_config(config_path)
+config = AppConfig.load()
 
 PLOT_DIR = "plots"
 root_path = Path(__file__).parent.parent
@@ -27,7 +25,7 @@ def plots(logfile: LogFile) -> None:
     save_dir.mkdir(exist_ok=True, parents=True)
 
     plotters = {
-        "HC": HCPlotter,
+        "TEST": HCPlotter,
         "HD": HDPlotter,
         "NEGHD": NEGHDPlotter,
     }
