@@ -6,11 +6,11 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLayout,
+    QPushButton,
     QVBoxLayout,
     QWidget,
 )
 
-from heater_amd_controller.views.widgets.execution_button import ExecutionControlButton
 from heater_amd_controller.views.widgets.labeled_item import LabeledItem
 from heater_amd_controller.views.widgets.value_label import ValueLabel
 
@@ -116,14 +116,40 @@ class HCExecutionControlGroup(QGroupBox):
         return monitor_layout
 
     def _create_control_section(self) -> QLayout:
-        control_layout = QGridLayout()
+        control_layout = QHBoxLayout()
 
-        self.exec_button = ExecutionControlButton()
-        self.exec_button.toggled_state.connect(self.execution_toggled.emit)
+        self.start_button = QPushButton("開始")
+        self.stop_button = QPushButton("停止")
 
-        control_layout.addWidget(self.exec_button)
+        self.start_button.setMinimumHeight(40)
+        self.stop_button.setMinimumHeight(40)
+
+        # 初期状態: 停止中なので「停止」ボタンは無効化
+        self.stop_button.setEnabled(False)
+
+        # クリック時のシグナル接続
+        self.start_button.clicked.connect(self._on_start_clicked)
+        self.stop_button.clicked.connect(self._on_stop_clicked)
+
+        control_layout.addWidget(self.start_button)
+        control_layout.addWidget(self.stop_button)
 
         return control_layout
+
+    def _on_start_clicked(self) -> None:
+        """開始ボタン押下時"""
+        # 即座にUI反応
+        self.start_button.setEnabled(False)
+        self.stop_button.setEnabled(True)
+        # 開始 を通知
+        self.execution_toggled.emit(True)
+
+    def _on_stop_clicked(self) -> None:
+        """停止ボタン押下時"""
+        # 停止処理は時間がかかる場合があるため、ボタンを無効化して連打を防ぐ
+        self.stop_button.setEnabled(False)
+        # 停止 を通知
+        self.execution_toggled.emit(False)
 
     # --- 更新用メソッド ---
 
@@ -138,8 +164,13 @@ class HCExecutionControlGroup(QGroupBox):
         pal = self.status_value_label.palette()
         if is_running:
             pal.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.green)
+            self.start_button.setEnabled(False)
+            self.stop_button.setEnabled(True)
         else:
             pal.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.gray)
+            self.start_button.setEnabled(True)
+            self.stop_button.setEnabled(False)
+
         self.status_value_label.setPalette(pal)
 
     def update_sensor_values(

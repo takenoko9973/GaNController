@@ -75,7 +75,7 @@ class HeatCleaningController(QObject):
 
     def _on_engine_tick(self, status: str, step_t: str, total_t: str, data: SensorData) -> None:
         # 画面更新
-        self.view.update_execution_status(status, step_t, total_t, True)  # noqa: FBT003
+        self.view.update_execution_status(status, step_t, total_t, True)
 
         # センサー値更新
         hc_vals = (data.hc_current, data.hc_voltage, data.hc_power)
@@ -85,10 +85,9 @@ class HeatCleaningController(QObject):
         )
 
     def _on_engine_finished(self, total_time: str) -> None:
-        self.view.update_execution_status("完了", "00:00:00", total_time, False)  # noqa: FBT003
-        self.view.execution_group.exec_button.force_stop()
+        self.view.update_execution_status("完了", "00:00:00", total_time, False)
         self.status_message_requested.emit("全工程完了", 0)
 
     def _on_engine_stopped(self, total_time: str) -> None:
-        self.view.update_execution_status("停止", "00:00:00", total_time, False)  # noqa: FBT003
+        self.view.update_execution_status("停止", "00:00:00", total_time, False)
         self.status_message_requested.emit("停止しました", 3000)

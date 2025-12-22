@@ -1,4 +1,3 @@
-# サブコントローラーをインポート
 from PySide6.QtCore import QObject
 
 from heater_amd_controller.controllers.heat_cleaning_controller import HeatCleaningController
