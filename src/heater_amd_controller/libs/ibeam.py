@@ -1,130 +1,179 @@
-"""TOPTICA iBeam
-#
-"""
-
+import builtins
+import contextlib
 import time
+from typing import ClassVar
 
-import pyvisa  # pyvisa > pyvisa-py > zeroconf > psutilという順でinstallが必要
 import serial  # pip3 install pyserial
 
 IBEAM_COM = 3  # デバイスマネージャーで確認
 
-INTERVAL = 0.05
 
+class IBeam:
+    """TOPTICA iBeam Smart"""
 
-class ibeam:
-    def __init__(self, port: str = "COM4") -> None:
+    VALID_CHANNELS: ClassVar = [1, 2]
+
+    def __init__(
+        self,
+        port: str,
+        baud_rate: int = 115200,
+        wait_time: float = 0.05,
+        timeout: float = 1,
+    ) -> None:
+        self.port = port
+        self.baud_rate = baud_rate
+        self.wait_time = wait_time
+        self.timeout = timeout
+
         try:
             self.inst = serial.Serial(
                 port=port,
+                baudrate=self.baud_rate,
                 bytesize=serial.EIGHTBITS,
-                baudrate=115200,
                 parity=serial.PARITY_NONE,
                 stopbits=serial.STOPBITS_ONE,
-                timeout=1,
+                timeout=self.timeout,
             )
 
-            time.sleep(INTERVAL)
-            self.set_prompt(0)  # Responseを[OK]に設定
+            time.sleep(self.wait_time)
+
+            self.inst.reset_input_buffer()  # バッファ削除
+
+            self.set_prompt(False)  # Responseを[OK]に設定
 
         except Exception:
             print("Visa io error")
             raise
 
+    def __enter__(self) -> "IBeam":
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:  # noqa: ANN001
+        self.close()
+
     def __del__(self) -> None:
-        print("LaserDeL")
-
         if hasattr(self, "inst"):
-            self.set_prompt(1)  # Prompt設定戻さないと、iBeamSmartソフトウェアが使えない
+            self.close()
+
+    # ============================================================
+    # 内部通信メソッド
+    # ============================================================
+
+    def _validate_channel(self, ch: int) -> None:
+        """チャンネル番号が正しい確認"""
+        if ch not in self.VALID_CHANNELS:
+            msg = f"Invalid Channel: {ch}. Available channels are {self.VALID_CHANNELS}"
+            raise ValueError(msg)
+
+    def _read_until_ok(self) -> list[str]:
+        start_time = time.time()
+        lines = []
+        while True:
+            if time.time() - start_time > self.timeout / 1000:
+                msg = "Device did not return [OK]"
+                raise TimeoutError(msg)
+
+            with contextlib.suppress(builtins.BaseException):
+                line = self.inst.read_until(b"\r\n").decode("utf-8").strip()
+
+            # "[OK]" が来るまで通信を続ける
+            if line == "[OK]":
+                break
+
+            if line:
+                lines.append(line)
+
+        return lines
+
+    def _send_command(self, cmd: str) -> None:
+        full_cmd = cmd + "\r\n"
+        self.inst.write(full_cmd.encode("ascii"))
+
+        self._read_until_ok()
+
+    def _query(self, cmd: str) -> str | None:
+        full_cmd = cmd + "\r\n"
+        self.inst.write(full_cmd.encode("ascii"))
+
+        lines = self._read_until_ok()
+        return lines[0] if lines else None
+
+    # ============================================================
+    # ユーザー用メソッド
+    # ============================================================
+
+    def set_prompt(self, enable: bool = False) -> None:
+        if enable:
+            # [OK]が帰ってこなくなるので、独自で送信する
             self.inst.flush()
-            self.inst.close()
+            self._send_command("prom on")
+            time.sleep(self.wait_time)
+        else:
+            self._send_command("prom off")
 
-    def set_prompt(self, value: int = 0) -> None:
-        if value == 0:
-            self.write("prom off")
-        else:  # [OK]が帰ってこなくなるので、独自で送信する
-            self.inst.flush()
-            self.inst.write("{}\r\n".format("prom on").encode("ASCII"))
-            time.sleep(INTERVAL)
+    # ============================================================
+    # ユーザー用メソッド
+    # ============================================================
+    def set_emission(self, enable: bool) -> None:
+        """レーザー発振(Emission)制御"""
+        cmd = "la on" if enable else "la off"
+        self._send_command(cmd)
 
-    def write(self, cmd: str):
-        self.inst.flush()
-        self.inst.write(f"{cmd}\r\n".encode("ASCII"))
+    def set_channel_enable(self, ch: int, enable: bool) -> None:
+        """チャンネル有効/無効"""
+        self._validate_channel(ch)
 
-        flag = 1
-        while flag:
-            # \r\nまで取得する
-            response = self.inst.read_until(b"\r\n").decode("utf-8")
-            if "OK" in response:
-                # print('{} >> {}'.format(Command, Response))
-                flag = 0
+        cmd = f"en {ch}" if enable else f"di {ch}"
+        self._send_command(cmd)
 
-        time.sleep(INTERVAL)
-        return response
+    def set_channel_power(self, ch: int, power_mw: float) -> None:
+        """出力パワー設定(mW)"""
+        self._validate_channel(ch)
 
-    def read(self, cmd: str):
-        self.inst.flush()
-        self.inst.write(f"{cmd}\r\n".encode("ASCII"))
+        power_uw = int(power_mw * 1000)
+        self._send_command(f"ch {ch} pow {power_uw}")
 
-        response = self.inst.read_until(b"\r\n").decode("utf-8")
-        while response == "\r\n":
-            response = self.inst.read_until(b"\r\n").decode("utf-8")
-            # \r\nのままなら、データが帰ってきていない
+    def get_channel_power(self, ch: int) -> str | None:
+        """出力パワー取得(mW)"""
+        self._validate_channel(ch)
 
-        flag = 1
-        while flag:
-            if "OK" in self.inst.read_until(b"\r\n").decode("utf-8"):
-                # print('{} >> {}'.format(Command, Response))
-                flag = 0
-
-        time.sleep(INTERVAL)
-        return response
-
-    def laser_on(self) -> None:
-        self.write("la on")
-
-    def laser_off(self) -> None:
-        self.write("la off")
-
-    def ch_on(self, ch: int = 1) -> None:
-        self.write(f"en {ch}")
-
-    def ch_off(self, ch: int = 1) -> None:
-        self.write(f"di {ch}")
-
-    def set_lp(self, ch: int = 1, power: float = 0) -> None:  # [mW]で設定する
-        self.write(f"ch {ch} pow {power:.3f}")
-
-    def get_lp(self):
-        return self.read("sh pow")
         # %SYS-I-077, scaled と返ってくる(tempも) → 搭載していないか非対応なのか...?
-        # tempもTOPAS iBeam smartで90 mW出力でしばらく様子見ても変化しない(30.2℃)ので、非対応なのかも
+        # tempもTOPAS iBeam smartで90 mW出力で
+        # しばらく様子見ても変化しない(30.2℃)ので、非対応なのかも
+        return self._query("sh pow")
 
-    def get_current(self):
-        return self.read("sh cur")
+    def get_current(self) -> str | None:
+        return self._query("sh cur")
 
-    def get_status(self, status="LD_Driver", ch=1):
+    def get_status(self, status: str = "LD_Driver", ch: int = 1) -> str | None:
         if status == "LD_Driver":
-            return self.read("sta la")
+            return self._query("sta la")
         if status == "Temp":
-            return self.read("sta temp")
+            return self._query("sta temp")
         if status == "UpTime":
-            return self.read("sta up")
+            return self._query("sta up")
 
         return None
 
-    def get_error(self):
-        return self.read("err")
+    def get_error(self) -> str | None:
+        return self._query("err")
+
+    def close(self) -> None:
+        if hasattr(self, "inst"):
+            with contextlib.suppress(builtins.BaseException):
+                self.set_prompt(True)  # Prompt設定戻さないと、iBeamSmartソフトウェアが使えない
+                self.inst.flush()
+                self.inst.close()
 
 
 def main() -> None:
     print("TOPTICA iBeam test")  # Ch1だと出力かわらないので、Ch2でやること
     print(f"COM Port: {IBEAM_COM}")
 
-    laser = ibeam(f"COM{IBEAM_COM}")
+    laser = IBeam(f"COM{IBEAM_COM}")
 
     try:
-        laser.ch_on(2)
+        laser.set_channel_enable(2, True)
         laser.set_lp(2, 50)
         laser.laser_on()
         time.sleep(1)
