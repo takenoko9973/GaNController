@@ -10,7 +10,7 @@ class ProtocolHandler(QObject):
 
     status_message = Signal(str, int)  # 保存完了やエラー時
     data_loaded = Signal(ProtocolConfig)  # データ読み込み完了時
-    list_update_requested = Signal(str)  # リスト更新 (str: プロトコル選択)
+    refresh_protocol_list_req = Signal(str)  # リスト更新 (str: プロトコル選択)
 
     def __init__(self, view_widget: QWidget, manager: ProtocolManager) -> None:
         super().__init__()
@@ -110,6 +110,6 @@ class ProtocolHandler(QObject):
         if success:
             self._last_loaded_config = save_protocol_config
             self.status_message.emit(f"保存完了: {name}", 5000)
-            self.list_update_requested.emit(name)
+            self.refresh_protocol_list_req.emit(name)
         else:
             self.status_message.emit("エラー: 保存失敗", 10000)

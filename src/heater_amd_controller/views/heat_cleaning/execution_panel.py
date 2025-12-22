@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtGui import QFont, QPalette
 from PySide6.QtWidgets import (
     QGridLayout,
@@ -14,10 +14,28 @@ from PySide6.QtWidgets import (
 from heater_amd_controller.views.widgets import LabeledItem, ValueLabel
 
 
-class HCExecutionControlGroup(QGroupBox):
+class HCExecutionPanel(QGroupBox):
     """実行制御およびモニタリング表示用ウィジェット"""
 
-    execution_toggled = Signal(bool)
+    # シグナル
+    start_requested = Signal()
+    stop_requested = Signal()
+
+    status_value_label: QLabel
+    step_time_label: ValueLabel
+    total_time_label: ValueLabel
+
+    hc_cur: ValueLabel
+    hc_vol: ValueLabel
+    hc_pow: ValueLabel
+
+    amd_cur: ValueLabel
+    amd_vol: ValueLabel
+    amd_pow: ValueLabel
+
+    temp_val: ValueLabel
+    ext_pres_val: ValueLabel
+    sip_pres_val: ValueLabel
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("実行制御 / モニタリング", parent)
@@ -141,17 +159,17 @@ class HCExecutionControlGroup(QGroupBox):
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         # 開始 を通知
-        self.execution_toggled.emit(True)
+        self.start_requested.emit()
 
     def _on_stop_clicked(self) -> None:
         """停止ボタン押下時"""
         # 停止処理は時間がかかる場合があるため、ボタンを無効化して連打を防ぐ
         self.stop_button.setEnabled(False)
         # 停止 を通知
-        self.execution_toggled.emit(False)
+        self.stop_requested.emit()
 
     # --- 更新用メソッド ---
-
+    @Slot(str, str, str, bool)
     def update_status(
         self, status_text: str, step_time: str, total_time: str, is_running: bool
     ) -> None:
@@ -172,6 +190,7 @@ class HCExecutionControlGroup(QGroupBox):
 
         self.status_value_label.setPalette(pal)
 
+    @Slot(tuple, tuple, float, float, float)
     def update_sensor_values(
         self,
         hc_vals: tuple[float, float, float],  # (A, V, W)

@@ -13,16 +13,16 @@ TZ = datetime.timezone(datetime.timedelta(hours=8))
 
 
 class HCExecutionEngine(QObject):
+    """Heat Cleaning 実行エンジン"""
+
     TIMER_INTERVAL_MS = 1000
     MIN_STEP_DURATION_SEC = 1  # ステップの最低継続時間
 
-    # ===== シグナル
     # 毎秒の更新通知 (状態テキスト, ステップ時間, トータル時間, 測定データ)
-    tick_updated = Signal(str, str, str, SensorData)
-
+    monitor_updated = Signal(str, str, str, SensorData)
     # 終了シグナル (最終トータル時間)
-    finished = Signal(str)
-    stopped = Signal(str)
+    sequence_finished = Signal(str)
+    sequence_stopped = Signal(str)
 
     def __init__(self, hw_manager: HardwareManager) -> None:
         super().__init__()
@@ -97,7 +97,7 @@ class HCExecutionEngine(QObject):
         if self._start_time > 0:
             current_total_sec = time.monotonic() - self._start_time
 
-        self._end_session(self.stopped, current_total_sec)
+        self._end_session(self.sequence_stopped, current_total_sec)
 
     def _create_sequence_objects(self, protocol_config: ProtocolConfig) -> list[Sequence]:
         """設定からSequenceのリスト作成"""
@@ -200,7 +200,7 @@ class HCExecutionEngine(QObject):
         seq_name = self.current_sequence.mode_name
         status_text = f"{seq_num}. {seq_name}"
 
-        self.tick_updated.emit(
+        self.monitor_updated.emit(
             status_text, self._time_fmt(seq_elapsed), self._time_fmt(total_elapsed), data
         )
 
@@ -236,7 +236,7 @@ class HCExecutionEngine(QObject):
         data = self.hw_manager.read_all()
         self._write_log(data, final_total_sec)
 
-        self._end_session(self.finished, final_total_sec)
+        self._end_session(self.sequence_finished, final_total_sec)
 
     def _write_log(self, data: SensorData, elapsed_time: float) -> None:
         """ログ保存処理"""

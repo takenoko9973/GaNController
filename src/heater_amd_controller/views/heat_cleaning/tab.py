@@ -19,14 +19,41 @@ from heater_amd_controller.models.protocol_config import ProtocolConfig
 from heater_amd_controller.models.sequence import SequenceMode
 from heater_amd_controller.views.widgets.checkable_spinbox import CheckableSpinBox
 
-from .execution_panel import HCExecutionControlGroup
+from .execution_panel import HCExecutionPanel
 
 
 class HeatCleaningTab(QWidget):
-    protocol_changed = Signal(str)
-    save_requested = Signal()  # 通常保存
+    """Heat Cleaning 制御用タブ"""
+
+    # シグナル
+    protocol_selected = Signal(str)  # プロトコル変更時の読み込み用
+    save_overwrite_requested = Signal()  # 通常保存
     save_as_requested = Signal()  # 名前をつけて保存
-    execution_toggled = Signal(bool)
+    start_requested = Signal()  # 開始信号
+    stop_requested = Signal()  # 停止信号
+
+    # ショートカット
+    shortcut_save: QShortcut
+    shortcut_save_as: QShortcut
+
+    # UIウィジェット (左パネル)
+    protocol_combo: QComboBox
+    save_button: QPushButton
+
+    # シーケンス設定用
+    sequence_time_spins: dict[str, QDoubleSpinBox]
+    sequence_repeat_spin: QDoubleSpinBox
+    step_interval_spin: QDoubleSpinBox
+    hc_checked_spin: CheckableSpinBox
+    amd_checked_spin: CheckableSpinBox
+
+    # ログ設定用
+    chk_date_update: QCheckBox
+    chk_major_update: QCheckBox
+    comment_edit: QLineEdit
+
+    # 実行制御グループ
+    execution_panel: HCExecutionPanel
 
     def __init__(self) -> None:
         super().__init__()
@@ -37,7 +64,7 @@ class HeatCleaningTab(QWidget):
         """ショートカットキーの設定"""
         # Ctrl+S -> 上書き保存
         self.shortcut_save = QShortcut(QKeySequence("Ctrl+S"), self)
-        self.shortcut_save.activated.connect(self.save_requested.emit)
+        self.shortcut_save.activated.connect(self.save_overwrite_requested.emit)
 
         # Ctrl+Shift+S -> 名前を付けて保存
         self.shortcut_save_as = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
@@ -56,9 +83,11 @@ class HeatCleaningTab(QWidget):
         left_panel_layout.addWidget(self.create_log_settings_group())
         left_panel_layout.addSpacing(10)
 
-        self.execution_group = HCExecutionControlGroup()
-        self.execution_group.execution_toggled.connect(self.execution_toggled.emit)
-        left_panel_layout.addWidget(self.execution_group)
+        self._execution_panel = HCExecutionPanel()
+        # シグナル連鎖
+        self._execution_panel.start_requested.connect(self.start_requested.emit)
+        self._execution_panel.stop_requested.connect(self.stop_requested.emit)
+        left_panel_layout.addWidget(self._execution_panel)
 
         left_panel_layout.addStretch()
 
@@ -102,8 +131,8 @@ class HeatCleaningTab(QWidget):
         layout.addStretch()
         layout.addWidget(self.save_button)
 
-        self.protocol_combo.currentTextChanged.connect(self.protocol_changed.emit)
-        self.save_button.clicked.connect(self.save_requested.emit)
+        self.protocol_combo.currentTextChanged.connect(self.protocol_selected.emit)
+        self.save_button.clicked.connect(self.save_overwrite_requested.emit)
 
         return layout
 
@@ -142,7 +171,7 @@ class HeatCleaningTab(QWidget):
         return layout
 
     def _create_settings_layout(self) -> QHBoxLayout:
-        # === シーケンス設定
+        """シーケンス設定"""
         setting_layout = QHBoxLayout()
         setting_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
@@ -256,4 +285,14 @@ class HeatCleaningTab(QWidget):
     def update_execution_status(
         self, status_text: str, step_time: str, total_time: str, is_running: bool
     ) -> None:
-        self.execution_group.update_status(status_text, step_time, total_time, is_running)
+        self._execution_panel.update_status(status_text, step_time, total_time, is_running)
+
+    def update_sensor_values(
+        self,
+        hc_vals: tuple[float, float, float],  # (A, V, W)
+        amd_vals: tuple[float, float, float],  # (A, V, W)
+        temp: float,
+        ext_pres: float,
+        sip_pres: float,
+    ) -> None:
+        self._execution_panel.update_sensor_values(hc_vals, amd_vals, temp, ext_pres, sip_pres)
