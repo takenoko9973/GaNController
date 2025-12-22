@@ -2,11 +2,8 @@ import sys
 
 from PySide6.QtWidgets import QMainWindow, QStatusBar, QTabWidget, QVBoxLayout, QWidget
 
-from heater_amd_controller.views.tabs.config_tab import ConfigTab
-
-# 分割したタブクラスをインポート
-# (パッケージ構成に合わせてパスは調整してください)
-from heater_amd_controller.views.tabs.heat_cleaning_tab import HeatCleaningTab
+from heater_amd_controller.views.tabs import ConfigTab
+from heater_amd_controller.views.tabs.heat_cleaning import HeatCleaningTab
 
 
 class MainWindowView(QMainWindow):

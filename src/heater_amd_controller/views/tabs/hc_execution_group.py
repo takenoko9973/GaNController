@@ -11,8 +11,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from heater_amd_controller.views.widgets.labeled_item import LabeledItem
-from heater_amd_controller.views.widgets.value_label import ValueLabel
+from heater_amd_controller.views.widgets import LabeledItem, ValueLabel
 
 
 class HCExecutionControlGroup(QGroupBox):

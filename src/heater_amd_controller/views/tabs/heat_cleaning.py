@@ -17,8 +17,9 @@ from PySide6.QtWidgets import (
 
 from heater_amd_controller.models.protocol_config import ProtocolConfig
 from heater_amd_controller.models.sequence import SequenceMode
-from heater_amd_controller.views.tabs.hc_execution_group import HCExecutionControlGroup
-from heater_amd_controller.views.widgets.checkable_spinbox import CheckableSpinBox
+from heater_amd_controller.views.widgets import CheckableSpinBox
+
+from .hc_execution_group import HCExecutionControlGroup
 
 
 class HeatCleaningTab(QWidget):
@@ -194,19 +195,19 @@ class HeatCleaningTab(QWidget):
         """プロトコル名のリストを受け取ってプルダウンを更新する"""
         current = self.protocol_combo.currentText()
 
-        self.protocol_combo.blockSignals(True)  # イベント無効化  # noqa: FBT003
+        self.protocol_combo.blockSignals(True)  # イベント無効化
 
         self.protocol_combo.clear()
         self.protocol_combo.addItems(names)
         self.protocol_combo.setCurrentText(current)  # 可能なら選択維持
 
-        self.protocol_combo.blockSignals(False)  # noqa: FBT003
+        self.protocol_combo.blockSignals(False)
 
     def select_protocol(self, name: str) -> None:
         """指定した名前をコンボボックスで選択する (Controllerから呼ぶ)"""
-        self.protocol_combo.blockSignals(True)  # noqa: FBT003
+        self.protocol_combo.blockSignals(True)
         self.protocol_combo.setCurrentText(name)
-        self.protocol_combo.blockSignals(False)  # noqa: FBT003
+        self.protocol_combo.blockSignals(False)
 
     def update_ui_from_data(self, data: ProtocolConfig) -> None:
         """データを受け取って、全入力欄に反映"""

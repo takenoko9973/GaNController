@@ -1,10 +1,10 @@
 from PySide6.QtCore import QObject, Signal
 
-from heater_amd_controller.controllers.engines.hc_execution_engine import HCExecutionEngine
 from heater_amd_controller.controllers.handlers.protocol_handler import ProtocolHandler
 from heater_amd_controller.logics.hardware_manager import HardwareManager, SensorData
+from heater_amd_controller.logics.hc_execution_engine import HCExecutionEngine
 from heater_amd_controller.logics.protocol_manager import ProtocolManager
-from heater_amd_controller.views.tabs.heat_cleaning_tab import HeatCleaningTab
+from heater_amd_controller.views.tabs import HeatCleaningTab
 
 
 class HeatCleaningController(QObject):

@@ -56,13 +56,13 @@ class CheckableSpinBox(QWidget):
     def set_data(self, checked: bool, value: float) -> None:
         """外部からデータをセット"""
         # ブロックシグナルで、無駄なイベント発火防止
-        self.checkbox.blockSignals(True)  # noqa: FBT003
+        self.checkbox.blockSignals(True)
 
         self.checkbox.setChecked(checked)
         self.spinbox.setValue(value)
         self._update_state()
 
-        self.checkbox.blockSignals(False)  # noqa: FBT003
+        self.checkbox.blockSignals(False)
 
     def value(self) -> float:
         return self.spinbox.value()
