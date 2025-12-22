@@ -20,9 +20,12 @@ class HCExecutionEngine(QObject):
 
     # 毎秒の更新通知 (状態テキスト, ステップ時間, トータル時間, 測定データ)
     monitor_updated = Signal(str, str, str, SensorData)
+    graph_updated = Signal(float, SensorData)  # グラフ更新
     # 終了シグナル (最終トータル時間)
     sequence_finished = Signal(str)
     sequence_stopped = Signal(str)
+    # ログファイル生成シグナル
+    log_initialized = Signal(str)
 
     def __init__(self, hw_manager: HardwareManager) -> None:
         super().__init__()
@@ -73,6 +76,7 @@ class HCExecutionEngine(QObject):
 
             self._logger = HCLogger(log_file, protocol_config)
             self._logger.write_header(start_time, self._sequence_objects)
+            self.log_initialized.emit(log_file.path.stem)
 
         except Exception as e:  # noqa: BLE001
             print(f"Log creation failed: {e}")
@@ -163,6 +167,7 @@ class HCExecutionEngine(QObject):
         # 3. ログ処理
         if is_log_interval:
             self._write_log(data, total_elapsed_sec)
+            self.graph_updated.emit(total_elapsed_sec, data)
 
         # 4. 通知 (UI更新用)
         self._emit_status_update(data, seq_elapsed_sec, total_elapsed_sec)

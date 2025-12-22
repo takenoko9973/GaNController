@@ -15,9 +15,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from heater_amd_controller.logics.hardware_manager import SensorData
 from heater_amd_controller.models.protocol_config import ProtocolConfig
 from heater_amd_controller.models.sequence import SequenceMode
 from heater_amd_controller.views.widgets.checkable_spinbox import CheckableSpinBox
+from heater_amd_controller.views.widgets.graph_widget import AxisScale, DualAxisGraph
 
 from .execution_panel import HCExecutionPanel
 
@@ -39,6 +41,9 @@ class HeatCleaningTab(QWidget):
     # UIウィジェット (左パネル)
     protocol_combo: QComboBox
     save_button: QPushButton
+    # 右パネル
+    graph_power: DualAxisGraph
+    graph_pressure: DualAxisGraph
 
     # シーケンス設定用
     sequence_time_spins: dict[str, QDoubleSpinBox]
@@ -93,22 +98,40 @@ class HeatCleaningTab(QWidget):
 
         # --- 右側の表示エリア ---
         right_panel_layout = QVBoxLayout()
-        graph_placeholder_1 = QWidget()
-        graph_placeholder_1.setStyleSheet("background-color: #f0f0f0; border: 1px solid #ccc;")
-        graph_placeholder_1.setMinimumHeight(200)
 
-        graph_placeholder_2 = QWidget()
-        graph_placeholder_2.setStyleSheet("background-color: #f0f0f0; border: 1px solid #ccc;")
-        graph_placeholder_2.setMinimumHeight(200)
+        self.graph_power = DualAxisGraph(
+            "Power",
+            "Time (h)",
+            "Temperature (°C)",
+            "Power (W)",
+        )
+        self.graph_power.add_line("TC (℃)", "red")
+        self.graph_power.add_line("HC Power (W)", "orange", is_right_axis=True)
+        self.graph_power.add_line("AMD Power (W)", "gold", is_right_axis=True)
+        self.graph_power.setMinimumWidth(500)
+        self.graph_power.setMinimumHeight(300)
+
+        self.graph_pressure = DualAxisGraph(
+            "Pressure",
+            "Time (h)",
+            "Temperature (°C)",
+            "Pressure (Pa)",
+            right_scale=AxisScale.LOG,
+        )
+        self.graph_pressure.add_line("TC (℃)", "red")
+        self.graph_pressure.add_line("EXT (Pa)", "green", is_right_axis=True)
+        self.graph_pressure.add_line("SIP (Pa)", "purple", is_right_axis=True)
+        self.graph_pressure.setMinimumWidth(500)
+        self.graph_pressure.setMinimumHeight(300)
 
         log_display = QTextEdit()
         log_display.setReadOnly(True)
         log_display.setPlaceholderText("Log...")
 
-        right_panel_layout.addWidget(QLabel("グラフ 1 (プレースホルダー)"))
-        right_panel_layout.addWidget(graph_placeholder_1)
-        right_panel_layout.addWidget(QLabel("グラフ 2 (プレースホルダー)"))
-        right_panel_layout.addWidget(graph_placeholder_2)
+        right_panel_layout.addWidget(self.graph_power)
+        right_panel_layout.addSpacing(10)
+        right_panel_layout.addWidget(self.graph_pressure)
+        right_panel_layout.addSpacing(10)
         right_panel_layout.addWidget(QLabel("Log"))
         right_panel_layout.addWidget(log_display)
 
@@ -282,17 +305,56 @@ class HeatCleaningTab(QWidget):
             comment=self.comment_edit.text(),
         )
 
+    # ============================================================
+
     def update_execution_status(
         self, status_text: str, step_time: str, total_time: str, is_running: bool
     ) -> None:
         self._execution_panel.update_status(status_text, step_time, total_time, is_running)
 
-    def update_sensor_values(
-        self,
-        hc_vals: tuple[float, float, float],  # (A, V, W)
-        amd_vals: tuple[float, float, float],  # (A, V, W)
-        temp: float,
-        ext_pres: float,
-        sip_pres: float,
-    ) -> None:
-        self._execution_panel.update_sensor_values(hc_vals, amd_vals, temp, ext_pres, sip_pres)
+    def update_sensor_values(self, data: SensorData) -> None:
+        hc_vals = (data.hc_current, data.hc_voltage, data.hc_power)
+        amd_vals = (data.amd_current, data.amd_voltage, data.amd_power)
+
+        self._execution_panel.update_sensor_values(
+            hc_vals, amd_vals, data.temperature, data.pressure_ext, data.pressure_sip
+        )
+
+    # ============================================================
+
+    def update_graph_titles(self, filename: str) -> None:
+        """ログファイル名をタイトルに設定"""
+        # どのグラフかわかるようにSuffixをつける
+        self.graph_power.set_title(f"{filename}_power")
+        self.graph_pressure.set_title(f"{filename}_pressure")
+
+    def clear_graphs(self) -> None:
+        """開始時にグラフをクリアする"""
+        self.graph_power.clear_data()
+        self.graph_pressure.clear_data()
+
+    def update_graphs(self, time_sec: float, data: SensorData) -> None:
+        """グラフのみ更新 (ログ間隔で呼ばれる)"""
+        time_hour = time_sec / 3600
+        hc_vals = (data.hc_current, data.hc_voltage, data.hc_power)
+        amd_vals = (data.amd_current, data.amd_voltage, data.amd_power)
+
+        # Graph 1: Power & Temp
+        self.graph_power.update_point(
+            time_hour,
+            {
+                "HC Power (W)": hc_vals[2],
+                "AMD Power (W)": amd_vals[2],
+                "TC (℃)": data.temperature,
+            },
+        )
+
+        # Graph 2: Pressure & Temp
+        self.graph_pressure.update_point(
+            time_hour,
+            {
+                "EXT (Pa)": data.pressure_ext,
+                "SIP (Pa)": data.pressure_sip,
+                "TC (℃)": data.temperature,
+            },
+        )

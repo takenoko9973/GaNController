@@ -11,7 +11,7 @@ class MainWindowView(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("実験制御アプリケーション")
-        self.resize(1100, 700)
+        self.resize(950, 850)
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)

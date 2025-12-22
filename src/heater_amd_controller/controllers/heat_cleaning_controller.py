@@ -26,9 +26,11 @@ class HeatCleaningController(QObject):
         self.proto_handler.refresh_protocol_list_req.connect(self.refresh_list)  # protocol一覧更新
         # Engine からのシグナル
         self.engine = HCExecutionEngine(self.hw_manager)
-        self.engine.monitor_updated.connect(self._on_engine_tick)  # 記録タイミングのシグナル
+        self.engine.monitor_updated.connect(self._on_monitor_updated)  # 記録タイミングのシグナル
+        self.engine.graph_updated.connect(self._on_graph_updated)  # グラフ更新シグナル
         self.engine.sequence_finished.connect(self._on_engine_finished)  # 記録終了時のシグナル
         self.engine.sequence_stopped.connect(self._on_engine_stopped)  # 記録中断時のシグナル
+        self.engine.log_initialized.connect(self.view.update_graph_titles)  # ログ生成シグナル
         # Ui (Tab) からのシグナル
         self.view.protocol_selected.connect(self.proto_handler.load_protocol)  # プロトコル変更
         self.view.save_overwrite_requested.connect(self._on_save_clicked)  # 通常保存
@@ -66,22 +68,21 @@ class HeatCleaningController(QObject):
         self.proto_handler.save_as(name, data)
 
     def _start_experiment(self) -> None:
+        self.view.clear_graphs()  # グラフクリア
+
         config = self.view.get_current_ui_data()  # 現在の設定取得
         self.engine.start(config)
 
     def _stop_experiment(self) -> None:
         self.engine.stop()
 
-    def _on_engine_tick(self, status: str, step_t: str, total_t: str, data: SensorData) -> None:
-        # 画面更新
+    def _on_monitor_updated(self, status: str, step_t: str, total_t: str, data: SensorData) -> None:
         self.view.update_execution_status(status, step_t, total_t, True)
+        self.view.update_sensor_values(data)
 
-        # センサー値更新
-        hc_vals = (data.hc_current, data.hc_voltage, data.hc_power)
-        amd_vals = (data.amd_current, data.amd_voltage, data.amd_power)
-        self.view.update_sensor_values(
-            hc_vals, amd_vals, data.temperature, data.pressure_ext, data.pressure_sip
-        )
+    def _on_graph_updated(self, time_sec: float, data: SensorData) -> None:
+        """設定した間隔(例:10秒)でのみ呼ばれる: グラフの点追加"""
+        self.view.update_graphs(time_sec, data)
 
     def _on_engine_finished(self, total_time: str) -> None:
         self.view.update_execution_status("完了", "00:00:00", total_time, False)
