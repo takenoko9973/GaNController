@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QMainWindow, QStatusBar, QTabWidget, QVBoxLayout, 
 
 from heater_amd_controller.views.config import ConfigTab
 from heater_amd_controller.views.heat_cleaning import HeatCleaningTab
+from heater_amd_controller.views.nea_activation import NEAActivationTab
 
 
 class MainWindowView(QMainWindow):
@@ -26,9 +27,11 @@ class MainWindowView(QMainWindow):
         self.tabs = QTabWidget()
 
         self.sequence_tab = HeatCleaningTab()
+        self.nea_act_tab = NEAActivationTab()
         self.config_tab = ConfigTab()
 
         self.tabs.addTab(self.sequence_tab, "Heat Cleaning")
+        self.tabs.addTab(self.nea_act_tab, "NEA Activation")
         self.tabs.addTab(self.config_tab, "Config")
 
         # ==================
