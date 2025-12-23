@@ -1,4 +1,4 @@
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, Slot
 from PySide6.QtWidgets import QInputDialog, QMessageBox, QWidget
 
 from heater_amd_controller.logics.protocol_manager import ProtocolManager
@@ -19,6 +19,7 @@ class ProtocolHandler(QObject):
 
         self._last_loaded_config: ProtocolConfig | None = None
 
+    @Slot(str)
     def load_protocol(self, name: str) -> None:
         """プロトコルをロード"""
         print(f"[ProtocolHandler] Load: {name}")

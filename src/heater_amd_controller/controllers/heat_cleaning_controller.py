@@ -17,29 +17,35 @@ class HeatCleaningController(QObject):
         self.manager = manager
 
         self.hw_manager = HardwareManager()
-
-        # === 各要素からのシグナルの接続
-        # Handler からのシグナル
-        self.proto_handler = ProtocolHandler(view, manager)
-        self.proto_handler.status_message.connect(self.status_message_requested)  # 状態メッセージ
-        self.proto_handler.data_loaded.connect(self.view.update_ui_from_data)  # 記録データ表示
-        self.proto_handler.refresh_protocol_list_req.connect(self.refresh_list)  # protocol一覧更新
-        # Engine からのシグナル
         self.engine = HCExecutionEngine(self.hw_manager)
-        self.engine.monitor_updated.connect(self._on_monitor_updated)  # 記録タイミングのシグナル
-        self.engine.graph_updated.connect(self._on_graph_updated)  # グラフ更新シグナル
-        self.engine.sequence_finished.connect(self._on_engine_finished)  # 記録終了時のシグナル
-        self.engine.sequence_stopped.connect(self._on_engine_stopped)  # 記録中断時のシグナル
-        self.engine.log_initialized.connect(self.view.update_graph_titles)  # ログ生成シグナル
-        # Ui (Tab) からのシグナル
-        self.view.protocol_selected.connect(self.proto_handler.load_protocol)  # プロトコル変更
-        self.view.save_overwrite_requested.connect(self._on_save_clicked)  # 通常保存
-        self.view.save_as_requested.connect(self._on_save_as_clicked)  # 名前をつけて保存
-        self.view.start_requested.connect(self._start_experiment)  # 開始・停止信号
-        self.view.stop_requested.connect(self._stop_experiment)  # 開始・停止信号
+        self.proto_handler = ProtocolHandler(view, manager)
+
+        # シグナル接続定義
+        self._setup_connections()
 
         # 初期化処理
         self.refresh_list()
+
+    def _setup_connections(self) -> None:
+        """シグナルとスロットの接続定義"""
+        # Handler からのシグナル
+        self.proto_handler.status_message.connect(self.status_message_requested)  # 状態メッセージ
+        self.proto_handler.data_loaded.connect(self.view.update_ui_from_data)  # 記録データ表示
+        self.proto_handler.refresh_protocol_list_req.connect(self.refresh_list)  # protocol一覧更新
+
+        # Engine からのシグナル
+        self.engine.monitor_updated.connect(self.on_monitor_updated)  # 記録タイミングのシグナル
+        self.engine.graph_updated.connect(self.on_graph_updated)  # グラフ更新シグナル
+        self.engine.sequence_finished.connect(self.on_engine_finished)  # 記録終了時のシグナル
+        self.engine.sequence_stopped.connect(self.on_engine_stopped)  # 記録中断時のシグナル
+        self.engine.log_initialized.connect(self.view.update_graph_titles)  # ログ生成シグナル
+
+        # Ui (Tab) からのシグナル
+        self.view.protocol_selected.connect(self.proto_handler.load_protocol)  # プロトコル変更
+        self.view.save_overwrite_requested.connect(self.on_save_overwrite_requested)  # 通常保存
+        self.view.save_as_requested.connect(self.on_save_as_requested)  # 名前をつけて保存
+        self.view.start_requested.connect(self.on_start_requested)  # 開始・停止信号
+        self.view.stop_requested.connect(self.on_stop_requested)  # 開始・停止信号
 
     def refresh_list(self, select_name: str | None = None) -> None:
         """リストを更新し、指定があればそれを選択する"""
@@ -55,19 +61,27 @@ class HeatCleaningController(QObject):
             self.view.select_protocol(target_name)
             self.proto_handler.load_protocol(target_name)
 
-    def _on_save_clicked(self) -> None:
+    # ============================================================
+    # Slots (シグナルハンドラ)
+    # ============================================================
+
+    @Slot()
+    def on_save_overwrite_requested(self) -> None:
         """上書き保存 (Ctrl+S)"""
         name = self.view.get_current_protocol_name()
         data = self.view.get_current_ui_data()
         self.proto_handler.save_overwrite(name, data)
 
-    def _on_save_as_clicked(self) -> None:
+    @Slot()
+    def on_save_as_requested(self) -> None:
         """名前を付けて保存 (Ctrl+Shift+S)"""
         name = self.view.get_current_protocol_name()
         data = self.view.get_current_ui_data()
         self.proto_handler.save_as(name, data)
 
-    def _start_experiment(self) -> None:
+    @Slot()
+    def on_start_requested(self) -> None:
+        """開始処理"""
         config = self.view.get_current_ui_data()  # 現在の設定取得
 
         # グラフ初期化
@@ -75,25 +89,32 @@ class HeatCleaningController(QObject):
 
         self.engine.start(config)
 
-    def _stop_experiment(self) -> None:
+    @Slot()
+    def on_stop_requested(self) -> None:
+        """停止処理"""
         self.engine.stop()
 
-    def _on_monitor_updated(
+    @Slot(str, float, float, SensorData)
+    def on_monitor_updated(
         self, status: str, step_sec: float, total_sec: float, data: SensorData
     ) -> None:
+        """モニタリング更新"""
         self.view.update_execution_status(status, step_sec, total_sec, True)
         self.view.update_sensor_values(data)
 
-    def _on_graph_updated(self, time_sec: float, data: SensorData) -> None:
-        """設定した間隔(例:10秒)でのみ呼ばれる: グラフの点追加"""
+    @Slot(float, SensorData)
+    def on_graph_updated(self, time_sec: float, data: SensorData) -> None:
+        """グラフ点更新"""
         self.view.update_graphs(time_sec, data)
 
     @Slot(float)
-    def _on_engine_finished(self, total_sec: float) -> None:
+    def on_engine_finished(self, total_sec: float) -> None:
+        """完了時"""
         self.view.update_execution_status("完了", 0, total_sec, False)
         self.status_message_requested.emit("全工程完了", 0)
 
     @Slot(float)
-    def _on_engine_stopped(self, total_sec: float) -> None:
+    def on_engine_stopped(self, total_sec: float) -> None:
+        """停止時"""
         self.view.update_execution_status("停止", 0, total_sec, False)
         self.status_message_requested.emit("停止しました", 3000)

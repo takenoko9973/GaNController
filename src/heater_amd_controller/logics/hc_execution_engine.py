@@ -1,7 +1,7 @@
 import datetime
 import time
 
-from PySide6.QtCore import QObject, QTimer, Signal, SignalInstance
+from PySide6.QtCore import QObject, QTimer, Signal, SignalInstance, Slot
 
 from heater_amd_controller.logics.hardware_manager import HardwareManager, SensorData
 from heater_amd_controller.logics.hc_logger import HCLogger
@@ -138,6 +138,7 @@ class HCExecutionEngine(QObject):
     # 内部メソッド
     # ================================================
 
+    @Slot()
     def _on_tick(self) -> None:
         """tick毎の処理"""
         if not self._config or not self.current_sequence:

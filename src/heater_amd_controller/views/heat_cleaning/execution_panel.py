@@ -146,15 +146,16 @@ class HCExecutionPanel(QGroupBox):
         self.stop_button.setEnabled(False)
 
         # クリック時のシグナル接続
-        self.start_button.clicked.connect(self._on_start_clicked)
-        self.stop_button.clicked.connect(self._on_stop_clicked)
+        self.start_button.clicked.connect(self.on_start_clicked)
+        self.stop_button.clicked.connect(self.on_stop_clicked)
 
         control_layout.addWidget(self.start_button)
         control_layout.addWidget(self.stop_button)
 
         return control_layout
 
-    def _on_start_clicked(self) -> None:
+    @Slot()
+    def on_start_clicked(self) -> None:
         """開始ボタン押下時"""
         # 即座にUI反応
         self.start_button.setEnabled(False)
@@ -162,7 +163,8 @@ class HCExecutionPanel(QGroupBox):
         # 開始 を通知
         self.start_requested.emit()
 
-    def _on_stop_clicked(self) -> None:
+    @Slot()
+    def on_stop_clicked(self) -> None:
         """停止ボタン押下時"""
         # 停止処理は時間がかかる場合があるため、ボタンを無効化して連打を防ぐ
         self.stop_button.setEnabled(False)
@@ -176,7 +178,7 @@ class HCExecutionPanel(QGroupBox):
         h, m = divmod(m, 60)
         return f"{h:02d}:{m:02d}:{s:02d}"
 
-    @Slot(str, str, str, bool)
+    @Slot(str, float, float, bool)
     def update_status(
         self, status_text: str, step_time: float, total_time: float, is_running: bool
     ) -> None:
@@ -197,7 +199,7 @@ class HCExecutionPanel(QGroupBox):
 
         self.status_value_label.setPalette(pal)
 
-    @Slot(tuple, tuple, float, float, float)
+    @Slot(SensorData)
     def update_sensor_values(self, data: SensorData) -> None:
         """センサー値更新"""
         # HC
