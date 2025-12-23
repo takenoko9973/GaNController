@@ -53,7 +53,7 @@ class DualAxisGraph(QWidget):
         layout.addWidget(self.canvas)
 
         # 軸ラベルとタイトルの設定
-        self.ax_left.set_title(title, fontsize="medium")
+        self.ax_left.set_title(title, fontsize="x-small")
         self.ax_left.set_xlabel(x_label, fontsize="large")
         self.ax_left.set_ylabel(left_label, fontsize="large")
         self.ax_right.set_ylabel(right_label, fontsize="large")
@@ -78,7 +78,7 @@ class DualAxisGraph(QWidget):
 
     def set_title(self, title: str) -> None:
         """グラフのタイトルを再設定"""
-        self.ax_left.set_title(title, fontsize="medium")
+        self.ax_left.set_title(title, fontsize="x-small")
         self.canvas.draw()
 
     def set_line_label(self, key_name: str, new_label: str) -> None:
