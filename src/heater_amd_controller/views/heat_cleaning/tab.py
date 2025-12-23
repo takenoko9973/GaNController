@@ -326,6 +326,7 @@ class HeatCleaningTab(QWidget):
         """実行設定に基づいてグラフのラインを再構築する"""
         # === Graph 1: Power & Temp ===
         self.graph_power.clear_lines()
+        self.graph_power.clear_data()
 
         self.graph_power.add_line("TC", "TC (℃)", "red")
 
@@ -341,6 +342,7 @@ class HeatCleaningTab(QWidget):
 
         # === Graph 2: Pressure & Temp ===
         self.graph_pressure.clear_lines()
+        self.graph_pressure.clear_data()
         self.graph_pressure.add_line("TC", "TC (℃)", "red")
         self.graph_pressure.add_line("EXT", "EXT (Pa)", "green", is_right_axis=True)
         self.graph_pressure.add_line("SIP", "SIP (Pa)", "purple", is_right_axis=True)
