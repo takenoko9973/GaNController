@@ -105,9 +105,6 @@ class HeatCleaningTab(QWidget):
             "Temperature (°C)",
             "Power (W)",
         )
-        self.graph_power.add_line("TC (℃)", "red")
-        self.graph_power.add_line("HC Power (W)", "orange", is_right_axis=True)
-        self.graph_power.add_line("AMD Power (W)", "gold", is_right_axis=True)
         self.graph_power.setMinimumWidth(500)
         self.graph_power.setMinimumHeight(300)
 
@@ -118,9 +115,6 @@ class HeatCleaningTab(QWidget):
             "Pressure (Pa)",
             right_scale=AxisScale.LOG,
         )
-        self.graph_pressure.add_line("TC (℃)", "red")
-        self.graph_pressure.add_line("EXT (Pa)", "green", is_right_axis=True)
-        self.graph_pressure.add_line("SIP (Pa)", "purple", is_right_axis=True)
         self.graph_pressure.setMinimumWidth(500)
         self.graph_pressure.setMinimumHeight(300)
 
@@ -328,10 +322,32 @@ class HeatCleaningTab(QWidget):
         self.graph_power.set_title(f"{filename}_power")
         self.graph_pressure.set_title(f"{filename}_pressure")
 
-    def clear_graphs(self) -> None:
-        """開始時にグラフをクリアする"""
-        self.graph_power.clear_data()
-        self.graph_pressure.clear_data()
+    def setup_graphs(self, config: ProtocolConfig) -> None:
+        """実行設定に基づいてグラフのラインを再構築する"""
+        # === Graph 1: Power & Temp ===
+        self.graph_power.clear_lines()
+
+        self.graph_power.add_line("TC", "TC (℃)", "red")
+
+        # HC (有効な場合のみ追加)
+        if config.hc_enabled:
+            label = f"Heater({config.hc_current:.1f}A) (W)"
+            self.graph_power.add_line("HC", label, "orange", is_right_axis=True)
+
+        # AMD (有効な場合のみ追加)
+        if config.amd_enabled:
+            label = f"AMD({config.amd_current:.1f}A) (W)"
+            self.graph_power.add_line("AMD", label, "gold", is_right_axis=True)
+
+        # === Graph 2: Pressure & Temp ===
+        self.graph_pressure.clear_lines()
+        self.graph_pressure.add_line("TC", "TC (℃)", "red")
+        self.graph_pressure.add_line("EXT", "EXT (Pa)", "green", is_right_axis=True)
+        self.graph_pressure.add_line("SIP", "SIP (Pa)", "purple", is_right_axis=True)
+
+        # 再描画
+        self.graph_power.canvas.draw()
+        self.graph_pressure.canvas.draw()
 
     def update_graphs(self, time_sec: float, data: SensorData) -> None:
         """グラフのみ更新 (ログ間隔で呼ばれる)"""
@@ -343,9 +359,9 @@ class HeatCleaningTab(QWidget):
         self.graph_power.update_point(
             time_hour,
             {
-                "HC Power (W)": hc_vals[2],
-                "AMD Power (W)": amd_vals[2],
-                "TC (℃)": data.temperature,
+                "TC": data.temperature,
+                "HC": hc_vals[2],
+                "AMD": amd_vals[2],
             },
         )
 
@@ -353,8 +369,8 @@ class HeatCleaningTab(QWidget):
         self.graph_pressure.update_point(
             time_hour,
             {
-                "EXT (Pa)": data.pressure_ext,
-                "SIP (Pa)": data.pressure_sip,
-                "TC (℃)": data.temperature,
+                "TC": data.temperature,
+                "EXT": data.pressure_ext,
+                "SIP": data.pressure_sip,
             },
         )

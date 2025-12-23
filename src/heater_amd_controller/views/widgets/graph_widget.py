@@ -1,10 +1,13 @@
 from enum import Enum
+from typing import TYPE_CHECKING
 
-import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.ticker import AutoMinorLocator
 from PySide6.QtWidgets import QVBoxLayout, QWidget
+
+if TYPE_CHECKING:
+    import matplotlib.pyplot as plt
 
 
 class AxisScale(Enum):
@@ -56,12 +59,12 @@ class DualAxisGraph(QWidget):
         self.ax_right.set_ylabel(right_label, fontsize="large")
 
         self.ax_left.yaxis.set_minor_locator(AutoMinorLocator(5))
-        self.ax_left.tick_params(which="major", labelsize="large", direction="in", top=True)
-        self.ax_left.tick_params(which="minor", labelsize="large", direction="in", top=True)
+        self.ax_left.tick_params(which="major", labelsize="medium", direction="in", top=True)
+        self.ax_left.tick_params(which="minor", labelsize="medium", direction="in", top=True)
 
         self.ax_right.yaxis.set_minor_locator(AutoMinorLocator(5))
-        self.ax_right.tick_params(which="major", labelsize="large", direction="in", top=True)
-        self.ax_right.tick_params(which="minor", labelsize="large", direction="in", top=True)
+        self.ax_right.tick_params(which="major", labelsize="medium", direction="in", top=True)
+        self.ax_right.tick_params(which="minor", labelsize="medium", direction="in", top=True)
 
         self.ax_left.grid(True, linestyle="--", alpha=0.6)
 
@@ -78,12 +81,20 @@ class DualAxisGraph(QWidget):
         self.ax_left.set_title(title, fontsize="medium")
         self.canvas.draw()
 
-    def set_x_formatter(self, formatter: plt.Formatter) -> None:
-        """X軸の目盛りフォーマッターを外部から設定する"""
-        self.ax_left.xaxis.set_major_formatter(formatter)
-        self.canvas.draw()
+    def set_line_label(self, key_name: str, new_label: str) -> None:
+        """凡例表示名を変更"""
+        target_line = None
 
-    def add_line(self, name: str, color: str, is_right_axis: bool = False) -> None:
+        if key_name in self.lines_left:
+            target_line = self.lines_left[key_name]
+        elif key_name in self.lines_right:
+            target_line = self.lines_right[key_name]
+
+        if target_line:
+            target_line.set_label(new_label)
+            self._update_legend()
+
+    def add_line(self, name: str, label_name: str, color: str, is_right_axis: bool = False) -> None:
         """プロットするラインを登録"""
         axis = self.ax_right if is_right_axis else self.ax_left
         lines_dict = self.lines_right if is_right_axis else self.lines_left
@@ -91,7 +102,7 @@ class DualAxisGraph(QWidget):
 
         # ラインを作成して保持
         data_dict[name] = []
-        (line,) = axis.plot([], [], label=name, color=color, linewidth=1.5)
+        (line,) = axis.plot([], [], label=label_name, color=color, linewidth=1.5)
         lines_dict[name] = line
 
         # 凡例を統合して表示
@@ -102,7 +113,24 @@ class DualAxisGraph(QWidget):
         lines1, labels1 = self.ax_left.get_legend_handles_labels()
         lines2, labels2 = self.ax_right.get_legend_handles_labels()
         # 凡例
-        self.ax_left.legend(lines1 + lines2, labels1 + labels2, loc="upper right", fontsize="small")
+        self.ax_left.legend(
+            lines1 + lines2, labels1 + labels2, loc="upper right", fontsize="x-small"
+        )
+
+    def clear_lines(self) -> None:
+        """ラインを削除し、初期状態に戻す"""
+        # 左軸ライン
+        for line in self.lines_left.values():
+            line.remove()
+        self.lines_left.clear()
+        self.left_data.clear()
+
+        # 右軸ライン
+        for line in self.lines_right.values():
+            line.remove()
+        self.lines_right.clear()
+        self.right_data.clear()
+
         self.canvas.draw()
 
     def clear_data(self) -> None:

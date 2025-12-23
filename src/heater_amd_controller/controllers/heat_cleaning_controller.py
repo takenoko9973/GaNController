@@ -68,9 +68,11 @@ class HeatCleaningController(QObject):
         self.proto_handler.save_as(name, data)
 
     def _start_experiment(self) -> None:
-        self.view.clear_graphs()  # グラフクリア
-
         config = self.view.get_current_ui_data()  # 現在の設定取得
+
+        # グラフ初期化
+        self.view.setup_graphs(config)
+
         self.engine.start(config)
 
     def _stop_experiment(self) -> None:
