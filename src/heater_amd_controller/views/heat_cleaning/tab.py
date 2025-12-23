@@ -24,6 +24,16 @@ from heater_amd_controller.views.widgets.graph_widget import AxisScale, DualAxis
 from .execution_panel import HCExecutionPanel
 
 
+class GraphKey:
+    """グラフのライン識別用キー定数"""
+
+    TEMP = "TC"
+    HC_POWER = "HC"
+    AMD_POWER = "AMD"
+    EXT_PRES = "EXT"
+    SIP_PRES = "SIP"
+
+
 class HeatCleaningTab(QWidget):
     """Heat Cleaning 制御用タブ"""
 
@@ -322,24 +332,24 @@ class HeatCleaningTab(QWidget):
         self.graph_power.clear_lines()
         self.graph_power.clear_data()
 
-        self.graph_power.add_line("TC", "TC (℃)", "red")
+        self.graph_power.add_line(GraphKey.TEMP, "TC (℃)", "red")
 
         # HC (有効な場合のみ追加)
         if config.hc_enabled:
             label = f"Heater({config.hc_current:.1f}A) (W)"
-            self.graph_power.add_line("HC", label, "orange", is_right_axis=True)
+            self.graph_power.add_line(GraphKey.HC_POWER, label, "orange", is_right_axis=True)
 
         # AMD (有効な場合のみ追加)
         if config.amd_enabled:
             label = f"AMD({config.amd_current:.1f}A) (W)"
-            self.graph_power.add_line("AMD", label, "gold", is_right_axis=True)
+            self.graph_power.add_line(GraphKey.AMD_POWER, label, "gold", is_right_axis=True)
 
         # === Graph 2: Pressure & Temp ===
         self.graph_pressure.clear_lines()
         self.graph_pressure.clear_data()
-        self.graph_pressure.add_line("TC", "TC (℃)", "red")
-        self.graph_pressure.add_line("EXT", "EXT (Pa)", "green", is_right_axis=True)
-        self.graph_pressure.add_line("SIP", "SIP (Pa)", "purple", is_right_axis=True)
+        self.graph_pressure.add_line(GraphKey.TEMP, "TC (℃)", "red")
+        self.graph_pressure.add_line(GraphKey.EXT_PRES, "EXT (Pa)", "green", is_right_axis=True)
+        self.graph_pressure.add_line(GraphKey.SIP_PRES, "SIP (Pa)", "purple", is_right_axis=True)
 
         # 再描画
         self.graph_power.canvas.draw()
@@ -353,9 +363,9 @@ class HeatCleaningTab(QWidget):
         self.graph_power.update_point(
             time_hour,
             {
-                "TC": data.temperature,
-                "HC": data.hc_power,
-                "AMD": data.amd_power,
+                GraphKey.TEMP: data.temperature,
+                GraphKey.HC_POWER: data.hc_power,
+                GraphKey.AMD_POWER: data.amd_power,
             },
         )
 
@@ -363,8 +373,8 @@ class HeatCleaningTab(QWidget):
         self.graph_pressure.update_point(
             time_hour,
             {
-                "TC": data.temperature,
-                "EXT": data.pressure_ext,
-                "SIP": data.pressure_sip,
+                GraphKey.TEMP: data.temperature,
+                GraphKey.EXT_PRES: data.pressure_ext,
+                GraphKey.SIP_PRES: data.pressure_sip,
             },
         )
