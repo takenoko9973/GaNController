@@ -302,23 +302,17 @@ class HeatCleaningTab(QWidget):
     # ============================================================
 
     def update_execution_status(
-        self, status_text: str, step_time: str, total_time: str, is_running: bool
+        self, status_text: str, step_sec: float, total_sec: float, is_running: bool
     ) -> None:
-        self._execution_panel.update_status(status_text, step_time, total_time, is_running)
+        self._execution_panel.update_status(status_text, step_sec, total_sec, is_running)
 
     def update_sensor_values(self, data: SensorData) -> None:
-        hc_vals = (data.hc_current, data.hc_voltage, data.hc_power)
-        amd_vals = (data.amd_current, data.amd_voltage, data.amd_power)
-
-        self._execution_panel.update_sensor_values(
-            hc_vals, amd_vals, data.temperature, data.pressure_ext, data.pressure_sip
-        )
+        self._execution_panel.update_sensor_values(data)
 
     # ============================================================
 
     def update_graph_titles(self, filename: str) -> None:
         """ログファイル名をタイトルに設定"""
-        # どのグラフかわかるようにSuffixをつける
         self.graph_power.set_title(f"{filename}_power")
         self.graph_pressure.set_title(f"{filename}_pressure")
 
@@ -354,16 +348,14 @@ class HeatCleaningTab(QWidget):
     def update_graphs(self, time_sec: float, data: SensorData) -> None:
         """グラフのみ更新 (ログ間隔で呼ばれる)"""
         time_hour = time_sec / 3600
-        hc_vals = (data.hc_current, data.hc_voltage, data.hc_power)
-        amd_vals = (data.amd_current, data.amd_voltage, data.amd_power)
 
         # Graph 1: Power & Temp
         self.graph_power.update_point(
             time_hour,
             {
                 "TC": data.temperature,
-                "HC": hc_vals[2],
-                "AMD": amd_vals[2],
+                "HC": data.hc_power,
+                "AMD": data.amd_power,
             },
         )
 

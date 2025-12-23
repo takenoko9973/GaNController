@@ -1,4 +1,4 @@
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, Slot
 
 from heater_amd_controller.controllers.handlers.protocol_handler import ProtocolHandler
 from heater_amd_controller.logics.hardware_manager import HardwareManager, SensorData
@@ -78,18 +78,22 @@ class HeatCleaningController(QObject):
     def _stop_experiment(self) -> None:
         self.engine.stop()
 
-    def _on_monitor_updated(self, status: str, step_t: str, total_t: str, data: SensorData) -> None:
-        self.view.update_execution_status(status, step_t, total_t, True)
+    def _on_monitor_updated(
+        self, status: str, step_sec: float, total_sec: float, data: SensorData
+    ) -> None:
+        self.view.update_execution_status(status, step_sec, total_sec, True)
         self.view.update_sensor_values(data)
 
     def _on_graph_updated(self, time_sec: float, data: SensorData) -> None:
         """設定した間隔(例:10秒)でのみ呼ばれる: グラフの点追加"""
         self.view.update_graphs(time_sec, data)
 
-    def _on_engine_finished(self, total_time: str) -> None:
-        self.view.update_execution_status("完了", "00:00:00", total_time, False)
+    @Slot(float)
+    def _on_engine_finished(self, total_sec: float) -> None:
+        self.view.update_execution_status("完了", 0, total_sec, False)
         self.status_message_requested.emit("全工程完了", 0)
 
-    def _on_engine_stopped(self, total_time: str) -> None:
-        self.view.update_execution_status("停止", "00:00:00", total_time, False)
+    @Slot(float)
+    def _on_engine_stopped(self, total_sec: float) -> None:
+        self.view.update_execution_status("停止", 0, total_sec, False)
         self.status_message_requested.emit("停止しました", 3000)

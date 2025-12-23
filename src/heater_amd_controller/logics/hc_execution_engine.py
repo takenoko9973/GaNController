@@ -19,12 +19,12 @@ class HCExecutionEngine(QObject):
     MIN_STEP_DURATION_SEC = 1  # ステップの最低継続時間
 
     # 毎秒の更新通知 (状態テキスト, ステップ時間, トータル時間, 測定データ)
-    monitor_updated = Signal(str, str, str, SensorData)
+    monitor_updated = Signal(str, float, float, SensorData)
     graph_updated = Signal(float, SensorData)  # グラフ更新
     # 終了シグナル (最終トータル時間)
-    sequence_finished = Signal(str)
-    sequence_stopped = Signal(str)
-    # ログファイル生成シグナル
+    sequence_finished = Signal(float)
+    sequence_stopped = Signal(float)
+    # ログファイル生成シグナル (ログファイル名)
     log_initialized = Signal(str)
 
     def __init__(self, hw_manager: HardwareManager) -> None:
@@ -205,9 +205,7 @@ class HCExecutionEngine(QObject):
         seq_name = self.current_sequence.mode_name
         status_text = f"{seq_num}. {seq_name}"
 
-        self.monitor_updated.emit(
-            status_text, self._time_fmt(seq_elapsed), self._time_fmt(total_elapsed), data
-        )
+        self.monitor_updated.emit(status_text, seq_elapsed, total_elapsed, data)
 
     def _advance_step(self, total_elapsed: float) -> None:
         """次のステップへ進む"""
@@ -261,11 +259,4 @@ class HCExecutionEngine(QObject):
         self._logger = None
 
         # 指定されたシグナルを発信 (stop or finish)
-        time_str = self._time_fmt(total_sec)
-        signal_to_emit.emit(time_str)
-
-    @staticmethod
-    def _time_fmt(sec: float) -> str:
-        m, s = divmod(int(sec), 60)
-        h, m = divmod(m, 60)
-        return f"{h:02d}:{m:02d}:{s:02d}"
+        signal_to_emit.emit(total_sec)

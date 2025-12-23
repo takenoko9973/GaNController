@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from heater_amd_controller.logics.hardware_manager import SensorData
 from heater_amd_controller.views.widgets import LabeledItem, ValueLabel
 
 
@@ -70,8 +71,8 @@ class HCExecutionPanel(QGroupBox):
         self.status_value_label.setPalette(status_pal)
 
         # ====== 時間
-        self.step_time_label = ValueLabel("00:00:00")
-        self.total_time_label = ValueLabel("00:00:00")
+        self.step_time_label = ValueLabel(self._time_fmt(0))
+        self.total_time_label = ValueLabel(self._time_fmt(0))
 
         time_layout.addWidget(LabeledItem("状態:", self.status_value_label))
         time_layout.addStretch()
@@ -169,14 +170,20 @@ class HCExecutionPanel(QGroupBox):
         self.stop_requested.emit()
 
     # --- 更新用メソッド ---
+    @staticmethod
+    def _time_fmt(sec: float) -> str:
+        m, s = divmod(int(sec), 60)
+        h, m = divmod(m, 60)
+        return f"{h:02d}:{m:02d}:{s:02d}"
+
     @Slot(str, str, str, bool)
     def update_status(
-        self, status_text: str, step_time: str, total_time: str, is_running: bool
+        self, status_text: str, step_time: float, total_time: float, is_running: bool
     ) -> None:
         """状態と時間を更新"""
         self.status_value_label.setText(status_text)
-        self.step_time_label.setText(step_time)
-        self.total_time_label.setText(total_time)
+        self.step_time_label.setText(self._time_fmt(step_time))
+        self.total_time_label.setText(self._time_fmt(total_time))
 
         pal = self.status_value_label.palette()
         if is_running:
@@ -191,26 +198,19 @@ class HCExecutionPanel(QGroupBox):
         self.status_value_label.setPalette(pal)
 
     @Slot(tuple, tuple, float, float, float)
-    def update_sensor_values(
-        self,
-        hc_vals: tuple[float, float, float],  # (A, V, W)
-        amd_vals: tuple[float, float, float],  # (A, V, W)
-        temp: float,
-        ext_pres: float,
-        sip_pres: float,
-    ) -> None:
+    def update_sensor_values(self, data: SensorData) -> None:
         """センサー値更新"""
         # HC
-        self.hc_cur.set_value(f"{hc_vals[0]:.2f}")
-        self.hc_vol.set_value(f"{hc_vals[1]:.2f}")
-        self.hc_pow.set_value(f"{hc_vals[2]:.2f}")
+        self.hc_cur.set_value(f"{data.hc_current:.2f}")
+        self.hc_vol.set_value(f"{data.hc_voltage:.2f}")
+        self.hc_pow.set_value(f"{data.hc_power:.2f}")
 
         # AMD
-        self.amd_cur.set_value(f"{amd_vals[0]:.2f}")
-        self.amd_vol.set_value(f"{amd_vals[1]:.2f}")
-        self.amd_pow.set_value(f"{amd_vals[2]:.2f}")
+        self.amd_cur.set_value(f"{data.amd_current:.2f}")
+        self.amd_vol.set_value(f"{data.amd_voltage:.2f}")
+        self.amd_pow.set_value(f"{data.amd_power:.2f}")
 
         # Environment
-        self.temp_val.set_value(f"{temp:.1f}")
-        self.ext_pres_val.set_value(f"{ext_pres:.2e}")
-        self.sip_pres_val.set_value(f"{sip_pres:.2e}")
+        self.temp_val.set_value(f"{data.temperature:.1f}")
+        self.ext_pres_val.set_value(f"{data.pressure_ext:.2e}")
+        self.sip_pres_val.set_value(f"{data.pressure_sip:.2e}")
