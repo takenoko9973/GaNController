@@ -11,12 +11,14 @@ class HeatCleaningController(QObject):
     # メッセージシグナル (メッセージ内容, 表示時間ms (0なら永続))
     status_message_requested = Signal(str, int)
 
-    def __init__(self, view: HeatCleaningTab, manager: ProtocolManager) -> None:
+    def __init__(
+        self, view: HeatCleaningTab, manager: ProtocolManager, hw_manager: HardwareManager
+    ) -> None:
         super().__init__()
         self.view = view
         self.manager = manager
 
-        self.hw_manager = HardwareManager()
+        self.hw_manager = hw_manager
         self.engine = HCExecutionEngine(self.hw_manager)
         self.proto_handler = ProtocolHandler(view, manager)
 

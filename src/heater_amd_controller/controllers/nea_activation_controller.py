@@ -38,15 +38,13 @@ class NEAController(QObject):
 
     @Slot(float)
     def on_apply_laser(self, value: float) -> None:
-        print(f"Laser setting applied: {value}")
-        self.view.append_log(f"Laser set to {value}")
+        print(f"Laser setting applied: {value} mW")
+        self.view.append_log(f"Laser set to {value} mW")
 
     @Slot(float, float, float, float, float)
-    def on_monitor_updated(
-        self, time: float, qe: float, pc: float, ext_pres: float, sip_pres: float
-    ) -> None:
-        self.view.update_graphs(time, qe, pc, ext_pres)
+    def on_monitor_updated(self, time: float, qe: float, pc: float, ext: float, hv: float) -> None:
+        self.view.update_graphs(time, qe, pc, ext)
         # 時間更新
         self.view.update_status("実行中", time, True)
 
-        self.view.update_monitor(qe, pc, ext_pres, sip_pres, 25.0)
+        self.view.update_monitor(qe, pc, ext, hv)

@@ -10,11 +10,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from heater_amd_controller.logics.hardware_manager import SensorData
 from heater_amd_controller.models.nea_config import NEAConfig
-from heater_amd_controller.views.heat_cleaning.execution_panel import (
-    HCExecutionPanel,
-)  # Start/Stopボタンは共通化して利用
 from heater_amd_controller.views.nea_activation.execution_panel import NEAExecutionPanel
 from heater_amd_controller.views.nea_activation.setting_widget import NEASettingsGroup
 from heater_amd_controller.views.widgets.graph_widget import AxisScale, DualAxisGraph
@@ -34,7 +30,7 @@ class NEAActivationTab(QWidget):
     # シグナル
     start_requested = Signal()  # 開始信号
     stop_requested = Signal()  # 停止信号
-    apply_laser_requested = Signal(float)  # Controllerへ中継
+    apply_laser_requested = Signal(float, float)  # Controllerへ中継
 
     def __init__(self) -> None:
         super().__init__()
@@ -85,7 +81,7 @@ class NEAActivationTab(QWidget):
         self.graph_pc = DualAxisGraph(
             "Photocurrent",
             "Time (s)",
-            "Current (A)",
+            "Photocurrent (A)",
             "Pressure (Pa)",
             right_scale=AxisScale.LOG,
         )
@@ -139,16 +135,14 @@ class NEAActivationTab(QWidget):
     # --- 更新用メソッド ---
 
     @Slot(str, float, bool)
-    def update_status(self, status: str, time_str: float, is_running: bool) -> None:
+    def update_status(self, status: str, time_sec: float, is_running: bool) -> None:
         """ステータスと時間の更新"""
-        self.execution_panel.update_status(status, 0.0, time_str, is_running)
+        self.execution_panel.update_status(status, time_sec, is_running)
 
-    @Slot(float, float, float, float, float)
-    def update_monitor(
-        self, qe: float, current: float, ext: float, sip: float, temp: float
-    ) -> None:
+    @Slot(float, float, float, float)
+    def update_monitor(self, qe: float, current: float, ext: float, hv: float) -> None:
         """モニタリング値の更新"""
-        self.execution_panel.update_monitor_values(qe, current, ext, sip, temp)
+        self.execution_panel.update_monitor_values(qe, current, ext, hv)
 
     def append_log(self, text: str) -> None:
         self.log_display.append(text)
