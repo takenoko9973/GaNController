@@ -28,10 +28,8 @@ class NEAExecutionPanel(QGroupBox):
 
     qe_val: ValueLabel
     current_val: ValueLabel
-
-    temp_val: ValueLabel
     ext_pres_val: ValueLabel
-    sip_pres_val: ValueLabel
+    hv_val: ValueLabel
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("実行制御 / モニタリング", parent)
@@ -68,6 +66,7 @@ class NEAExecutionPanel(QGroupBox):
         # ====== 時間 (秒表示)
         self.time_label = ValueLabel("0.0", suffix=" s")
 
+        # 配置
         layout.addWidget(LabeledItem("状態:", self.status_value_label))
         layout.addStretch()
         layout.addWidget(LabeledItem("Time:", self.time_label))
@@ -80,26 +79,19 @@ class NEAExecutionPanel(QGroupBox):
         layout.setHorizontalSpacing(20)
         layout.setVerticalSpacing(10)
 
-        # --- Row 0: 主要測定値 (QE, Photocurrent) ---
-        self.qe_val = ValueLabel("0.000", suffix=" %")
+        # --- Row 0: 主要測定値 (QE, PC) ---
+        self.qe_val = ValueLabel("0.00e-00", suffix=" %")
         self.current_val = ValueLabel("0.00e-00", suffix=" A")
-
-        # 少し強調
-        font = QFont()
-        font.setBold(True)
-        self.qe_val.setFont(font)
 
         layout.addWidget(LabeledItem("QE:", self.qe_val), 0, 0)
         layout.addWidget(LabeledItem("Photocurrent:", self.current_val), 0, 1)
 
-        # --- Row 1: 環境値 (Pressure, Temp) ---
+        # --- Row 1: 環境値 (EXT, HV) ---
         self.ext_pres_val = ValueLabel("0.00e-00", suffix=" Pa")
-        self.sip_pres_val = ValueLabel("0.00e-00", suffix=" Pa")
-        self.temp_val = ValueLabel("25.0", suffix=" °C")
+        self.hv_val = ValueLabel("0", suffix=" V")
 
         layout.addWidget(LabeledItem("EXT:", self.ext_pres_val), 1, 0)
-        layout.addWidget(LabeledItem("SIP:", self.sip_pres_val), 1, 1)
-        layout.addWidget(LabeledItem("Temp:", self.temp_val), 2, 0)
+        layout.addWidget(LabeledItem("HV:", self.hv_val), 1, 1)
 
         return layout
 
@@ -152,12 +144,9 @@ class NEAExecutionPanel(QGroupBox):
         self.status_value_label.setPalette(pal)
 
     @Slot(float, float, float, float, float)
-    def update_monitor_values(
-        self, qe: float, current: float, ext: float, sip: float, temp: float
-    ) -> None:
+    def update_monitor_values(self, qe: float, current: float, ext: float, hv: float) -> None:
         """モニタリング値の更新"""
-        self.qe_val.set_value(f"{qe:.4f}")
-        self.current_val.set_value(f"{current:.4e}")
+        self.qe_val.set_value(f"{qe:.3e}")
+        self.current_val.set_value(f"{current:.3e}")
         self.ext_pres_val.set_value(f"{ext:.2e}")
-        self.sip_pres_val.set_value(f"{sip:.2e}")
-        self.temp_val.set_value(f"{temp:.1f}")
+        self.hv_val.set_value(f"{hv:.1f}")
