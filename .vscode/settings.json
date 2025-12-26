@@ -7,5 +7,14 @@
         "PWUX",
         "pyvisa",
         "TCPIP"
-    ]
+    ],
+    "python.analysis.indexing": true,
+    "python.analysis.packageIndexDepths": [
+        {
+            // PySide6 のインポート予測を表示させるように
+            "name": "PySide6",
+            "depth": 3,
+            "includeAllSymbols": false
+        }
+    ],
 }
