@@ -1,1 +1,1 @@
-from .main_widget import NEAActivationWidget
+from .nea_main_widget import NEAActivationWidget
