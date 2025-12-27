@@ -1,1 +1,1 @@
-from .main_widget import HeatCleaningWidget
+from .hc_main_widget import HeatCleaningWidget
