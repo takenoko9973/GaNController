@@ -4,7 +4,7 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
-from gan_controller.gui.main_window import MainWindow
+from gan_controller.ui.main_window import MainWindow
 
 
 def run_app(argv: list[str]) -> QApplication:

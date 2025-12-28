@@ -6,6 +6,8 @@ from matplotlib.figure import Figure
 from matplotlib.ticker import AutoMinorLocator
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
+from .graph_data import GraphData
+
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
 
@@ -32,10 +34,7 @@ class DualAxisGraph(QWidget):
     ) -> None:
         super().__init__(parent)
 
-        # データの保持用
-        self.x_data: list[float] = []
-        self.left_data: dict[str, list[float]] = {}
-        self.right_data: dict[str, list[float]] = {}
+        self.model = GraphData()
 
         # Matplotlibの初期化
         self.fig = Figure(figsize=(5, 4), dpi=100, layout="constrained")  # constrainedで自動調整
@@ -76,6 +75,8 @@ class DualAxisGraph(QWidget):
         self.lines_left: dict[str, plt.Line2D] = {}
         self.lines_right: dict[str, plt.Line2D] = {}
 
+    # ---------- Controller ----------
+
     def set_title(self, title: str) -> None:
         """グラフのタイトルを再設定"""
         self.ax_left.set_title(title, fontsize="x-small")
@@ -94,70 +95,52 @@ class DualAxisGraph(QWidget):
             target_line.set_label(new_label)
             self._update_legend()
 
-    def add_line(self, name: str, label_name: str, color: str, is_right_axis: bool = False) -> None:
+    def add_line(self, name: str, label: str, color: str, is_right_axis: bool = False) -> None:
         """プロットするラインを登録"""
         axis = self.ax_right if is_right_axis else self.ax_left
-        lines_dict = self.lines_right if is_right_axis else self.lines_left
-        data_dict = self.right_data if is_right_axis else self.left_data
+        target = self.model.right if is_right_axis else self.model.left
+        lines = self.lines_right if is_right_axis else self.lines_left
 
-        # ラインを作成して保持
-        data_dict[name] = []
-        (line,) = axis.plot([], [], label=label_name, color=color, linewidth=1.5)
-        lines_dict[name] = line
-
-        # 凡例を統合して表示
+        target[name] = []
+        (line,) = axis.plot([], [], label=label, color=color, linewidth=1.5)
+        lines[name] = line
         self._update_legend()
 
-    def _update_legend(self) -> None:
-        """左右の軸の凡例をまとめて表示"""
-        lines1, labels1 = self.ax_left.get_legend_handles_labels()
-        lines2, labels2 = self.ax_right.get_legend_handles_labels()
-        # 凡例
-        self.ax_left.legend(
-            lines1 + lines2, labels1 + labels2, loc="upper right", fontsize="x-small"
-        )
-
     def clear_data(self) -> None:
-        """ラインを削除し、初期状態に戻す"""
-        # x軸データ
-        self.x_data.clear()
+        self.model.clear()
 
-        # 左軸ライン
         for line in self.lines_left.values():
             line.remove()
-        self.lines_left.clear()
-        self.left_data.clear()
-
-        # 右軸ライン
         for line in self.lines_right.values():
             line.remove()
-        self.lines_right.clear()
-        self.right_data.clear()
 
+        self.lines_left.clear()
+        self.lines_right.clear()
         self.canvas.draw()
 
     def update_point(self, x_val: float, values: dict[str, float]) -> None:
         """新しいデータを一点追加して再描画"""
-        self.x_data.append(x_val)
+        self.model.append_point(x_val, values)
+        self._render()
 
-        # データの追加
-        for name, val in values.items():
-            if name in self.left_data:
-                self.left_data[name].append(val)
-            elif name in self.right_data:
-                self.right_data[name].append(val)
+    # ---------- View ----------
 
-        # 描画データの更新 (set_dataは高速)
+    def _render(self) -> None:
+        """データを更新して描画"""
+        # 描画データの更新
         for name, line in self.lines_left.items():
-            line.set_data(self.x_data, self.left_data[name])
-
+            line.set_data(self.model.x, self.model.left[name])
         for name, line in self.lines_right.items():
-            line.set_data(self.x_data, self.right_data[name])
+            line.set_data(self.model.x, self.model.right[name])
 
         # 軸のスケール調整
         self.ax_left.relim()
         self.ax_left.autoscale_view()
         self.ax_right.relim()
         self.ax_right.autoscale_view()
-
         self.canvas.draw()
+
+    def _update_legend(self) -> None:
+        l1, lab1 = self.ax_left.get_legend_handles_labels()
+        l2, lab2 = self.ax_right.get_legend_handles_labels()
+        self.ax_left.legend(l1 + l2, lab1 + lab2, loc="upper right", fontsize="x-small")

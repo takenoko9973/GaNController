@@ -1,35 +1,18 @@
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout
 
-from gan_controller.features.nea_activation.view.widgets import (
-    NEAActExecutionPanel,
-    NEAActGraphPanel,
-    NEAActLogSettingPanel,
-    NEAActMeasurePanel,
-)
-from gan_controller.features.nea_activation.view.widgets.condition_setting_panel import (
-    NEAActConditionSettingsPanel,
-)
+from .condition_setting_panel import NEAActConditionSettingsPanel
+from .execution_panel import NEAActExecutionPanel
+from .graph_panel import NEAActGraphPanel
+from .log_setting_panel import NEAActLogSettingPanel
+from .measure_panel import NEAActMeasurePanel
 
 
-class NEAActivationWidget(QWidget):
-    # 左パネル
-    # sequences_panel: SequencesPanel
-    log_setting_panel: NEAActLogSettingPanel
-    execution_panel: NEAActExecutionPanel
-
-    # 右パネル
-    graph_panel: NEAActGraphPanel
-
+class NEAMainLayout(QHBoxLayout):
     def __init__(self) -> None:
         super().__init__()
-        self.init_ui()
 
-    def init_ui(self) -> None:
-        # メインのレイアウト (左右分割)
-        main_layout = QHBoxLayout(self)
-
-        main_layout.addWidget(self._left_panel())
-        main_layout.addWidget(self._right_panel())
+        self.addWidget(self._left_panel())
+        self.addWidget(self._right_panel())
 
     def _left_panel(self) -> QFrame:
         left_panel = QFrame()

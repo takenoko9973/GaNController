@@ -1,1 +1,0 @@
-from .nea_main_widget import NEAActivationWidget

@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
-from gan_controller.common.components.graph_widget import AxisScale, DualAxisGraph
+from gan_controller.ui.widgets.graph import AxisScale, DualAxisGraph
 
 
 class NEAActGraphPanel(QWidget):

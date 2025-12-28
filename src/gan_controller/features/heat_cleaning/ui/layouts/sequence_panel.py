@@ -9,8 +9,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from gan_controller.common.components.checkable_spinbox import CheckableSpinBox
-from gan_controller.features.heat_cleaning.domain import SequenceMode
+from gan_controller.features.heat_cleaning.domain.sequence import SequenceMode
+from gan_controller.ui.widgets.checkable_spinbox import CheckableSpinBox
 
 
 class SequencesPanel(QGroupBox):

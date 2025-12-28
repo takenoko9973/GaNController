@@ -1,8 +1,8 @@
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QLayout, QMainWindow, QStatusBar, QTabWidget, QVBoxLayout, QWidget
 
-from gan_controller.features.heat_cleaning.view import HeatCleaningWidget
-from gan_controller.features.nea_activation.view import NEAActivationWidget
+from gan_controller.features.heat_cleaning.ui import HeatCleaningTab
+from gan_controller.features.nea_activation.ui import NEAActivationTab
 from gan_controller.features.setting.view import SettingsWidget
 
 
@@ -11,8 +11,8 @@ class MainWindow(QMainWindow):
 
     # タブウィンドウの各要素を定義
     tabs: QTabWidget
-    heat_cleaning_tab: HeatCleaningWidget
-    nea_activation_tab: NEAActivationWidget
+    heat_cleaning_tab: HeatCleaningTab
+    nea_activation_tab: NEAActivationTab
     settings_tab: SettingsWidget
 
     status_bar: QStatusBar
@@ -39,8 +39,8 @@ class MainWindow(QMainWindow):
         """タブウィンドウの各要素を設定"""
         self.tabs = QTabWidget()
 
-        self.heat_cleaning_tab = HeatCleaningWidget()
-        self.nea_activation_tab = NEAActivationWidget()
+        self.heat_cleaning_tab = HeatCleaningTab()
+        self.nea_activation_tab = NEAActivationTab()
         self.settings_tab = SettingsWidget()
 
         self.tabs.addTab(self.heat_cleaning_tab, "Heat Cleaning")
