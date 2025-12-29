@@ -3,7 +3,7 @@ from PySide6.QtWidgets import QLayout, QMainWindow, QStatusBar, QTabWidget, QVBo
 
 from gan_controller.features.heat_cleaning.ui import HeatCleaningTab
 from gan_controller.features.nea_activation.ui import NEAActivationTab
-from gan_controller.features.setting.view import SettingsWidget
+from gan_controller.features.setting.ui import SettingsTab
 
 
 class MainWindow(QMainWindow):
@@ -13,7 +13,7 @@ class MainWindow(QMainWindow):
     tabs: QTabWidget
     heat_cleaning_tab: HeatCleaningTab
     nea_activation_tab: NEAActivationTab
-    settings_tab: SettingsWidget
+    settings_tab: SettingsTab
 
     status_bar: QStatusBar
 
@@ -41,7 +41,7 @@ class MainWindow(QMainWindow):
 
         self.heat_cleaning_tab = HeatCleaningTab()
         self.nea_activation_tab = NEAActivationTab()
-        self.settings_tab = SettingsWidget()
+        self.settings_tab = SettingsTab()
 
         self.tabs.addTab(self.heat_cleaning_tab, "Heat Cleaning")
         self.tabs.addTab(self.nea_activation_tab, "NEA Activation")
