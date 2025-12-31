@@ -2,20 +2,20 @@ from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QLayout, QMainWindow, QStatusBar, QTabWidget, QVBoxLayout, QWidget
 
 from gan_controller.features.heat_cleaning.ui import HeatCleaningTab
-from gan_controller.features.nea_activation.ui import NEAActivationTab
+from gan_controller.features.nea_activation.nea_controller import NEAActivationController
+from gan_controller.features.nea_activation.view import NEAActivationTab
 from gan_controller.features.setting.ui import SettingsTab
 
 
 class MainWindow(QMainWindow):
     main_layout: QLayout
+    tabs: QTabWidget
+    status_bar: QStatusBar
 
     # タブウィンドウの各要素を定義
-    tabs: QTabWidget
     heat_cleaning_tab: HeatCleaningTab
     nea_activation_tab: NEAActivationTab
     settings_tab: SettingsTab
-
-    status_bar: QStatusBar
 
     def __init__(self) -> None:
         super().__init__()
@@ -33,21 +33,27 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self.status_bar)
 
         # タブウィジェット設定
-        self.setup_tabs(self.main_layout)
-
-    def setup_tabs(self, layout: QLayout) -> None:
-        """タブウィンドウの各要素を設定"""
         self.tabs = QTabWidget()
+        self.main_layout.addWidget(self.tabs)
 
-        self.heat_cleaning_tab = HeatCleaningTab()
-        self.nea_activation_tab = NEAActivationTab()
-        self.settings_tab = SettingsTab()
+        self._init_heat_cleaning()
+        self._init_nea_activation()
+        self._init_settings()
 
-        self.tabs.addTab(self.heat_cleaning_tab, "Heat Cleaning")
-        self.tabs.addTab(self.nea_activation_tab, "NEA Activation")
-        self.tabs.addTab(self.settings_tab, "Settings")
+    def _add_tab[T: QWidget](self, tab_name: str, tab: T) -> T:
+        self.tabs.addTab(tab, tab_name)
+        return tab
 
-        layout.addWidget(self.tabs)
+    def _init_heat_cleaning(self) -> None:
+        self.heat_cleaning_tab = self._add_tab("Heat Cleaning", HeatCleaningTab())
+        # self.heat_cleaning_controller
+
+    def _init_nea_activation(self) -> None:
+        self.nea_activation_tab = self._add_tab("NEA Activation", NEAActivationTab())
+        self.nea_activation_controller = NEAActivationController(self.nea_activation_tab)
+
+    def _init_settings(self) -> None:
+        self.settings_tab = self._add_tab("Settings", SettingsTab())
 
     @Slot(str, int)
     def show_status_message(self, message: str, timeout: int = 5000) -> None:

@@ -7,7 +7,15 @@ from .log_setting_panel import NEAActLogSettingPanel
 from .measure_panel import NEAActMeasurePanel
 
 
-class NEAMainLayout(QHBoxLayout):
+class NEAActMainLayout(QHBoxLayout):
+    # 左側 (入力欄、装置表示)
+    condition_setting_panel: NEAActConditionSettingsPanel
+    log_setting_panel: NEAActLogSettingPanel
+    measure_panel: NEAActMeasurePanel
+    execution_panel: NEAActExecutionPanel
+    # 右側 (グラフ)
+    graph_panel: NEAActGraphPanel
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -15,6 +23,7 @@ class NEAMainLayout(QHBoxLayout):
         self.addWidget(self._right_panel())
 
     def _left_panel(self) -> QFrame:
+        """左側 (設定値、制御) レイアウト"""
         left_panel = QFrame()
         left_panel.setFrameShape(QFrame.Shape.StyledPanel)
         left_panel.setFixedWidth(400)
@@ -38,6 +47,7 @@ class NEAMainLayout(QHBoxLayout):
         return left_panel
 
     def _right_panel(self) -> QFrame:
+        """右側 (グラフ) レイアウト"""
         right_panel = QFrame()
         right_panel.setFrameShape(QFrame.Shape.StyledPanel)
         right_panel.setMinimumWidth(540)

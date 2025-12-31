@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QGridLayout,
@@ -24,12 +24,7 @@ class NEAActExecutionPanel(QGroupBox):
 
     start_button: QPushButton
     stop_button: QPushButton
-
-    # === シグナル
-    apply_requested = Signal()
-
-    start_requested = Signal()
-    stop_requested = Signal()
+    apply_button: QPushButton
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("実行制御", parent)
@@ -37,8 +32,6 @@ class NEAActExecutionPanel(QGroupBox):
         layout = QVBoxLayout(self)
         layout.addWidget(self._create_control_section())
         layout.addLayout(self._create_execution_section())  # 制御
-
-        self._setup_connections()
 
     def _create_control_section(self) -> QGroupBox:
         control_group = QGroupBox()
@@ -95,11 +88,3 @@ class NEAActExecutionPanel(QGroupBox):
         execution_layout.addWidget(self.stop_button)
 
         return execution_layout
-
-    def _setup_connections(self) -> None:
-        """シグナル設定"""
-        # クリック時のシグナル接続
-        self.apply_button.clicked.connect(self.apply_requested.emit)
-
-        self.start_button.clicked.connect(self.start_requested.emit)
-        self.stop_button.clicked.connect(self.stop_requested.emit)
