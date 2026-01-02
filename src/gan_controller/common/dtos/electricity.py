@@ -1,0 +1,23 @@
+from pydantic import BaseModel
+
+from gan_controller.common.types.electricity import ElectricProperties
+from gan_controller.common.types.quantity import Quantity
+
+
+class ElectricValuesDTO(BaseModel):
+    """電力測定データDTO"""
+
+    current: Quantity
+    voltage: Quantity
+    power: Quantity
+
+    def get_value(self, enum: ElectricProperties) -> Quantity:
+        if enum == ElectricProperties.CURRENT:
+            return self.current
+        if enum == ElectricProperties.VOLTAGE:
+            return self.voltage
+        if enum == ElectricProperties.POWER:
+            return self.power
+
+        msg = f"Invalid enum value: {enum}"
+        raise ValueError(msg)

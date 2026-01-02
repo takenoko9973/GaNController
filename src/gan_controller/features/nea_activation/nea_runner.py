@@ -1,7 +1,6 @@
 import time
 
-from gan_controller.dto.nea_activation import NEAActivationResult
-from gan_controller.runners.base import BaseRunner
+from gan_controller.common.interfaces.runner import BaseRunner
 
 
 class NEAActivationRunner(BaseRunner):

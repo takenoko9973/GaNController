@@ -12,7 +12,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from gan_controller.domain import ElectricProperties, Quantity
+from gan_controller.common.types.electricity import ElectricProperties
+from gan_controller.common.types.quantity import Quantity
 from gan_controller.ui.widgets.value_label import ValueLabel
 
 
