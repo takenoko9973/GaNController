@@ -17,7 +17,7 @@ dependencies = [
     "pyside6>=6.10.1",
     "pyvisa>=1.16",
     "pyvisa-py>=0.8.1",
-    "tomli-w>=1.2.0",
+    "tomlkit>=0.13.3",
     "zeroconf>=0.148.0",
 ]
 

@@ -1,4 +1,3 @@
-from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -17,18 +16,23 @@ from .pwux_config_page import PWUXConfigPage
 
 
 class SettingLayout(QVBoxLayout):
+    """設定タブ見た目"""
+
+    # 操作ボタン
+    btn_load: QPushButton
+    btn_save: QPushButton
+
+    # サイドバーとページスタック
+    sidebar_widget: QListWidget
+    stack_widget: QStackedWidget
+
+    # ページ
     gm10_page: GM10ConfigPage
     hps_page: PFR100L50ConfigPage
     aps_page: PFR100L50ConfigPage
     ibeam_page: IBeamConfigPage
     pwux_page: PWUXConfigPage
     general_page: GeneralConfigPage
-
-    sidebar_widget: QListWidget
-    stack_widget: QStackedWidget
-
-    save_requested = Signal()
-    load_requested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -84,7 +88,5 @@ class SettingLayout(QVBoxLayout):
         return widget
 
     def _connect_signal(self) -> None:
+        # サイドとページの一致処理
         self.sidebar_widget.currentRowChanged.connect(self.stack_widget.setCurrentIndex)
-
-        self.btn_save.clicked.connect(self.save_requested.emit)
-        self.btn_load.clicked.connect(self.load_requested.emit)

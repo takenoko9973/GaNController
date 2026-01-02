@@ -1,10 +1,12 @@
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QLayout, QMainWindow, QStatusBar, QTabWidget, QVBoxLayout, QWidget
 
+from gan_controller.common.services.global_messenger import GlobalMessenger
 from gan_controller.features.heat_cleaning.ui import HeatCleaningTab
 from gan_controller.features.nea_activation.nea_controller import NEAActivationController
 from gan_controller.features.nea_activation.view import NEAActivationTab
-from gan_controller.features.setting.ui import SettingsTab
+from gan_controller.features.setting.setting_controller import SettingsController
+from gan_controller.features.setting.view import SettingsTab
 
 
 class MainWindow(QMainWindow):
@@ -16,6 +18,10 @@ class MainWindow(QMainWindow):
     heat_cleaning_tab: HeatCleaningTab
     nea_activation_tab: NEAActivationTab
     settings_tab: SettingsTab
+
+    # 各タブのコントローラー
+    nea_activation_controller: NEAActivationController
+    settings_controller: SettingsController
 
     def __init__(self) -> None:
         super().__init__()
@@ -40,6 +46,10 @@ class MainWindow(QMainWindow):
         self._init_nea_activation()
         self._init_settings()
 
+        # メッセンジャーとステータスバーとの接続
+        messenger = GlobalMessenger()
+        messenger.status_message_requested.connect(self.show_status_message)
+
     def _add_tab[T: QWidget](self, tab_name: str, tab: T) -> T:
         self.tabs.addTab(tab, tab_name)
         return tab
@@ -54,8 +64,9 @@ class MainWindow(QMainWindow):
 
     def _init_settings(self) -> None:
         self.settings_tab = self._add_tab("Settings", SettingsTab())
+        self.settings_controller = SettingsController(self.settings_tab)
 
     @Slot(str, int)
-    def show_status_message(self, message: str, timeout: int = 5000) -> None:
+    def show_status_message(self, message: str, timeout_ms: int = 5000) -> None:
         """ステータスバーにメッセージを表示する (デフォルト5秒で消える)"""
-        self.status_bar.showMessage(message, timeout)
+        self.status_bar.showMessage(message, timeout_ms)

@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QFormLayout, QGroupBox, QLineEdit, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFormLayout, QGroupBox, QVBoxLayout, QWidget
 
 from gan_controller.ui.widgets import NoScrollSpinBox
 
@@ -6,7 +6,7 @@ from gan_controller.ui.widgets import NoScrollSpinBox
 class IBeamConfigPage(QWidget):
     """iBeam (Laser) 設定画面"""
 
-    com_number_edit: QLineEdit
+    com_number_edit: NoScrollSpinBox
 
     beam_channel_spin: NoScrollSpinBox
 
@@ -23,8 +23,8 @@ class IBeamConfigPage(QWidget):
         connection_config_group = QGroupBox("接続設定")
         connection_config_form = QFormLayout(connection_config_group)
 
-        self.com_number_edit = QLineEdit()
-        connection_config_form.addRow("COM Port Number :", self.com_number_edit)
+        self.com_number_edit = NoScrollSpinBox(minimum=0, maximum=99)
+        connection_config_form.addRow("COM Port Number (0=disable) :", self.com_number_edit)
 
         return connection_config_group
 

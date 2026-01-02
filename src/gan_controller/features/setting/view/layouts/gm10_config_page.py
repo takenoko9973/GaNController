@@ -38,14 +38,14 @@ class GM10ConfigPage(QWidget):
 
         self.ext_ch_spin = NoScrollSpinBox(minimum=-1, maximum=20)
         self.sip_ch_spin = NoScrollSpinBox(minimum=-1, maximum=20)
-        self.pc_ch_spin = NoScrollSpinBox(minimum=-1, maximum=20)
         self.hv_ch_spin = NoScrollSpinBox(minimum=-1, maximum=20)
+        self.pc_ch_spin = NoScrollSpinBox(minimum=-1, maximum=20)
         self.tc_ch_spin = NoScrollSpinBox(minimum=-1, maximum=20)
 
         channel_config_form.addRow("真空度 (EXT) Ch :", self.ext_ch_spin)
         channel_config_form.addRow("真空度 (SIP) Ch :", self.sip_ch_spin)
-        channel_config_form.addRow("Photo Current Ch :", self.pc_ch_spin)
         channel_config_form.addRow("HV Control Ch :", self.hv_ch_spin)
+        channel_config_form.addRow("Photo Current Ch :", self.pc_ch_spin)
         channel_config_form.addRow("TC Measure Ch :", self.tc_ch_spin)
 
         return channel_config_group
