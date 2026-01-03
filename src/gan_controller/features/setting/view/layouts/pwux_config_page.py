@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QFormLayout, QGroupBox, QVBoxLayout, QWidget
 
-from gan_controller.ui.widgets.no_scroll_spinbox import NoScrollSpinBox
+from gan_controller.common.widgets.no_scroll_spinbox import NoScrollSpinBox
 
 
 class PWUXConfigPage(QWidget):

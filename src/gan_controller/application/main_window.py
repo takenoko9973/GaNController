@@ -1,9 +1,9 @@
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QLayout, QMainWindow, QStatusBar, QTabWidget, QVBoxLayout, QWidget
 
+from gan_controller.application.app_feature import AppFeature
 from gan_controller.common.interfaces.tab_controller import ITabController
 from gan_controller.common.services.global_messenger import GlobalMessenger
-from gan_controller.ui.app_feature import AppFeature
 
 
 class MainWindow(QMainWindow):

@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QFormLayout, QGroupBox, QVBoxLayout, QWidget
 
-from gan_controller.ui.widgets import NoScrollSpinBox
+from gan_controller.common.widgets import NoScrollSpinBox
 
 
 class IBeamConfigPage(QWidget):

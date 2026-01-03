@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 
 from gan_controller.common.types.electricity import ElectricProperties
 from gan_controller.common.types.quantity import Quantity
-from gan_controller.ui.widgets.value_label import ValueLabel
+from gan_controller.common.widgets.value_label import ValueLabel
 
 
 class HCExecutionPanel(QGroupBox):

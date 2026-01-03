@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from gan_controller.ui.widgets.checkable_spinbox import CheckableSpinBox
+from gan_controller.common.widgets.checkable_spinbox import CheckableSpinBox
 
 
 class NEAActExecutionPanel(QGroupBox):
