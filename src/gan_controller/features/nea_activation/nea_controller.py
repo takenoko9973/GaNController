@@ -1,6 +1,7 @@
 from PySide6.QtCore import Slot
 
 from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
+from gan_controller.common.constants import NEA_CONFIG_PATH
 from gan_controller.common.interfaces.tab_controller import ITabController
 from gan_controller.features.nea_activation.domain.nea_config import NEAConfig
 from gan_controller.features.setting.model.app_config import AppConfig
@@ -32,7 +33,7 @@ class NEAActivationController(ITabController):
 
     def _load_initial_config(self) -> None:
         """起動時に設定ファイルを読み込んでUIにセットする"""
-        config = NEAConfig.load()
+        config = NEAConfig.load(NEA_CONFIG_PATH)
         self._view.set_ui_from_config(config)
 
     def _attach_view(self) -> None:
@@ -53,6 +54,14 @@ class NEAActivationController(ITabController):
         """状態変更"""
         self._state = state
         self._view.set_running(self._state)
+
+    def on_close(self) -> None:
+        """アプリ終了時に設定を保存する"""
+        # 現在のUIの状態からConfigオブジェクトを生成
+        current_config = self._view.get_config_from_ui()
+
+        # ファイルに保存
+        current_config.save(NEA_CONFIG_PATH)
 
     # =================================================
     # View -> Runner

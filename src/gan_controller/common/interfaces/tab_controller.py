@@ -14,3 +14,6 @@ class ITabController(QObject):
 
         """
         return True
+
+    def on_close(self) -> None:
+        """アプリケーション終了時に呼ばれる。設定の保存やリソースの解放を行う。"""

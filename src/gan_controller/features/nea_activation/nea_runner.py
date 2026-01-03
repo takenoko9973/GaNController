@@ -14,7 +14,7 @@ from gan_controller.features.setting.model.app_config import AppConfig
 
 
 class NEAActivationRunner(BaseRunner):
-    config: AppConfig  # 全体設定
+    app_config: AppConfig  # 全体設定
     condition_params: NEAConditionParams  # 実験条件
     log_params: NEALogParams  # ログ設定
     control_params: NEAControlParams  # 動的制御設定
@@ -38,7 +38,7 @@ class NEAActivationRunner(BaseRunner):
 
     def run(self) -> None:
         try:
-            with NEADeviceManager(self.config) as dev:
+            with NEADeviceManager(self.app_config) as dev:
                 self._setup_devices(dev)
                 self._measurement_loop(dev)
 
@@ -52,13 +52,13 @@ class NEAActivationRunner(BaseRunner):
         print("Setting up devices...")
 
         # レーザー設定
-        devices.laser.set_channel_enable(self.config.devices.ibeam.beam_ch, True)
+        devices.laser.set_channel_enable(self.app_config.devices.ibeam.beam_ch, True)
         devices.laser.set_channel_power(
-            self.config.devices.ibeam.beam_ch, self.control_params.laser_power_sv
+            self.app_config.devices.ibeam.beam_ch, self.control_params.laser_power_sv
         )
 
         # 電源設定 (AMD)
-        devices.aps.set_voltage(self.config.devices.amd.v_limit)
+        devices.aps.set_voltage(self.app_config.devices.amd.v_limit)
         devices.aps.set_output(True)
 
         # 安定待ち
@@ -79,7 +79,7 @@ class NEAActivationRunner(BaseRunner):
             # === 計測処理 ===
             # GM10から全データ取得
             # 設定ファイルのチャンネル定義を使用
-            gm10_cfg = self.config.devices.gm10
+            gm10_cfg = self.app_config.devices.gm10
 
             # まとめて取得する場合は read_channels を使うのが効率的
             # ここでは例として単一取得メソッドを使用

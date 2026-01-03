@@ -1,4 +1,5 @@
 from PySide6.QtCore import Slot
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QLayout, QMainWindow, QStatusBar, QTabWidget, QVBoxLayout, QWidget
 
 from gan_controller.application.app_feature import AppFeature
@@ -61,6 +62,14 @@ class MainWindow(QMainWindow):
     def _init_connect(self) -> None:
         self._last_tab_index = 0
         self.tab_widget.currentChanged.connect(self._on_tab_changed)
+
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
+        """アプリ終了時の処理"""
+        # 全てのタブコントローラーの終了処理(保存など)を呼び出す
+        for controller in self.controllers.values():
+            controller.on_close()
+
+        super().closeEvent(event)
 
     @Slot(int)
     def _on_tab_changed(self, new_index: int) -> None:

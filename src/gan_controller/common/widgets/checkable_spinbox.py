@@ -67,7 +67,7 @@ class CheckableSpinBox(QWidget):
 
         self.spin_box.setPalette(palette)
 
-    def set_checked(self, checked: bool) -> None:
+    def setChecked(self, checked: bool) -> None:  # noqa: N802
         # ブロックシグナルで、無駄なイベント発火防止
         self.check_box.blockSignals(True)
         self.check_box.setChecked(checked)
@@ -75,14 +75,14 @@ class CheckableSpinBox(QWidget):
 
         self._update_state()
 
-    def set_value(self, value: float) -> None:
+    def setValue(self, value: float) -> None:  # noqa: N802
         self.spin_box.setValue(value)
 
-    def set_suffix(self, suffix: str) -> None:
+    def setSuffix(self, suffix: str) -> None:  # noqa: N802
         self.spin_box.setSuffix(suffix)
 
     def value(self) -> float:
         return self.spin_box.value()
 
-    def is_checked(self) -> bool:
+    def isChecked(self) -> bool:  # noqa: N802
         return self.check_box.isChecked()

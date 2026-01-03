@@ -11,36 +11,43 @@ from gan_controller.common.utils.toml_config_io import load_toml_config, save_to
 #  1. 保存対象の設定 (Persistent Configuration)
 #  Pydanticを使用: JSON保存、単位定義、バリデーション用
 # ===============================================
-class NEAConfig(BaseModel):
-    """NEA活性化実験の設定 (保存対象)"""
-
+class ConditionConfig(BaseModel):
     # --- Condition Settings (実験条件) ---
     shunt_resistance: float = Field(
-        default=10.0, description="換算抵抗 (シャント抵抗)", json_schema_extra={"unit": "kΩ"}
+        default=10.0, description="換算抵抗 (シャント抵抗)[kΩ]", json_schema_extra={"unit": "kΩ"}
     )
     laser_wavelength: float = Field(
-        default=406.0, description="レーザー波長", json_schema_extra={"unit": "nm"}
+        default=406.0, description="レーザー波長[nm]", json_schema_extra={"unit": "nm"}
     )
     stabilization_time: float = Field(
-        default=1.0, description="安定化時間", json_schema_extra={"unit": "s"}
+        default=1.0, description="安定化時間[s]", json_schema_extra={"unit": "s"}
     )
     integration_count: int = Field(
         default=1, description="積算回数", json_schema_extra={"unit": ""}
     )
     integration_interval: float = Field(
-        default=0.1, description="積算間隔", json_schema_extra={"unit": "s"}
+        default=0.1, description="積算間隔[s]", json_schema_extra={"unit": "s"}
     )
 
+
+class ExecutionConfig(BaseModel):
     # --- Execution Initial Values (実行制御の初期値) ---
     amd_output_current: float = Field(
-        default=3.5, description="AMD電流", json_schema_extra={"unit": "A"}
+        default=3.5, description="AMD電流[A]", json_schema_extra={"unit": "A"}
     )
     laser_power_sv: float = Field(
-        default=30.0, description="レーザー設定出力", json_schema_extra={"unit": "mW"}
+        default=30.0, description="レーザー設定出力[mW]", json_schema_extra={"unit": "mW"}
     )
     laser_power_output: float = Field(
-        default=10.0, description="レーザー実出力", json_schema_extra={"unit": "mW"}
+        default=10.0, description="レーザー実出力[mW]", json_schema_extra={"unit": "mW"}
     )
+
+
+class NEAConfig(BaseModel):
+    """NEA活性化実験の設定 (保存対象)"""
+
+    condition: ConditionConfig = Field(default_factory=ConditionConfig)
+    execution: ExecutionConfig = Field(default_factory=ExecutionConfig)
 
     # --- Helper Methods ---
     @classmethod

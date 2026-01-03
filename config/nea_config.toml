@@ -1,0 +1,11 @@
+[condition]
+shunt_resistance = 10.0    # 換算抵抗 (シャント抵抗)[kΩ]
+laser_wavelength = 406.0   # レーザー波長[nm]
+stabilization_time = 1.0   # 安定化時間[s]
+integration_count = 1      # 積算回数
+integration_interval = 0.1 # 積算間隔[s]
+
+[execution]
+amd_output_current = 3.5  # AMD電流[A]
+laser_power_sv = 30.0     # レーザー設定出力[mW]
+laser_power_output = 10.0 # レーザー実出力[mW]

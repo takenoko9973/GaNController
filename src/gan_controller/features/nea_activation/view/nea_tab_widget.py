@@ -66,19 +66,19 @@ class NEAActivationTab(QWidget):
         exec_p = self._main_layout.execution_panel
 
         # Condition Panel
-        cond_p.shunt_r_spin.setValue(config.shunt_resistance)
-        cond_p.laser_wavelength_spin.setValue(config.laser_wavelength)
-        cond_p.stabilization_time_spin.setValue(config.stabilization_time)
-        cond_p.integrated_count_spin.setValue(config.integration_count)
-        cond_p.integrated_interval_spin.setValue(config.integration_interval)
+        cond_p.shunt_r_spin.setValue(config.condition.shunt_resistance)
+        cond_p.laser_wavelength_spin.setValue(config.condition.laser_wavelength)
+        cond_p.stabilization_time_spin.setValue(config.condition.stabilization_time)
+        cond_p.integrated_count_spin.setValue(config.condition.integration_count)
+        cond_p.integrated_interval_spin.setValue(config.condition.integration_interval)
         # 単位
         # cond_p.shunt_r_spin.setSuffix(f" {config.get_unit('shunt_resistance')}")
         # cond_p.laser_lambda_spin.setSuffix(f" {config.get_unit('laser_wavelength')}")
 
         # Execution Settings
-        exec_p.amd_output_current_spin.set_value(config.amd_output_current)
-        exec_p.laser_sv_spin.setValue(config.laser_power_sv)
-        exec_p.laser_output_spin.setValue(config.laser_power_output)
+        exec_p.amd_output_current_spin.setValue(config.execution.amd_output_current)
+        exec_p.laser_sv_spin.setValue(config.execution.laser_power_sv)
+        exec_p.laser_output_spin.setValue(config.execution.laser_power_output)
         # 単位
         # exec_p.amd_output_current_spin.set_suffix(f" {config.get_unit('amd_output_current')}")
         # exec_p.laser_sv_spin.setSuffix(f" {config.get_unit('laser_power_sv')}")
@@ -120,12 +120,12 @@ class NEAActivationTab(QWidget):
 
     def get_log_params(self) -> NEALogParams:
         """現在のUIからログ設定(DTO)を取得する"""
-        log = self._main_layout.log_panel
+        log_p = self._main_layout.log_setting_panel
 
         return NEALogParams(
-            update_date_folder=log.chk_date_update.isChecked(),
-            update_major_version=log.chk_major_update.isChecked(),
-            comment=log.comment_edit.text(),
+            update_date_folder=log_p.chk_date_update.isChecked(),
+            update_major_version=log_p.chk_major_update.isChecked(),
+            comment=log_p.comment_edit.text(),
         )
 
     def get_control_params(self) -> NEAControlParams:
@@ -136,5 +136,5 @@ class NEAActivationTab(QWidget):
             amd_enable=exec_p.amd_output_current_spin.isChecked(),
             amd_output_current=Quantity(exec_p.amd_output_current_spin.value(), "A"),
             laser_power_sv=Quantity(exec_p.laser_sv_spin.value(), "mW"),
-            # laser_power_output は入力値ではないのでここでは設定しない
+            laser_power_output=Quantity(exec_p.laser_output_spin.value(), "mW"),
         )

@@ -24,6 +24,9 @@ class SettingsController(ITabController):
         self._view.load_requested.connect(self._on_load_clicked)
         self._view.save_requested.connect(self._on_save_clicked)
 
+    def on_close(self) -> None:
+        self.save_config(show_notify=False)
+
     # ==========================================================
     # ビジネスロジック
     # ==========================================================
