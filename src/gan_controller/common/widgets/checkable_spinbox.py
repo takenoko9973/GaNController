@@ -67,16 +67,19 @@ class CheckableSpinBox(QWidget):
 
         self.spin_box.setPalette(palette)
 
-    def set_data(self, checked: bool, value: float) -> None:
-        """外部からデータをセット"""
+    def set_checked(self, checked: bool) -> None:
         # ブロックシグナルで、無駄なイベント発火防止
         self.check_box.blockSignals(True)
         self.check_box.setChecked(checked)
         self.check_box.blockSignals(False)
 
+        self._update_state()
+
+    def set_value(self, value: float) -> None:
         self.spin_box.setValue(value)
 
-        self._update_state()
+    def set_suffix(self, suffix: str) -> None:
+        self.spin_box.setSuffix(suffix)
 
     def value(self) -> float:
         return self.spin_box.value()

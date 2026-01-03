@@ -2,8 +2,10 @@ from PySide6.QtCore import Slot
 
 from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
 from gan_controller.common.interfaces.tab_controller import ITabController
-from gan_controller.features.nea_activation.dtos.nea_dto import NEAActivationResult
+from gan_controller.features.nea_activation.domain.nea_config import NEAConfig
+from gan_controller.features.setting.model.app_config import AppConfig
 
+from .dtos.nea_params import NEAActivationResult
 from .nea_runner import NEAActivationRunner
 from .state import NEAActivationState
 from .view import NEAActivationTab
@@ -26,6 +28,13 @@ class NEAActivationController(ITabController):
         self._state = NEAActivationState.IDLE
         self._cleanup()
 
+        self._load_initial_config()
+
+    def _load_initial_config(self) -> None:
+        """起動時に設定ファイルを読み込んでUIにセットする"""
+        config = NEAConfig.load()
+        self._view.set_ui_from_config(config)
+
     def _attach_view(self) -> None:
         self._view.experiment_start.connect(self.experiment_start)
         self._view.experiment_stop.connect(self.experiment_stop)
@@ -47,6 +56,7 @@ class NEAActivationController(ITabController):
 
     # =================================================
     # View -> Runner
+    # =================================================
 
     @Slot()
     def experiment_start(self) -> None:
@@ -54,18 +64,22 @@ class NEAActivationController(ITabController):
         if self._state != NEAActivationState.IDLE:  # 二重起動防止
             return
 
+        # 設定読み込み (ファイルを用いる)
+        app_config = AppConfig.load()
+        # 実験条件はウィンドウから所得
+        condition_params = self._view.get_condition_params()
+        log_params = self._view.get_log_params()
+        init_control_params = self._view.get_control_params()
+
         self.set_state(NEAActivationState.RUNNING)
 
-        # params = self.view.get_parameters()
-        # self.config_manager.experiments["experiment_a"].update(params)
-
-        self.runner = NEAActivationRunner()
+        self.runner = NEAActivationRunner(
+            app_config, condition_params, log_params, init_control_params
+        )
         self.worker = ExperimentWorker(self.runner)
         self._attach_worker(self.worker)
 
         self.worker.start()
-
-        # self.view.set_running(True)
 
     @Slot()
     def experiment_stop(self) -> None:
@@ -79,11 +93,12 @@ class NEAActivationController(ITabController):
     @Slot()
     def setting_apply(self) -> None:
         """実験途中での値更新"""
-        print("ex apply")
+        params = self._view.get_control_params()
+        self.runner.update_params(params)
 
     # =================================================
-
     # Runner -> View
+    # =================================================
 
     @Slot(object)
     def on_result(self, result: NEAActivationResult) -> None:
