@@ -4,6 +4,7 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
+from gan_controller.ui.app_feature import FeatureFactory
 from gan_controller.ui.main_window import MainWindow
 
 
@@ -19,7 +20,8 @@ def run_app(argv: list[str]) -> QApplication:
     # Ctrl+C で終了できるように (Pyside6 では Ctrl+C で終了できない)
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-    window = MainWindow()
+    features = FeatureFactory.create_features()
+    window = MainWindow(features)
     window.show()
 
     return app.exec()

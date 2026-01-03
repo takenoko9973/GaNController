@@ -3,12 +3,7 @@ from PySide6.QtWidgets import QLayout, QMainWindow, QStatusBar, QTabWidget, QVBo
 
 from gan_controller.common.interfaces.tab_controller import ITabController
 from gan_controller.common.services.global_messenger import GlobalMessenger
-from gan_controller.features.heat_cleaning.hc_controller import HeatCleaningController
-from gan_controller.features.heat_cleaning.ui import HeatCleaningTab
-from gan_controller.features.nea_activation.nea_controller import NEAActivationController
-from gan_controller.features.nea_activation.view import NEAActivationTab
-from gan_controller.features.setting.setting_controller import SettingsController
-from gan_controller.features.setting.view import SettingsTab
+from gan_controller.ui.app_feature import AppFeature
 
 
 class MainWindow(QMainWindow):
@@ -16,24 +11,20 @@ class MainWindow(QMainWindow):
     tab_widget: QTabWidget
     status_bar: QStatusBar
 
-    # タブウィンドウの各要素を定義
-    heat_cleaning_tab: HeatCleaningTab
-    nea_activation_tab: NEAActivationTab
-    settings_tab: SettingsTab
-
-    # 各タブのコントローラー
-    heat_cleaning_controller: HeatCleaningController
-    nea_activation_controller: NEAActivationController
-    settings_controller: SettingsController
-
     _last_tab_index: int
-    controllers: list[ITabController]
+    controllers: dict[int, ITabController]
 
-    def __init__(self) -> None:
+    def __init__(self, features: list[AppFeature]) -> None:
         super().__init__()
 
         self.setWindowTitle("GaN Controller")
 
+        self._init_ui()
+        self._init_connect()
+        self._setup_services()
+        self._setup_features(features)
+
+    def _init_ui(self) -> None:
         # ウィンドウ全体のメインウィジェット
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -46,40 +37,28 @@ class MainWindow(QMainWindow):
 
         # タブウィジェット設定
         self.tab_widget = QTabWidget()
+        self.tab_widget.currentChanged.connect(self._on_tab_changed)
         self.main_layout.addWidget(self.tab_widget)
-        self.controllers: dict[int, object] = {}
+        self._last_tab_index = 0
 
-        self._init_heat_cleaning_tab()
-        self._init_nea_activation_tab()
-        self._init_settings_tab()
-
-        self._init_connect()
-
-        # メッセンジャーとステータスバーとの接続
+    def _setup_services(self) -> None:
+        """アプリ全体に関わるサービスの接続"""
+        # GlobalMessengerからの通知を表示
         messenger = GlobalMessenger()
         messenger.status_message_requested.connect(self.show_status_message)
 
-    def _add_tab[T: QWidget, U: ITabController](self, tab_name: str, tab: T, controller: U) -> None:
-        index = self.tab_widget.addTab(tab, tab_name)
-        self.controllers[index] = controller
+    def _setup_features(self, features: list[AppFeature]) -> None:
+        """機能リストを受け取り、タブに追加する"""
+        self.controllers = {}
 
-    def _init_heat_cleaning_tab(self) -> None:
-        self.heat_cleaning_tab = HeatCleaningTab()
-        self.heat_cleaning_controller = HeatCleaningController(self.heat_cleaning_tab)
-        self._add_tab("Heat Cleaning", self.heat_cleaning_tab, self.heat_cleaning_controller)
+        self.tab_widget.blockSignals(True)  # 追加によって、余計なシグナルを出さないように
+        for feature in features:
+            index = self.tab_widget.addTab(feature.view, feature.title)
+            self.controllers[index] = feature.controller
 
-    def _init_nea_activation_tab(self) -> None:
-        self.nea_activation_tab = NEAActivationTab()
-        self.nea_activation_controller = NEAActivationController(self.nea_activation_tab)
-        self._add_tab("NEA Activation", self.nea_activation_tab, self.nea_activation_controller)
-
-    def _init_settings_tab(self) -> None:
-        self.settings_tab = SettingsTab()
-        self.settings_controller = SettingsController(self.settings_tab)
-        self._add_tab("Settings", self.settings_tab, self.settings_controller)
+        self.tab_widget.blockSignals(False)
 
     def _init_connect(self) -> None:
-        # --- イベント監視 ---
         self._last_tab_index = 0
         self.tab_widget.currentChanged.connect(self._on_tab_changed)
 
