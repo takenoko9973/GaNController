@@ -1,6 +1,7 @@
-from PySide6.QtCore import QObject, Slot
+from PySide6.QtCore import Slot
 
 from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
+from gan_controller.common.interfaces.tab_controller import ITabController
 from gan_controller.features.nea_activation.dtos.nea_dto import NEAActivationResult
 
 from .nea_runner import NEAActivationRunner
@@ -8,7 +9,7 @@ from .state import NEAActivationState
 from .view import NEAActivationTab
 
 
-class NEAActivationController(QObject):
+class NEAActivationController(ITabController):
     _view: NEAActivationTab
 
     _state: NEAActivationState
