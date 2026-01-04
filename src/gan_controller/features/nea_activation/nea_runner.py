@@ -7,7 +7,9 @@ from gan_controller.common.drivers.ibeam import IBeam
 from gan_controller.common.drivers.pfr_100l50 import PFR100L50
 from gan_controller.common.dtos.electricity import ElectricValuesDTO
 from gan_controller.common.interfaces.runner import BaseRunner
+from gan_controller.common.services.log_manager import LogManager
 from gan_controller.common.types.quantity import Quantity
+from gan_controller.features.nea_activation.services.nea_recorder import NEARecorder
 from gan_controller.features.nea_activation.services.sensor_reader import NEASensorReader
 from gan_controller.features.setting.model.app_config import AppConfig
 
@@ -22,6 +24,7 @@ class NEAActivationRunner(BaseRunner):
     log_params: NEALogParams  # ログ設定
     control_params: NEAControlParams  # 動的制御設定
 
+    _recorder: NEARecorder
     _request_queue: queue.Queue
 
     def __init__(
@@ -52,6 +55,8 @@ class NEAActivationRunner(BaseRunner):
             start_time = datetime.datetime.now(tz)
             print(f"\033[32m{start_time:%Y/%m/%d %H:%M:%S} Experiment start\033[0m")
 
+            self._setup_recorder(start_time)
+
             with NEADeviceManager(self.app_config) as dev:
                 self._setup_devices(dev)
                 self._measurement_loop(dev)
@@ -66,6 +71,27 @@ class NEAActivationRunner(BaseRunner):
             print(f"\033[31m{finish_time:%Y/%m/%d %H:%M:%S} Finish\033[0m")
 
     # =================================================================
+
+    def _setup_recorder(self, start_time: datetime.datetime) -> None:
+        """記録用ファイルの準備とヘッダー書き込み"""
+        manager = LogManager(self.app_config)
+
+        log_dir = manager.get_date_directory(update_date=self.log_params.update_date_folder)
+
+        log_file = log_dir.create_logfile(
+            protocol_name="NEA", major_update=self.log_params.update_major_version
+        )
+        print(f"Recording to: {log_file.path}")
+
+        self._recorder = NEARecorder(log_file)
+
+        # ヘッダー書き込み (リファレンスと完全一致させるため start_time を渡す)
+        self._recorder.record_header(
+            start_time=start_time,
+            condition=self.condition_params,
+            init_control=self.control_params,
+            comment=self.log_params.comment,
+        )
 
     def _setup_devices(self, devices: NEADevices) -> None:
         """実験前の初期設定"""
@@ -144,6 +170,7 @@ class NEAActivationRunner(BaseRunner):
 
             # 残りデータの測定
             ext_pressure = sensor_reader.read_ext()
+            sip_pressure = sensor_reader.read_sip()
 
             # 電源の値取得
             amd_i = devices.aps.measure_current()
@@ -153,8 +180,12 @@ class NEAActivationRunner(BaseRunner):
             # === 結果オブジェクト作成 ===
             electricity = ElectricValuesDTO(voltage=amd_v, current=amd_i, power=amd_w)
             result = NEAActivationResult(
+                laser_power_pv=self.control_params.laser_power_output,
                 ext_pressure=ext_pressure,
+                sip_pressure=sip_pressure,
                 photocurrent=pc,
+                bright_pc=bright_pc,
+                dark_pc=dark_pc,
                 quantum_efficiency=qe,
                 electricity=electricity,
                 timestamp=elapsed_perf,
@@ -162,6 +193,9 @@ class NEAActivationRunner(BaseRunner):
 
             print("\033[32m" + f"{elapsed_perf:.1f}[s]\t" + "\033[0m")
             print(f"{qe:.3e}, {ext_pressure:.2e} (EXT)")
+
+            if self._recorder:
+                self._recorder.record_data(result)
 
             # 結果をUIへ通知
             if self.emit_result:
