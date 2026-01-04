@@ -1,6 +1,7 @@
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
 
+from gan_controller.common.types.electricity import ElectricProperties
 from gan_controller.common.types.quantity.quantity import Quantity
 from gan_controller.features.nea_activation.domain.nea_config import NEAConfig
 from gan_controller.features.nea_activation.dtos.nea_params import (
@@ -8,6 +9,7 @@ from gan_controller.features.nea_activation.dtos.nea_params import (
     NEAControlParams,
     NEALogParams,
 )
+from gan_controller.features.nea_activation.dtos.nea_result import NEAActivationResult
 from gan_controller.features.nea_activation.state import NEAActivationState
 
 from .layouts import NEAActMainLayout
@@ -138,3 +140,31 @@ class NEAActivationTab(QWidget):
             laser_power_sv=Quantity(exec_p.laser_sv_spin.value(), "mW"),
             laser_power_output=Quantity(exec_p.laser_output_spin.value(), "mW"),
         )
+
+    # ==========================================================
+    #  Update results to UI
+    # ==========================================================
+
+    def update_view(self, result: NEAActivationResult) -> None:
+        """結果をUIに反映"""
+        self._update_measure_values(result)
+        self._main_layout.graph_panel.update_graph(result)
+
+    def clear_view(self) -> None:
+        """グラフや表示を初期化"""
+        self._main_layout.graph_panel.clear_graph()
+
+    def _update_measure_values(self, result: NEAActivationResult) -> None:
+        """測定結果で表示を更新"""
+        measure_p = self._main_layout.measure_panel
+
+        measure_p.elapsed_time_label.set_value(Quantity(result.timestamp, "s"))
+
+        measure_p.pc_value_label.set_value(result.photocurrent)
+        measure_p.qe_value_label.set_value(result.quantum_efficiency)
+        measure_p.ext_pres_val.set_value(result.ext_pressure)
+
+        # AMD電源
+        measure_p.amd_value_labels[ElectricProperties.VOLTAGE].set_value(result.electricity.voltage)
+        measure_p.amd_value_labels[ElectricProperties.CURRENT].set_value(result.electricity.current)
+        measure_p.amd_value_labels[ElectricProperties.POWER].set_value(result.electricity.power)

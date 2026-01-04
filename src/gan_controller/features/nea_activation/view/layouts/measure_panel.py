@@ -30,7 +30,6 @@ class NEAActMeasurePanel(QGroupBox):
     pc_value_label: ValueLabel
     qe_value_label: ValueLabel
 
-    hv_value_label: ValueLabel
     ext_pressure_value_label: ValueLabel
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -76,7 +75,6 @@ class NEAActMeasurePanel(QGroupBox):
         self.pc_value_label = ValueLabel(Quantity(value=0.0, unit="A"), ".2e")
         self.qe_value_label = ValueLabel(Quantity(value=0.0, unit="%"), ".2e")
 
-        self.hv_value_label = ValueLabel(Quantity(value=0.0, unit="V"), ".0f")
         self.ext_pres_val = ValueLabel(Quantity(value=0.0, unit="Pa"), ".2e")
 
         form_layout1 = QFormLayout()
@@ -84,7 +82,6 @@ class NEAActMeasurePanel(QGroupBox):
         form_layout1.addRow("QE :", self.qe_value_label)
 
         form_layout2 = QFormLayout()
-        form_layout2.addRow("HV :", self.hv_value_label)
         form_layout2.addRow("Pressure(EXT) :", self.ext_pres_val)
 
         # === 電流値 (AMD)

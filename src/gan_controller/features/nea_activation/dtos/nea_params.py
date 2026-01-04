@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 
-from gan_controller.common.dtos.electricity import ElectricValuesDTO
-from gan_controller.common.dtos.result import ExperimentResult
 from gan_controller.common.types.quantity import Quantity
 
 
@@ -39,12 +37,3 @@ class NEAControlParams:
     amd_output_current: Quantity  # AMD出力電流
     laser_power_sv: Quantity  # レーザー出力電力 (SV)
     laser_power_output: Quantity  # レーザー出力電力 (実出力)
-
-
-@dataclass
-class NEAActivationResult(ExperimentResult):
-    ext_pressure: Quantity
-    hv: Quantity
-    photocurrent: Quantity
-    electricity: ElectricValuesDTO
-    timestamp: float

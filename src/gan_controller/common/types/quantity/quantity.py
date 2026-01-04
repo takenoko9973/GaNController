@@ -21,7 +21,7 @@ class Quantity:
 
     # === 変換処理
 
-    def as_(self, prefix: str = "") -> float:
+    def value_as(self, prefix: str = "") -> float:
         """指定の接頭辞で値を取得"""
         PREFIX_REGISTRY.validate(prefix, self.unit)
         return self._value_si / PREFIX_REGISTRY.get(prefix).scale
@@ -38,10 +38,10 @@ class Quantity:
 
     def __format__(self, format_spec: str) -> str:
         """f-string 時に呼ばれる"""
-        value = self.as_(self.display_prefix)
+        value = self.value_as(self.display_prefix)
         formatted_value = format(value, format_spec)  # f-string で指定されたフォーマットを適用
         return f"{formatted_value} {self.display_prefix}{self.unit}"
 
     def __str__(self) -> str:
-        value = self.as_(self.display_prefix)
+        value = self.value_as(self.display_prefix)
         return f"{value} {self.display_prefix}{self.unit}"

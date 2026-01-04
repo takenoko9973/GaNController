@@ -3,10 +3,10 @@ from PySide6.QtCore import Slot
 from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
 from gan_controller.common.constants import NEA_CONFIG_PATH
 from gan_controller.common.interfaces.tab_controller import ITabController
-from gan_controller.features.nea_activation.domain.nea_config import NEAConfig
 from gan_controller.features.setting.model.app_config import AppConfig
 
-from .dtos.nea_params import NEAActivationResult
+from .domain.nea_config import NEAConfig
+from .dtos.nea_result import NEAActivationResult
 from .nea_runner import NEAActivationRunner
 from .state import NEAActivationState
 from .view import NEAActivationTab
@@ -73,6 +73,9 @@ class NEAActivationController(ITabController):
         if self._state != NEAActivationState.IDLE:  # 二重起動防止
             return
 
+        # 前回のグラフ等をクリア
+        self._view.clear_view()
+
         # 設定読み込み (ファイルを用いる)
         app_config = AppConfig.load()
         # 実験条件はウィンドウから所得
@@ -103,7 +106,8 @@ class NEAActivationController(ITabController):
     def setting_apply(self) -> None:
         """実験途中での値更新"""
         params = self._view.get_control_params()
-        self.runner.update_params(params)
+        if self._state == NEAActivationState.RUNNING:
+            self.runner.update_control_params(params)
 
     # =================================================
     # Runner -> View
@@ -112,7 +116,7 @@ class NEAActivationController(ITabController):
     @Slot(object)
     def on_result(self, result: NEAActivationResult) -> None:
         """結果表示とログ出力処理"""
-        # self.view.update_values(result)
+        self._view.update_view(result)
         # self.logger.log(result)
 
     @Slot(str)

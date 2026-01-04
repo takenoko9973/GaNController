@@ -4,7 +4,7 @@ from pathlib import Path
 PROJECT_ROOT = Path.cwd()
 
 # === ディレクトリ定義 ===
-CONFIG_DIR = PROJECT_ROOT / "config"
+CONFIG_DIR = PROJECT_ROOT / "configs"
 LOG_DIR = PROJECT_ROOT / "logs"
 
 # 必要なディレクトリの自動作成
