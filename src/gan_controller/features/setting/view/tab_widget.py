@@ -76,7 +76,7 @@ class SettingsTab(QWidget):
         common = CommonConfig(
             encode=self._main_layout.general_page.encode_edit.text(),
             tz_offset_hours=self._main_layout.general_page.tz_spin.value(),
-            is_simulation_mode=self._main_layout.general_page._is_simulation
+            is_simulation_mode=self._main_layout.general_page._is_simulation,
         )
 
         # GM10 Config

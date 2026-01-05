@@ -3,6 +3,7 @@ from PySide6.QtCore import Slot
 from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
 from gan_controller.common.constants import NEA_CONFIG_PATH
 from gan_controller.common.interfaces.tab_controller import ITabController
+from gan_controller.common.services.global_messenger import GlobalMessenger
 from gan_controller.features.setting.model.app_config import AppConfig
 
 from .domain.nea_config import NEAConfig
@@ -54,6 +55,10 @@ class NEAActivationController(ITabController):
         """状態変更"""
         self._state = state
         self._view.set_running(self._state)
+
+        # 待機中以外なら、タブをロック
+        should_lock = state != NEAActivationState.IDLE
+        GlobalMessenger().tab_lock_requested.emit(should_lock)
 
     def on_close(self) -> None:
         """アプリ終了時に設定を保存する"""

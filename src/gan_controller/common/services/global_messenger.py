@@ -9,6 +9,8 @@ class GlobalMessenger(QObject):
 
     # ステータスバーへの表示要求 (メッセージ, 表示時間ms)
     status_message_requested = Signal(str, int)
+    # タブロック要求 (True: ロック, False: 解除)
+    tab_lock_requested = Signal(bool)
 
     def __new__(cls) -> "GlobalMessenger":
         """インスタンスがなければ生成し、あれば既存のものを返す"""

@@ -47,6 +47,7 @@ class MainWindow(QMainWindow):
         # GlobalMessengerからの通知を表示
         messenger = GlobalMessenger()
         messenger.status_message_requested.connect(self.show_status_message)
+        messenger.tab_lock_requested.connect(self.set_tabs_locked)
 
     def _setup_features(self, features: list[AppFeature]) -> None:
         """機能リストを受け取り、タブに追加する"""
@@ -71,6 +72,10 @@ class MainWindow(QMainWindow):
 
         super().closeEvent(event)
 
+    # =====================================================================================
+    # シグナル
+    # =====================================================================================
+
     @Slot(int)
     def _on_tab_changed(self, new_index: int) -> None:
         """タブ切り替え時のイベントハンドラ"""
@@ -94,3 +99,13 @@ class MainWindow(QMainWindow):
     def show_status_message(self, message: str, timeout_ms: int = 5000) -> None:
         """ステータスバーにメッセージを表示する (デフォルト5秒で消える)"""
         self.status_bar.showMessage(message, timeout_ms)
+
+    @Slot(bool)
+    def set_tabs_locked(self, locked: bool) -> None:
+        """現在のタブ以外の有効/無効を切り替える (グレーアウト処理)"""
+        current_index = self.tab_widget.currentIndex()
+
+        for i in range(self.tab_widget.count()):
+            # 現在表示中のタブ以外を操作する
+            if i != current_index:
+                self.tab_widget.setTabEnabled(i, not locked)
