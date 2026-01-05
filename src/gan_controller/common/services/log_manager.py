@@ -2,7 +2,7 @@ import datetime
 import re
 from pathlib import Path
 
-from gan_controller.common.constants import CONFIG_DIR
+from gan_controller.common.constants import LOG_DIR
 from gan_controller.features.setting.model.app_config import AppConfig
 
 # ログファイル名の正規表現パターン: [Number]Protocol-yyyymmddHHMMSS.ext
@@ -131,7 +131,7 @@ class LogManager:
     DATE_DIR_PATTERN = re.compile(r"^\d{6}$")  # YYMMDD
 
     def __init__(self, config: AppConfig) -> None:
-        self.base_path = Path(CONFIG_DIR)
+        self.base_path = Path(LOG_DIR)
         self.base_path.mkdir(parents=True, exist_ok=True)
 
         self.tz = config.common.get_tz()
