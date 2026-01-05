@@ -32,16 +32,16 @@ class NEAActMainLayout(QHBoxLayout):
 
         self.condition_setting_panel = NEAActConditionSettingsPanel()
         self.log_setting_panel = NEAActLogSettingPanel()
-        self.measure_panel = NEAActMeasurePanel()
         self.execution_panel = NEAActExecutionPanel()
+        self.measure_panel = NEAActMeasurePanel()
 
         left_layout.addWidget(self.condition_setting_panel)
         left_layout.addSpacing(10)
         left_layout.addWidget(self.log_setting_panel)
         left_layout.addSpacing(10)
-        left_layout.addWidget(self.measure_panel)
-        left_layout.addSpacing(10)
         left_layout.addWidget(self.execution_panel)
+        left_layout.addSpacing(10)
+        left_layout.addWidget(self.measure_panel)
         left_layout.addStretch()
 
         return left_panel
