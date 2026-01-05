@@ -1,11 +1,11 @@
 from dataclasses import dataclass, field
 
+from .parser import split_unit
 from .prefix_registry import PREFIX_REGISTRY
-from .unit import split_unit
 
 
 @dataclass
-class Quantity:
+class Quantity[T]:
     _value_si: float = field(init=False)  # 接頭辞無しでの値
     unit: str = field(init=False)
     display_prefix: str = field(init=False)

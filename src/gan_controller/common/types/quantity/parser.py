@@ -1,15 +1,7 @@
 # 使用可能な単位
-BASE_UNITS = {
-    "": "dimensionless",
-    "A": "current",
-    "V": "voltage",
-    "W": "power",
-    "s": "time",
-    "m": "length",
-    "Pa": "pressure",
-    "Ω": "resistance",
-    "℃": "celsius",
-}
+from .unit_types import ALL_UNIT_TYPES
+
+BASE_UNITS = {u.symbol: u.name for u in ALL_UNIT_TYPES}
 
 
 def split_unit(unit: str, known_prefixes: set[str]) -> tuple[str, str]:
