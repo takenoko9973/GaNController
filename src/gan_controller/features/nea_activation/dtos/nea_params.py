@@ -36,4 +36,4 @@ class NEAControlParams:
     amd_enable: bool  # AMDを有効化するか
     amd_output_current: Quantity  # AMD出力電流
     laser_power_sv: Quantity  # レーザー出力電力 (SV)
-    laser_power_output: Quantity  # レーザー出力電力 (実出力)
+    laser_power_pv: Quantity  # レーザー出力電力 (実出力)

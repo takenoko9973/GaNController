@@ -138,7 +138,7 @@ class NEAActivationTab(QWidget):
             amd_enable=exec_p.amd_output_current_spin.isChecked(),
             amd_output_current=Quantity(exec_p.amd_output_current_spin.value(), "A"),
             laser_power_sv=Quantity(exec_p.laser_sv_spin.value(), "mW"),
-            laser_power_output=Quantity(exec_p.laser_output_spin.value(), "mW"),
+            laser_power_pv=Quantity(exec_p.laser_output_spin.value(), "mW"),
         )
 
     # ==========================================================
@@ -165,6 +165,10 @@ class NEAActivationTab(QWidget):
         measure_p.ext_pres_val.set_value(result.ext_pressure)
 
         # AMD電源
-        measure_p.amd_value_labels[ElectricProperties.VOLTAGE].set_value(result.electricity.voltage)
-        measure_p.amd_value_labels[ElectricProperties.CURRENT].set_value(result.electricity.current)
-        measure_p.amd_value_labels[ElectricProperties.POWER].set_value(result.electricity.power)
+        measure_p.amd_value_labels[ElectricProperties.VOLTAGE].set_value(
+            result.amd_electricity.voltage
+        )
+        measure_p.amd_value_labels[ElectricProperties.CURRENT].set_value(
+            result.amd_electricity.current
+        )
+        measure_p.amd_value_labels[ElectricProperties.POWER].set_value(result.amd_electricity.power)

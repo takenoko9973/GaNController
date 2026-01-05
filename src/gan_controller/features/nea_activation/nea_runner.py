@@ -163,7 +163,7 @@ class NEAActivationRunner(BaseRunner):
             # ===
 
             wavelength = self.condition_params.laser_wavelength.value_as("n")
-            laser_pv = self.control_params.laser_power_output.value_as("")
+            laser_pv = self.control_params.laser_power_pv.value_as("")
 
             pc = Quantity(bright_pc.value_as("") - dark_pc.value_as(""), "A")
             qe = Quantity(1240 * pc.value_as("") / (wavelength * laser_pv) * 100, "%")
@@ -171,6 +171,7 @@ class NEAActivationRunner(BaseRunner):
             # 残りデータの測定
             ext_pressure = sensor_reader.read_ext()
             sip_pressure = sensor_reader.read_sip()
+            extraction_voltage = sensor_reader.read_hv()
 
             # 電源の値取得
             amd_i = devices.aps.measure_current()
@@ -180,15 +181,23 @@ class NEAActivationRunner(BaseRunner):
             # === 結果オブジェクト作成 ===
             electricity = ElectricValuesDTO(voltage=amd_v, current=amd_i, power=amd_w)
             result = NEAActivationResult(
-                laser_power_pv=self.control_params.laser_power_output,
+                timestamp=elapsed_perf,
+                # LP
+                laser_power_sv=self.control_params.laser_power_sv,
+                laser_power_pv=self.control_params.laser_power_pv,
+                # Pressure
                 ext_pressure=ext_pressure,
                 sip_pressure=sip_pressure,
+                # HV
+                extraction_voltage=extraction_voltage,
+                # PC
                 photocurrent=pc,
-                bright_pc=bright_pc,
-                dark_pc=dark_pc,
+                bright_photocurrent=bright_pc,
+                dark_photocurrent=dark_pc,
+                # QE
                 quantum_efficiency=qe,
-                electricity=electricity,
-                timestamp=elapsed_perf,
+                # AMD power supply
+                amd_electricity=electricity,
             )
 
             print("\033[32m" + f"{elapsed_perf:.1f}[s]\t" + "\033[0m")
