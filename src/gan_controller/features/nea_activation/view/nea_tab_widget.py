@@ -3,7 +3,11 @@ from PySide6.QtWidgets import QWidget
 
 from gan_controller.common.types.electricity import ElectricProperties
 from gan_controller.common.types.quantity.quantity import Quantity
-from gan_controller.features.nea_activation.domain.nea_config import NEAConfig
+from gan_controller.features.nea_activation.domain.nea_config import (
+    ConditionConfig,
+    ExecutionConfig,
+    NEAConfig,
+)
 from gan_controller.features.nea_activation.dtos.nea_params import (
     NEAConditionParams,
     NEAControlParams,
@@ -93,15 +97,19 @@ class NEAActivationTab(QWidget):
 
         return NEAConfig(
             # Condition
-            shunt_resistance=cond_p.shunt_r_spin.value(),
-            laser_wavelength=cond_p.laser_wavelength_spin.value(),
-            stabilization_time=cond_p.stabilization_time_spin.value(),
-            integration_count=int(cond_p.integrated_interval_spin.value()),
-            integration_time=cond_p.integrated_count_spin.value(),
+            condition=ConditionConfig(
+                shunt_resistance=cond_p.shunt_r_spin.value(),
+                laser_wavelength=cond_p.laser_wavelength_spin.value(),
+                stabilization_time=cond_p.stabilization_time_spin.value(),
+                integration_count=int(cond_p.integrated_count_spin.value()),
+                integration_interval=cond_p.integrated_interval_spin.value(),
+            ),
             # Execution (初期値として保存)
-            amd_output_current=exec_p.amd_output_current_spin.value(),
-            laser_power_sv=exec_p.laser_sv_spin.value(),
-            laser_power_output=exec_p.laser_output_spin.value(),
+            execution=ExecutionConfig(
+                amd_output_current=exec_p.amd_output_current_spin.value(),
+                laser_power_sv=exec_p.laser_sv_spin.value(),
+                laser_power_output=exec_p.laser_output_spin.value(),
+            ),
         )
 
     # ==========================================================
