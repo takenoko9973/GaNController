@@ -1,0 +1,58 @@
+from dataclasses import dataclass, field
+
+from .parser import split_unit
+from .prefix_registry import PREFIX_REGISTRY
+
+
+@dataclass
+class Quantity[T]:
+    _value_si: float = field(init=False)  # 接頭辞無しでの値
+    unit: str = field(init=False)
+    display_prefix: str = field(init=False)
+
+    def __init__(self, value: float = 0.0, unit: str = "") -> None:
+        prefix, base = split_unit(unit, PREFIX_REGISTRY.known_prefixes)
+
+        PREFIX_REGISTRY.validate(prefix, base)
+
+        self._value_si = value * PREFIX_REGISTRY.get(prefix).scale
+        self.unit = base
+        self.display_prefix = prefix
+
+    @property
+    def value(self) -> float:
+        """現在の表示用接頭辞での値を取得 (例: 1.2 mA なら 1.2)"""
+        return self.value_as(self.display_prefix)
+
+    @property
+    def si_value(self) -> float:
+        """基本単位(SI)での値を取得 (例: 1.2 mA なら 0.0012)"""
+        return self._value_si
+
+    # ==================================================
+
+    # === 変換処理
+
+    def value_as(self, prefix: str = "") -> float:
+        """指定の接頭辞で値を取得"""
+        PREFIX_REGISTRY.validate(prefix, self.unit)
+        return self._value_si / PREFIX_REGISTRY.get(prefix).scale
+
+    def with_prefix(self, prefix: str) -> "Quantity[T]":
+        """表示用接頭辞を変更"""
+        val = self.value_as(prefix)  # 指定された接頭辞での値を計算
+        new_unit_str = f"{prefix}{self.unit}"  # 単位文字列を再構築
+
+        return Quantity[T](val, new_unit_str)
+
+    # === 表示
+
+    def __format__(self, format_spec: str) -> str:
+        """f-string 時に呼ばれる"""
+        value = self.value_as(self.display_prefix)
+        formatted_value = format(value, format_spec)  # f-string で指定されたフォーマットを適用
+        return f"{formatted_value} {self.display_prefix}{self.unit}"
+
+    def __str__(self) -> str:
+        value = self.value_as(self.display_prefix)
+        return f"{value} {self.display_prefix}{self.unit}"
