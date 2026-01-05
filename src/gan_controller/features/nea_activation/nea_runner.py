@@ -18,7 +18,7 @@ from gan_controller.features.nea_activation.services.nea_recorder import NEAReco
 from gan_controller.features.nea_activation.services.sensor_reader import NEASensorReader
 from gan_controller.features.setting.model.app_config import AppConfig
 
-from .device_manager import NEADeviceManager, NEADevices
+from .device_manager import NEADeviceManager, NEADevices, RealDeviceFactory, SimulationDeviceFactory
 from .dtos.nea_params import NEAConditionParams, NEAControlParams, NEALogParams
 from .dtos.nea_result import NEAActivationResult
 
@@ -62,7 +62,11 @@ class NEAActivationRunner(BaseRunner):
 
             self._setup_recorder(start_time)
 
-            with NEADeviceManager(self.app_config) as dev:
+            # 設定に基づいて適切なFactoryを選択する
+            is_simulation = getattr(self.app_config.common, "is_simulation_mode", False)
+            device_factory = SimulationDeviceFactory() if is_simulation else RealDeviceFactory()
+
+            with NEADeviceManager(self.app_config, factory=device_factory) as dev:
                 self._setup_devices(dev)
                 self._measurement_loop(dev)
 
