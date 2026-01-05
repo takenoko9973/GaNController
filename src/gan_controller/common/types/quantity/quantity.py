@@ -19,6 +19,18 @@ class Quantity[T]:
         self.unit = base
         self.display_prefix = prefix
 
+    @property
+    def value(self) -> float:
+        """現在の表示用接頭辞での値を取得 (例: 1.2 mA なら 1.2)"""
+        return self.value_as(self.display_prefix)
+
+    @property
+    def si_value(self) -> float:
+        """基本単位(SI)での値を取得 (例: 1.2 mA なら 0.0012)"""
+        return self._value_si
+
+    # ==================================================
+
     # === 変換処理
 
     def value_as(self, prefix: str = "") -> float:

@@ -56,7 +56,7 @@ class NEAActGraphPanel(QWidget):
         t = result.timestamp
 
         # PC, QE が負の場合は描画しない
-        pc_val = result.quantum_efficiency.value_as("")
+        pc_val = result.quantum_efficiency.si_value
         if pc_val <= 0:
             pc_val = float("nan")
 
@@ -67,19 +67,19 @@ class NEAActGraphPanel(QWidget):
         # --- Photocurrent Graph の更新 ---
         # Resultオブジェクトから値を取り出し、辞書形式でグラフに渡す
         self.graph_photocurrent.update_point(
-            x_val=t.value_as(),
+            x_val=t.si_value,
             values={
                 "pc": pc_val,
-                "pres": result.ext_pressure.value_as(""),
+                "pres": result.ext_pressure.si_value,
             },
         )
 
         # --- QE Graph の更新 ---
         self.graph_qe.update_point(
-            x_val=t.value_as(),
+            x_val=t.si_value,
             values={
                 "qe": qe_val,
-                "pres": result.ext_pressure.value_as(""),
+                "pres": result.ext_pressure.si_value,
             },
         )
 

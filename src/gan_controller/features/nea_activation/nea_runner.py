@@ -203,24 +203,24 @@ class NEAActivationRunner(BaseRunner):
         # 出力状態測定 (Bright)
         devices.laser.set_emission(True)  # レーザー出力開始
         # 安定するまで待機
-        if not self._wait_interruptible(self.condition_params.stabilization_time.value_as()):
+        if not self._wait_interruptible(self.condition_params.stabilization_time.si_value):
             return False  # 待機中に中断されたら終了
 
         bright_pc = sensor_reader.read_photocurrent_integrated(
             self.condition_params.shunt_resistance,
-            int(self.condition_params.integration_count.value_as("")),
-            self.condition_params.integration_interval.value_as(""),
+            int(self.condition_params.integration_count.si_value),
+            self.condition_params.integration_interval.si_value,
         )
 
         # バックグラウンド測定 (Dark)
         devices.laser.set_emission(False)
-        if not self._wait_interruptible(self.condition_params.stabilization_time.value_as()):
+        if not self._wait_interruptible(self.condition_params.stabilization_time.si_value):
             return False
 
         dark_pc = sensor_reader.read_photocurrent_integrated(
             self.condition_params.shunt_resistance,
-            int(self.condition_params.integration_count.value_as("")),
-            self.condition_params.integration_interval.value_as(""),
+            int(self.condition_params.integration_count.si_value),
+            self.condition_params.integration_interval.si_value,
         )
 
         # 4. データ集計と通知
@@ -239,9 +239,9 @@ class NEAActivationRunner(BaseRunner):
         """測定値の計算、Result生成、通知を行う"""
         # --- 計算 ---
         wavelength_nm = self.condition_params.laser_wavelength.value_as("n")
-        laser_pv_watt = self.control_params.laser_power_pv.value_as("")
+        laser_pv_watt = self.control_params.laser_power_pv.si_value
 
-        pc_val = bright_pc.value_as("") - dark_pc.value_as("")
+        pc_val = bright_pc.si_value - dark_pc.si_value
         qe_val = calculate_quantum_efficiency(
             current_amp=pc_val, laser_power_watt=laser_pv_watt, wavelength_nm=wavelength_nm
         )
@@ -355,7 +355,7 @@ class NEAActivationRunner(BaseRunner):
 
         # AMD電源の制御
         if params.amd_enable:
-            dev.aps.set_current(params.amd_output_current.value_as(""))  # A
+            dev.aps.set_current(params.amd_output_current.si_value)  # A
             dev.aps.set_output(True)
         else:
             dev.aps.set_output(False)

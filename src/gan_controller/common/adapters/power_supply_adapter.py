@@ -94,8 +94,8 @@ class MockPowerSupplyAdapter(IPowerSupplyAdapter):
         return Current(val)
 
     def measure_power(self) -> Quantity[Watt]:
-        v = self.measure_voltage().value_as()
-        i = self.measure_current().value_as()
+        v = self.measure_voltage().si_value
+        i = self.measure_current().si_value
         return Power(v * i)
 
     def close(self) -> None:

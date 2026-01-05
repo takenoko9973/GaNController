@@ -31,24 +31,24 @@ class NEARecorder:
         self.columns: list[LogColumn] = [
             LogColumn("Time[s]", "{:.1f}", lambda r, _: r.timestamp),
             # Laser power
-            LogColumn("LP(SV)[W]", "{:.4E}", lambda r, _: r.laser_power_sv.value_as("")),
-            LogColumn("LP(PV)[W]", "{:.4E}", lambda r, _: r.laser_power_pv.value_as("")),
+            LogColumn("LP(SV)[W]", "{:.4E}", lambda r, _: r.laser_power_sv.si_value),
+            LogColumn("LP(PV)[W]", "{:.4E}", lambda r, _: r.laser_power_pv.si_value),
             # Quantum efficiency
             LogColumn("QE[%]", "{:.4E}", lambda r, _: r.quantum_efficiency.value_as("%")),
             # Photocurrent
-            LogColumn("PC[A]", "{:.4E}", lambda r, _: r.photocurrent.value_as("")),
+            LogColumn("PC[A]", "{:.4E}", lambda r, _: r.photocurrent.si_value),
             # Pressure
-            LogColumn("Pressure(EXT)[Pa]", "{:.4E}", lambda r, _: r.ext_pressure.value_as("")),
-            LogColumn("Pressure(SIP)[Pa]", "{:.4E}", lambda r, _: r.sip_pressure.value_as("")),
+            LogColumn("Pressure(EXT)[Pa]", "{:.4E}", lambda r, _: r.ext_pressure.si_value),
+            LogColumn("Pressure(SIP)[Pa]", "{:.4E}", lambda r, _: r.sip_pressure.si_value),
             # Bright photocurrent
-            LogColumn("BPc[A]", "{:.4E}", lambda r, _: r.bright_photocurrent.value_as("")),
+            LogColumn("BPc[A]", "{:.4E}", lambda r, _: r.bright_photocurrent.si_value),
             # Dark photocurrent
-            LogColumn("DPc[A]", "{:.4E}", lambda r, _: r.dark_photocurrent.value_as("")),
+            LogColumn("DPc[A]", "{:.4E}", lambda r, _: r.dark_photocurrent.si_value),
             # Extraction voltage
-            LogColumn("ExVolt[V]", "{:.1f}", lambda r, _: r.extraction_voltage.value_as("")),
+            LogColumn("ExVolt[V]", "{:.1f}", lambda r, _: r.extraction_voltage.si_value),
             # AMD power supply
-            LogColumn("AMD_V[V]", "{:.3f}", lambda r, _: r.amd_electricity.voltage.value_as("")),
-            LogColumn("AMD_I[A]", "{:.3f}", lambda r, _: r.amd_electricity.current.value_as("")),
+            LogColumn("AMD_V[V]", "{:.3f}", lambda r, _: r.amd_electricity.voltage.si_value),
+            LogColumn("AMD_I[A]", "{:.3f}", lambda r, _: r.amd_electricity.current.si_value),
             # イベント文字列
             LogColumn("Event", "{}", lambda _, e: e),
         ]
@@ -66,9 +66,9 @@ class NEARecorder:
         # パラメータの取得 (Quantity -> float/int)
         wavelength = int(condition.laser_wavelength.value_as("n"))
         laser_power_sv = int(init_control.laser_power_sv.value_as("m"))
-        stabilization_time = condition.stabilization_time.value_as()
-        integrated_count = int(condition.integration_count.value_as(""))
-        interval = condition.integration_interval.value_as("")
+        stabilization_time = condition.stabilization_time.si_value
+        integrated_count = int(condition.integration_count.si_value)
+        interval = condition.integration_interval.si_value
 
         # === Header Writing (Identical to reference) ===
         lf.write("#NEA activation monitor\n")
