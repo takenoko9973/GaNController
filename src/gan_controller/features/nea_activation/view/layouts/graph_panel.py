@@ -41,23 +41,36 @@ class NEAActGraphPanel(QWidget):
     def _setup_lines(self) -> None:
         """グラフにプロットする線を定義"""
         # PC Graph
-        self.graph_photocurrent.add_line("pc", "Photocurrent", "blue", is_right_axis=False)
-        self.graph_photocurrent.add_line("pres", "Pressure", "red", is_right_axis=True)
+        self.graph_photocurrent.add_line(
+            "pc", "Photocurrent", "blue", marker="o", linestyle="None", is_right_axis=False
+        )
+        self.graph_photocurrent.add_line("pres", "Pressure", "black", is_right_axis=True)
 
         # QE Graph
-        self.graph_qe.add_line("qe", "QE", "green", is_right_axis=False)
-        self.graph_qe.add_line("pres", "Pressure", "red", is_right_axis=True)
+        self.graph_qe.add_line(
+            "qe", "QE", "green", marker="o", linestyle="None", is_right_axis=False
+        )
+        self.graph_qe.add_line("pres", "Pressure", "black", is_right_axis=True)
 
     def update_graph(self, result: NEAActivationResult) -> None:
         t = result.timestamp
+
+        # PC, QE が負の場合は描画しない
+        pc_val = result.quantum_efficiency.value_as("")
+        if pc_val <= 0:
+            pc_val = float("nan")
+
+        qe_val = result.quantum_efficiency.value_as("%")
+        if qe_val <= 0:
+            qe_val = float("nan")
 
         # --- Photocurrent Graph の更新 ---
         # Resultオブジェクトから値を取り出し、辞書形式でグラフに渡す
         self.graph_photocurrent.update_point(
             x_val=t,
             values={
-                "pc": result.photocurrent.value_as(),
-                "pres": result.ext_pressure.value_as(),
+                "pc": pc_val,
+                "pres": result.ext_pressure.value_as(""),
             },
         )
 
@@ -65,8 +78,8 @@ class NEAActGraphPanel(QWidget):
         self.graph_qe.update_point(
             x_val=t,
             values={
-                "qe": result.quantum_efficiency.value_as(),
-                "pres": result.ext_pressure.value_as(),
+                "qe": qe_val,
+                "pres": result.ext_pressure.value_as(""),
             },
         )
 
