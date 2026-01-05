@@ -5,12 +5,52 @@ import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.ticker import AutoMinorLocator, FuncFormatter
+from PySide6.QtCore import QSize, QTimer
+from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from .graph_data import GraphData
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
+
+
+class DebouncedFigureCanvas(FigureCanvas):
+    """リサイズ時の再描画を遅延させ、ウィンドウ操作を軽量化するCanvas"""
+
+    def __init__(self, figure: Figure) -> None:
+        super().__init__(figure)
+
+        # 遅延実行用のタイマー
+        self._resize_timer = QTimer()
+        self._resize_timer.setSingleShot(True)
+        # 100ms待機 (サイズ変更から規定の時間経ったら、グラフ再描画)
+        self._resize_timer.setInterval(100)
+        self._resize_timer.timeout.connect(self._perform_delayed_resize)
+
+        # 最新の「サイズ」を保持
+        self._pending_size: QSize | None = None
+
+    def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802
+        """グラフ描画を即時実行せず、QWidgetのサイズ変更だけ先に行って描画を予約する"""
+        # サイズ情報を保存
+        self._pending_size = event.size()
+
+        # QtのWidgetとしてのサイズ変更は即座に行う
+        QWidget.resizeEvent(self, event)
+
+        # タイマーをリセット (サイズ変更からの時間計測)
+        self._resize_timer.start()
+
+    def _perform_delayed_resize(self) -> None:
+        """タイマー発火後に呼ばれる描画処理"""
+        if self._pending_size:
+            # 保存しておいたサイズから、新しいイベントオブジェクトを作成
+            dummy_old_size = QSize()  # 空白で良い
+            new_event = QResizeEvent(self._pending_size, dummy_old_size)
+
+            # Matplotlibの親クラスのresizeEventを呼び出す
+            super().resizeEvent(new_event)
 
 
 class AxisScale(Enum):
@@ -39,7 +79,7 @@ class DualAxisGraph(QWidget):
 
         # Matplotlibの初期化
         self.fig = Figure(figsize=(5, 4), dpi=100, layout="constrained")  # constrainedで自動調整
-        self.canvas = FigureCanvas(self.fig)
+        self.canvas = DebouncedFigureCanvas(self.fig)
 
         self.ax_left = self.fig.add_subplot(111)
         self.ax_right = self.ax_left.twinx()
