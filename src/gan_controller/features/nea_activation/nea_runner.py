@@ -1,6 +1,10 @@
 import datetime
 import queue
 import time
+import traceback
+
+import pyvisa
+import pyvisa.constants
 
 from gan_controller.common.drivers.gm10 import GM10
 from gan_controller.common.drivers.ibeam import IBeam
@@ -161,89 +165,152 @@ class NEAActivationRunner(BaseRunner):
 
         start_perf = time.perf_counter()  # 開始時間 (高分解能)
 
-        while not self._stop:
-            elapsed_perf = time.perf_counter() - start_perf
+        try:
+            # メインループ
+            while not self._stop:
+                try:
+                    # 1ステップ分実行
+                    if not self._execute_single_measurement(devices, sensor_reader, start_perf):
+                        break
+                except pyvisa.errors.VisaIOError as e:
+                    self._handle_visa_error(e)
 
-            self._process_pending_requests(devices)  # デバイス設定更新
+        except Exception as e:
+            print(f"\033[31m[ERROR] Measurement loop failed: {e}\033[0m")
+            print(traceback.format_exc())
+            raise
 
-            # ============
+        finally:
+            self._finalize_safety(devices)
 
-            # === 出力状態測定
-            devices.laser.set_emission(True)  # レーザー出力開始
-            # 安定するまで待機
-            if not self._wait_interruptible(self.condition_params.stabilization_time.value_as()):
-                break  # 待機中に中断されたら終了
+    def _execute_single_measurement(
+        self, devices: NEADevices, sensor_reader: NEASensorReader, start_perf: float
+    ) -> bool:
+        """1回分の測定サイクルを実行
 
-            bright_pc = sensor_reader.read_photocurrent_integrated(
-                self.condition_params.shunt_resistance,
-                int(self.condition_params.integration_count.value_as("")),
-                self.condition_params.integration_interval.value_as(""),
-            )
+        Returns:
+            bool: 測定が完了したらTrue, 中断されたらFalse
 
-            # === バックグラウンド測定
-            devices.laser.set_emission(False)  # レーザー出力停止
-            if not self._wait_interruptible(self.condition_params.stabilization_time.value_as()):
-                break
+        """
+        elapsed_perf = time.perf_counter() - start_perf
+        self._process_pending_requests(devices)  # 設定に変更があるか確認
 
-            dark_pc = sensor_reader.read_photocurrent_integrated(
-                self.condition_params.shunt_resistance,
-                int(self.condition_params.integration_count.value_as("")),
-                self.condition_params.integration_interval.value_as(""),
-            )
+        # 出力状態測定 (Bright)
+        devices.laser.set_emission(True)  # レーザー出力開始
+        # 安定するまで待機
+        if not self._wait_interruptible(self.condition_params.stabilization_time.value_as()):
+            return False  # 待機中に中断されたら終了
 
-            # ============
+        bright_pc = sensor_reader.read_photocurrent_integrated(
+            self.condition_params.shunt_resistance,
+            int(self.condition_params.integration_count.value_as("")),
+            self.condition_params.integration_interval.value_as(""),
+        )
 
-            wavelength = self.condition_params.laser_wavelength.value_as("n")
-            laser_pv = self.control_params.laser_power_pv.value_as("")
-
-            pc = Quantity(bright_pc.value_as("") - dark_pc.value_as(""), "A")
-            qe = Quantity(1240 * pc.value_as("") / (wavelength * laser_pv) * 100, "%")
-
-            # 残りデータの測定
-            ext_pressure = sensor_reader.read_ext()
-            sip_pressure = sensor_reader.read_sip()
-            extraction_voltage = sensor_reader.read_hv()
-
-            # 電源の値取得
-            amd_i = devices.aps.measure_current()
-            amd_v = devices.aps.measure_voltage()
-            amd_w = devices.aps.measure_power()
-
-            # === 結果オブジェクト作成 ===
-            electricity = ElectricValuesDTO(voltage=amd_v, current=amd_i, power=amd_w)
-            result = NEAActivationResult(
-                timestamp=elapsed_perf,
-                # LP
-                laser_power_sv=self.control_params.laser_power_sv,
-                laser_power_pv=self.control_params.laser_power_pv,
-                # Pressure
-                ext_pressure=ext_pressure,
-                sip_pressure=sip_pressure,
-                # HV
-                extraction_voltage=extraction_voltage,
-                # PC
-                photocurrent=pc,
-                bright_photocurrent=bright_pc,
-                dark_photocurrent=dark_pc,
-                # QE
-                quantum_efficiency=qe,
-                # AMD power supply
-                amd_electricity=electricity,
-            )
-
-            print("\033[32m" + f"{elapsed_perf:.1f}[s]\t" + "\033[0m")
-            print(f"{qe:.3e}, {ext_pressure:.2e} (EXT)")
-
-            if self._recorder:
-                self._recorder.record_data(result)
-
-            # 結果をUIへ通知
-            if self.emit_result:
-                self.emit_result(result)
-
-        # 終了処理
+        # バックグラウンド測定 (Dark)
         devices.laser.set_emission(False)
-        devices.aps.set_output(False)
+        if not self._wait_interruptible(self.condition_params.stabilization_time.value_as()):
+            return False
+
+        dark_pc = sensor_reader.read_photocurrent_integrated(
+            self.condition_params.shunt_resistance,
+            int(self.condition_params.integration_count.value_as("")),
+            self.condition_params.integration_interval.value_as(""),
+        )
+
+        # 4. データ集計と通知
+        self._process_and_emit_result(devices, sensor_reader, elapsed_perf, bright_pc, dark_pc)
+
+        return True
+
+    def _process_and_emit_result(
+        self,
+        devices: NEADevices,
+        sensor_reader: NEASensorReader,
+        timestamp: float,
+        bright_pc: Quantity,
+        dark_pc: Quantity,
+    ) -> None:
+        """測定値の計算、Result生成、通知を行う"""
+        # --- 計算 ---
+        wavelength = self.condition_params.laser_wavelength.value_as("n")
+        laser_pv = self.control_params.laser_power_pv.value_as("")
+
+        qe_val = 0.0
+        pc_val = bright_pc.value_as("") - dark_pc.value_as("")
+        if wavelength * laser_pv != 0:  # ゼロ除算回避
+            # TODO: 定数 (1239.8...) を使用すること
+            qe_val = 1240 * pc_val / (wavelength * laser_pv) * 100
+
+        pc = Quantity(pc_val, "A")
+        qe = Quantity(qe_val, "%")
+
+        # --- 読み取り ---
+        ext_pressure = sensor_reader.read_ext()
+        sip_pressure = sensor_reader.read_sip()
+        extraction_voltage = sensor_reader.read_hv()
+
+        # 電源の値取得
+        amd_i = devices.aps.measure_current()
+        amd_v = devices.aps.measure_voltage()
+        amd_w = devices.aps.measure_power()
+
+        electricity = ElectricValuesDTO(voltage=amd_v, current=amd_i, power=amd_w)
+
+        # --- Result生成 ---
+
+        result = NEAActivationResult(
+            timestamp=timestamp,
+            # LP
+            laser_power_sv=self.control_params.laser_power_sv,
+            laser_power_pv=self.control_params.laser_power_pv,
+            # Pressure
+            ext_pressure=ext_pressure,
+            sip_pressure=sip_pressure,
+            # HV
+            extraction_voltage=extraction_voltage,
+            # PC
+            photocurrent=pc,
+            bright_photocurrent=bright_pc,
+            dark_photocurrent=dark_pc,
+            # QE
+            quantum_efficiency=qe,
+            # AMD power supply
+            amd_electricity=electricity,
+        )
+
+        # --- 出力 ---
+        print("\033[32m" + f"{timestamp:.1f}[s]\t" + "\033[0m")
+        print(f"{qe:.3e}, {pc:.3e}, {ext_pressure:.2e} (EXT)")
+
+        if self._recorder:
+            self._recorder.record_data(result)
+
+        if self.emit_result:
+            self.emit_result(result)
+
+    def _handle_visa_error(self, e: pyvisa.errors.VisaIOError) -> None:
+        """VISAエラーのハンドリング"""
+        if e.error_code == pyvisa.constants.VI_ERROR_TMO:
+            print(f"\033[33m[WARNING] Device Timeout occurred. Retrying... ({e})\033[0m")
+            # タイムアウト時は続行 (呼び出し元のループが継続する)
+        else:
+            # それ以外は再送出
+            raise e
+
+    def _finalize_safety(self, devices: NEADevices) -> None:
+        """終了処理"""
+        print("Executing safety cleanup...")
+
+        try:
+            devices.laser.set_emission(False)
+        except Exception as cleanup_err:  # noqa: BLE001
+            print(f"Failed to stop laser: {cleanup_err}")
+
+        try:
+            devices.aps.set_output(False)
+        except Exception as cleanup_err:  # noqa: BLE001
+            print(f"Failed to stop APS: {cleanup_err}")
 
     # =================================================================
 
