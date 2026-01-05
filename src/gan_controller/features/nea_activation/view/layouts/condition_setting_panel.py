@@ -18,8 +18,8 @@ class NEAActConditionSettingsPanel(QGroupBox):
     laser_wavelength_spin: QDoubleSpinBox
 
     stabilization_time_spin: QDoubleSpinBox
-    integrated_count_spin: QDoubleSpinBox
-    integrated_interval_spin: QSpinBox
+    integrated_interval_spin: QDoubleSpinBox
+    integrated_count_spin: QSpinBox
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("Condition Settings", parent)
@@ -53,16 +53,16 @@ class NEAActConditionSettingsPanel(QGroupBox):
         self.stabilization_time_spin = QDoubleSpinBox(
             value=1, minimum=0, decimals=1, singleStep=0.1, suffix=" s"
         )
-        self.integrated_count_spin = QDoubleSpinBox(
+        self.integrated_interval_spin = QDoubleSpinBox(
             value=0.1, minimum=0.1, decimals=1, singleStep=0.1, suffix=" s"
         )
-        self.integrated_interval_spin = QSpinBox(value=1, minimum=1)
+        self.integrated_count_spin = QSpinBox(value=1, minimum=1)
         config_layout2.addWidget(QLabel("安定化時間 :"), 0, 0)
         config_layout2.addWidget(self.stabilization_time_spin, 0, 1)
         config_layout2.addWidget(QLabel("積算間隔 :"), 1, 0)
-        config_layout2.addWidget(self.integrated_count_spin, 1, 1)
+        config_layout2.addWidget(self.integrated_interval_spin, 1, 1)
         config_layout2.addWidget(QLabel("積算回数 :"), 2, 0)
-        config_layout2.addWidget(self.integrated_interval_spin, 2, 1)
+        config_layout2.addWidget(self.integrated_count_spin, 2, 1)
 
         # ====================
 
