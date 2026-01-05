@@ -1,4 +1,5 @@
-from PySide6.QtWidgets import QVBoxLayout, QWidget
+from PySide6.QtCore import Qt, Slot
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget
 
 from gan_controller.common.widgets.graph import AxisScale, DualAxisGraph
 from gan_controller.features.nea_activation.dtos.nea_result import NEAActivationResult
@@ -12,6 +13,21 @@ class NEAActGraphPanel(QWidget):
 
         layout = QVBoxLayout(self)
 
+        # === 表示設定
+        setting_layout = QHBoxLayout()
+        setting_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+
+        # グラフ表示幅
+        self.time_window_spin = QSpinBox(minimum=0, maximum=99999, value=1800, suffix=" s")
+        self.time_window_spin.setSpecialValueText("全期間")  # 0の時のテキスト
+        setting_layout.addWidget(QLabel("表示範囲 (0s=全表示) :"))
+        setting_layout.addWidget(self.time_window_spin)
+
+        self.time_window_spin.valueChanged.connect(self._on_time_window_changed)  # 変更時、即時反映
+
+        layout.addLayout(setting_layout)
+
+        # === グラフ
         self.graph_photocurrent = DualAxisGraph(
             "Photocurrent",
             "Time (s)",
@@ -37,6 +53,9 @@ class NEAActGraphPanel(QWidget):
         layout.addWidget(self.graph_qe)
 
         self._setup_lines()
+
+        # 範囲初期化
+        self._on_time_window_changed(self.time_window_spin.value())
 
     def _setup_lines(self) -> None:
         """グラフにプロットする線を定義"""
@@ -89,3 +108,11 @@ class NEAActGraphPanel(QWidget):
         self.graph_qe.clear_data()
 
         self._setup_lines()  # ライン再設定
+
+    @Slot(int)
+    def _on_time_window_changed(self, window_sec: int) -> None:
+        """グラフの表示幅を設定する (0以下の場合は全表示)"""
+        val = float(window_sec) if window_sec > 0 else None
+
+        self.graph_photocurrent.set_x_window(val)
+        self.graph_qe.set_x_window(val)

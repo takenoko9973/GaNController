@@ -130,6 +130,16 @@ class DualAxisGraph(QWidget):
 
     # ---------- Controller ----------
 
+    def set_x_window(self, x_window: float | None) -> None:
+        """グラフのX軸の表示幅を設定する。
+
+        parameter:
+            x_window (float | None): x軸の表示幅。データが増えると自動でスライドする。
+                                           Noneの場合は全範囲を表示する。
+        """
+        self._x_window = x_window
+        self._render()  # 設定変更を即時反映
+
     def set_title(self, title: str) -> None:
         """グラフのタイトルを再設定"""
         self.ax_left.set_title(title, fontsize="x-small")
@@ -214,6 +224,24 @@ class DualAxisGraph(QWidget):
         self.ax_right.relim()
         self.ax_right.autoscale_view()
         self.canvas.draw()
+
+        # スライド表示 (Time Window) の適用
+        if self._x_window is not None and len(self.model.x) > 0:
+            latest_x = self.model.x[-1]
+
+            # データが足りてない場合は自動拡大
+            # 幅を超えている場合のみスライド
+            min_x = max(latest_x - self._x_window, 0)
+            max_x = latest_x
+
+            self.ax_left.set_xlim(min_x, max_x)
+            self.ax_right.set_xlim(min_x, max_x)
+        elif self._x_window is None:
+            max_x = max(self.model.x)
+            min_x = 0
+
+            self.ax_left.set_xlim(min_x, max_x)
+            self.ax_right.set_xlim(min_x, max_x)
 
     def _update_legend(self) -> None:
         l1, lab1 = self.ax_left.get_legend_handles_labels()
