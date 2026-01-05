@@ -125,6 +125,34 @@ class NEAActivationRunner(BaseRunner):
 
     # =================================================================
 
+    def _wait_interruptible(self, duration_sec: float) -> bool:
+        """指定時間待機する。中断フラグが立ったら即座に終了する。
+
+        Args:
+            duration_sec (float): 待機する秒数
+
+        Returns:
+            bool: 待機が完了した場合はTrue、中断された場合はFalse
+
+        """
+        check_interval = 0.1  # チェック間隔 [s]
+        start_perf = time.perf_counter()
+
+        while True:
+            # 経過時間をチェック
+            elapsed = time.perf_counter() - start_perf
+            remaining = duration_sec - elapsed
+
+            if remaining <= 0:
+                return True  # 待機完了
+
+            # 中断フラグチェック
+            if self._stop:
+                return False  # 中断された
+
+            # 次のチェックまでのスリープ (残り時間とインターバルの短い方)
+            time.sleep(min(check_interval, remaining))
+
     def _measurement_loop(self, devices: NEADevices) -> None:
         """計測ループ"""
         print("Start NEA activation measurement...")
@@ -138,11 +166,13 @@ class NEAActivationRunner(BaseRunner):
 
             self._process_pending_requests(devices)  # デバイス設定更新
 
-            # ===
+            # ============
 
-            # 出力状態測定
+            # === 出力状態測定
             devices.laser.set_emission(True)  # レーザー出力開始
-            time.sleep(self.condition_params.stabilization_time.value_as())  # 安定するまで待機
+            # 安定するまで待機
+            if not self._wait_interruptible(self.condition_params.stabilization_time.value_as()):
+                break  # 待機中に中断されたら終了
 
             bright_pc = sensor_reader.read_photocurrent_integrated(
                 self.condition_params.shunt_resistance,
@@ -150,9 +180,10 @@ class NEAActivationRunner(BaseRunner):
                 self.condition_params.integration_interval.value_as(""),
             )
 
-            # バックグラウンド測定
+            # === バックグラウンド測定
             devices.laser.set_emission(False)  # レーザー出力停止
-            time.sleep(self.condition_params.stabilization_time.value_as())  # 安定するまで待機
+            if not self._wait_interruptible(self.condition_params.stabilization_time.value_as()):
+                break
 
             dark_pc = sensor_reader.read_photocurrent_integrated(
                 self.condition_params.shunt_resistance,
@@ -160,7 +191,7 @@ class NEAActivationRunner(BaseRunner):
                 self.condition_params.integration_interval.value_as(""),
             )
 
-            # ===
+            # ============
 
             wavelength = self.condition_params.laser_wavelength.value_as("n")
             laser_pv = self.control_params.laser_power_pv.value_as("")
