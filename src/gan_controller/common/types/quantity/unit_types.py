@@ -52,7 +52,7 @@ class Celsius(UnitBase):
 
 
 # システムで使用する全単位クラスのリスト
-ALL_UNIT_TYPES: list[UnitBase] = [
+ALL_UNIT_TYPES: list[type[UnitBase]] = [
     Dimensionless,
     Ampere,
     Volt,

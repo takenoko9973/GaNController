@@ -6,7 +6,10 @@ class ProtocolSelectorPanel(QHBoxLayout):
     save_button: QPushButton
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
+        if parent is not None:
+            super().__init__(parent)
+        else:
+            super().__init__()
 
         self.protocol_combo = QComboBox()
         self.save_button = QPushButton("保存")

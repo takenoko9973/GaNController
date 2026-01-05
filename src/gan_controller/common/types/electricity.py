@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class ElectricProperties(Enum):
+class ElectricProperties(StrEnum):
     """電気特性"""
 
     CURRENT = "current"

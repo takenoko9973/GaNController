@@ -26,7 +26,7 @@ class GM10:
         self.retry_count = retry_count
 
         try:
-            self.inst: TCPIPInstrument = rm.open_resource(visa_address)
+            self.inst: TCPIPInstrument = rm.open_resource(visa_address)  # pyright: ignore[reportAttributeAccessIssue]
             self.inst.read_termination = "\r\n"
             self.inst.write_termination = "\r\n"
             self.inst.timeout = timeout

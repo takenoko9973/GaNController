@@ -186,7 +186,7 @@ class NEAActivationTab(QWidget):
         """測定結果で表示を更新"""
         measure_p = self._main_layout.measure_panel
 
-        measure_p.elapsed_time_label.set_value(Time(result.timestamp))
+        measure_p.elapsed_time_label.set_value(result.timestamp)
 
         measure_p.pc_value_label.set_value(result.photocurrent)
         measure_p.qe_value_label.set_value(result.quantum_efficiency)

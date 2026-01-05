@@ -1,10 +1,11 @@
 import tomllib
+from collections.abc import MutableMapping
 from pathlib import Path
-from typing import TypeVar
+from typing import TypeVar, cast
 
 import tomlkit
 from pydantic import BaseModel
-from tomlkit.items import Table
+from tomlkit.items import Item, Table
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -73,18 +74,18 @@ def _append_fields_with_comments(
             _append_fields_with_comments(table, value)
             container.add(field_name, table)
             if field_info.description:
-                container[field_name].comment(field_info.description)
+                cast("Item", container[field_name]).comment(field_info.description)
         else:
             # 通常の値
             container.add(field_name, value)
             if field_info.description:
-                container[field_name].comment(field_info.description)
+                cast("Item", container[field_name]).comment(field_info.description)
 
 
-def _recursive_update(doc: dict | tomlkit.TOMLDocument, new_data: dict) -> None:
+def _recursive_update(doc: MutableMapping, new_data: dict) -> None:
     """構造を維持して値を更新"""
     for key, value in new_data.items():
-        if key in doc and isinstance(doc[key], dict) and isinstance(value, dict):
+        if key in doc and isinstance(doc[key], MutableMapping) and isinstance(value, dict):
             _recursive_update(doc[key], value)
         else:
             doc[key] = value

@@ -6,15 +6,14 @@ import traceback
 import pyvisa
 import pyvisa.constants
 
+from gan_controller.common.adapters.laser_adapter import ILaserAdapter
+from gan_controller.common.adapters.logger_adapter import ILoggerAdapter
+from gan_controller.common.adapters.power_supply_adapter import IPowerSupplyAdapter
 from gan_controller.common.calculations.physics import calculate_quantum_efficiency
-from gan_controller.common.drivers.gm10 import GM10
-from gan_controller.common.drivers.ibeam import IBeam
-from gan_controller.common.drivers.pfr_100l50 import PFR100L50
 from gan_controller.common.dtos.electricity import ElectricValuesDTO
 from gan_controller.common.interfaces.runner import BaseRunner
 from gan_controller.common.services.log_manager import LogManager
-from gan_controller.common.types.quantity import Current, Quantity, Value
-from gan_controller.common.types.quantity.unit_types import Ampere
+from gan_controller.common.types.quantity import Ampere, Current, Quantity, Time, Value
 from gan_controller.features.nea_activation.services.nea_recorder import NEARecorder
 from gan_controller.features.nea_activation.services.sensor_reader import NEASensorReader
 from gan_controller.features.setting.model.app_config import AppConfig
@@ -114,13 +113,13 @@ class NEAActivationRunner(BaseRunner):
         # 動的設定の適応
         self._apply_params_to_device(devices, self.control_params)
 
-    def _init_laser_static(self, laser: IBeam) -> None:
+    def _init_laser_static(self, laser: ILaserAdapter) -> None:
         """レーザーの静的設定"""
         # チャンネルの有効化
         target_ch = self.app_config.devices.ibeam.beam_ch
         laser.set_channel_enable(target_ch, True)
 
-    def _init_aps_static(self, aps: PFR100L50) -> None:
+    def _init_aps_static(self, aps: IPowerSupplyAdapter) -> None:
         """電源(AMD)の静的設定"""
         # 電圧リミットなどの安全設定
         v_limit = self.app_config.devices.amd.v_limit
@@ -128,7 +127,7 @@ class NEAActivationRunner(BaseRunner):
 
         # 必要であればOCP(過電流保護)の設定などをここに追加
 
-    def _init_gm10_static(self, gm10: GM10) -> None:
+    def _init_gm10_static(self, gm10: ILoggerAdapter) -> None:
         """ロガー(GM10)の静的設定"""
         # 現状は読み込みのみなら特になくても良いが、
         # レンジ設定やフィルタ設定が必要ならここに記述する
@@ -265,7 +264,7 @@ class NEAActivationRunner(BaseRunner):
         # --- Result生成 ---
 
         result = NEAActivationResult(
-            timestamp=timestamp,
+            timestamp=Time(timestamp),
             # LP
             laser_power_sv=self.control_params.laser_power_sv,
             laser_power_pv=self.control_params.laser_power_pv,

@@ -67,6 +67,6 @@ class NEAConfig(BaseModel):
         """指定したフィールドの単位文字列を取得"""
         field_info = NEAConfig.model_fields[field_name]
         if field_info.json_schema_extra:
-            return field_info.json_schema_extra.get("unit", "")
+            return str(field_info.json_schema_extra.get("unit", ""))
 
         return ""

@@ -17,7 +17,7 @@ class LogFile:
         self.encoding = encoding
 
     @property
-    def number(self) -> int:
+    def number(self) -> str:
         """ファイル名から連番を取得"""
         match = LOGFILE_PATTERN.match(self.path.name)
         return match[1] if match is not None else "0.0"
@@ -74,6 +74,9 @@ class DateLogDirectory:
 
                 number = match.group(1)
                 number_match = number_pattern.match(number)
+                if number_match is None:
+                    msg = f"Invalid number format in file name {entry.name}"
+                    raise ValueError(msg)
 
                 major = int(number_match.group(1))
                 minor = int(number_match.group(2))

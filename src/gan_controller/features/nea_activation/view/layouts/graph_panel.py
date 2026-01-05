@@ -67,7 +67,7 @@ class NEAActGraphPanel(QWidget):
         # --- Photocurrent Graph の更新 ---
         # Resultオブジェクトから値を取り出し、辞書形式でグラフに渡す
         self.graph_photocurrent.update_point(
-            x_val=t,
+            x_val=t.value_as(),
             values={
                 "pc": pc_val,
                 "pres": result.ext_pressure.value_as(""),
@@ -76,7 +76,7 @@ class NEAActGraphPanel(QWidget):
 
         # --- QE Graph の更新 ---
         self.graph_qe.update_point(
-            x_val=t,
+            x_val=t.value_as(),
             values={
                 "qe": qe_val,
                 "pres": result.ext_pressure.value_as(""),

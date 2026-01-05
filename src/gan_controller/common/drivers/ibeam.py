@@ -145,7 +145,7 @@ class IBeam:
     def get_current(self) -> str | None:
         return self._query("sh cur")
 
-    def get_status(self, status: str = "LD_Driver", ch: int = 1) -> str | None:
+    def get_status(self, status: str = "LD_Driver", ch: int = 1) -> str | None:  # noqa: ARG002
         if status == "LD_Driver":
             return self._query("sta la")
         if status == "Temp":

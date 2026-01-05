@@ -39,7 +39,7 @@ class SettingsTab(QWidget):
         # 1. Common
         self._main_layout.general_page.encode_edit.setText(config.common.encode)
         self._main_layout.general_page.tz_spin.setValue(config.common.tz_offset_hours)
-        self._main_layout.general_page._is_simulation = config.common.is_simulation_mode
+        self._main_layout.general_page.is_simulation = config.common.is_simulation_mode
 
         # 2. Devices - GM10
         self._main_layout.gm10_page.visa_edit.setText(config.devices.gm10_visa)
@@ -76,7 +76,7 @@ class SettingsTab(QWidget):
         common = CommonConfig(
             encode=self._main_layout.general_page.encode_edit.text(),
             tz_offset_hours=self._main_layout.general_page.tz_spin.value(),
-            is_simulation_mode=self._main_layout.general_page._is_simulation,
+            is_simulation_mode=self._main_layout.general_page.is_simulation,
         )
 
         # GM10 Config
@@ -112,8 +112,8 @@ class SettingsTab(QWidget):
             gm10_visa=self._main_layout.gm10_page.visa_edit.text(),
             hps_visa=self._main_layout.hps_page.visa_address_edit.text(),
             aps_visa=self._main_layout.aps_page.visa_address_edit.text(),
-            pwux_com_port=self._main_layout.pwux_page.com_number_edit.text(),
-            ibeam_com_port=self._main_layout.ibeam_page.com_number_edit.text(),
+            pwux_com_port=self._main_layout.pwux_page.com_number_edit.value(),
+            ibeam_com_port=self._main_layout.ibeam_page.com_number_edit.value(),
             gm10=gm10_config,
             hps=hps_config,
             amd=amd_config,

@@ -17,4 +17,5 @@
             "includeAllSymbols": false
         }
     ],
+    "python.analysis.typeCheckingMode": "basic",
 }

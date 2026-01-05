@@ -10,7 +10,7 @@ class GeneralConfigPage(QWidget):
     encode_edit: QLineEdit
     tz_spin: NoScrollSpinBox
 
-    _is_simulation: bool # デバック用の値を一応保持
+    is_simulation: bool  # デバック用の値を一応保持
 
     def __init__(self) -> None:
         super().__init__()

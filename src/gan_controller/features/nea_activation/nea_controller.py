@@ -18,8 +18,8 @@ class NEAActivationController(ITabController):
 
     _state: NEAActivationState
 
-    runner: NEAActivationRunner
-    worker: ExperimentWorker
+    runner: NEAActivationRunner | None
+    worker: ExperimentWorker | None
 
     def __init__(self, view: NEAActivationTab) -> None:
         super().__init__()
@@ -101,7 +101,7 @@ class NEAActivationController(ITabController):
     @Slot()
     def experiment_stop(self) -> None:
         """実験中断処理"""
-        if self._state != NEAActivationState.RUNNING:
+        if self._state != NEAActivationState.RUNNING or self.runner is None:
             return
 
         self.set_state(NEAActivationState.STOPPING)
@@ -111,7 +111,8 @@ class NEAActivationController(ITabController):
     def setting_apply(self) -> None:
         """実験途中での値更新"""
         params = self._view.get_control_params()
-        if self._state == NEAActivationState.RUNNING:
+
+        if self._state == NEAActivationState.RUNNING and self.runner is not None:
             self.runner.update_control_params(params)
 
     # =================================================

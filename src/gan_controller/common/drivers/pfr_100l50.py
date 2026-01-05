@@ -26,7 +26,7 @@ class PFR100L50:
         self.retry_count = retry_count
 
         try:
-            self.inst: MessageBasedResource = rm.open_resource(visa_address)
+            self.inst: MessageBasedResource = rm.open_resource(visa_address)  # pyright: ignore[reportAttributeAccessIssue]
             self.inst.read_termination = "\n"
             self.inst.write_termination = "\n"
             self.inst.timeout = timeout

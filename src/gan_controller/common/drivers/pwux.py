@@ -23,7 +23,7 @@ class PWUX:
         self.retry_count = retry_count
 
         try:
-            self.inst: SerialInstrument = rm.open_resource(resource_name)
+            self.inst: SerialInstrument = rm.open_resource(resource_name)  # pyright: ignore[reportAttributeAccessIssue]
             self.inst.read_termination = "\r\n"
             self.inst.write_termination = "\r\n"
             self.inst.timeout = timeout

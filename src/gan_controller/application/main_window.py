@@ -85,7 +85,10 @@ class MainWindow(QMainWindow):
         self.tab_widget.setCurrentIndex(old_index)  # 一旦戻す
 
         # 移動元のコントローラーを取得
-        controller: ITabController = self.controllers.get(old_index)
+        controller = self.controllers.get(old_index)
+        if controller is None:
+            msg = f"Controller not found for index {old_index}"
+            raise ValueError(msg)
 
         is_allowed = controller.try_switch_from()  # 移動していいか確認
         if is_allowed:

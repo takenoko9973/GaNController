@@ -26,13 +26,12 @@ class Quantity[T]:
         PREFIX_REGISTRY.validate(prefix, self.unit)
         return self._value_si / PREFIX_REGISTRY.get(prefix).scale
 
-    def with_prefix(self, prefix: str) -> "Quantity":
+    def with_prefix(self, prefix: str) -> "Quantity[T]":
         """表示用接頭辞を変更"""
-        return Quantity(
-            _value_si=self._value_si,
-            unit=self.unit,
-            display_prefix=prefix,
-        )
+        val = self.value_as(prefix)  # 指定された接頭辞での値を計算
+        new_unit_str = f"{prefix}{self.unit}"  # 単位文字列を再構築
+
+        return Quantity[T](val, new_unit_str)
 
     # === 表示
 

@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QVBoxLayout, QWidget
 from .graph_data import GraphData
 
 if TYPE_CHECKING:
-    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
 
 
 class DebouncedFigureCanvas(FigureCanvas):
@@ -118,8 +118,8 @@ class DualAxisGraph(QWidget):
             self.ax_left.yaxis.set_major_formatter(FuncFormatter(self._sci_mathtext))
 
         # ラインオブジェクトの辞書 (再描画の高速化用)
-        self.lines_left: dict[str, plt.Line2D] = {}
-        self.lines_right: dict[str, plt.Line2D] = {}
+        self.lines_left: dict[str, Line2D] = {}
+        self.lines_right: dict[str, Line2D] = {}
 
     def _sci_mathtext(self, x, _) -> str:  # noqa: ANN001
         if x == 0:
