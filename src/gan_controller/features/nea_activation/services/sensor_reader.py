@@ -7,6 +7,9 @@ from gan_controller.features.setting.model.app_config import AppConfig
 class NEASensorReader:
     """NEA活性化用のセンサー読み取りサービス"""
 
+    # HVの読み取り値を10000倍することで正しいV単位になる
+    HV_READING_CORRECTION_FACTOR = 10000.0
+
     def __init__(self, adapter: ILoggerAdapter, config: AppConfig) -> None:
         self._adapter = adapter
         self._config = config
@@ -23,7 +26,10 @@ class NEASensorReader:
     def read_hv(self) -> Quantity:
         """High Voltage読み取り"""
         value = self._adapter.read_voltage(self._config.devices.gm10.hv_ch, "V")
-        return Quantity(value.value_as() * 1e4, "V")  # なぜか 1e4 分少ないため、補正
+
+        # なぜか 1e4 分少ないため、補正
+        corrected_value = value.value_as() * self.HV_READING_CORRECTION_FACTOR
+        return Quantity(corrected_value, "V")
 
     def read_photocurrent_integrated(self, shunt_r: Quantity, n: int, interval: float) -> Quantity:
         """pcの値を積算"""

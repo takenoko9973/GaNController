@@ -6,6 +6,7 @@ import traceback
 import pyvisa
 import pyvisa.constants
 
+from gan_controller.common.calculations.physics import calculate_quantum_efficiency
 from gan_controller.common.drivers.gm10 import GM10
 from gan_controller.common.drivers.ibeam import IBeam
 from gan_controller.common.drivers.pfr_100l50 import PFR100L50
@@ -233,14 +234,13 @@ class NEAActivationRunner(BaseRunner):
     ) -> None:
         """測定値の計算、Result生成、通知を行う"""
         # --- 計算 ---
-        wavelength = self.condition_params.laser_wavelength.value_as("n")
-        laser_pv = self.control_params.laser_power_pv.value_as("")
+        wavelength_nm = self.condition_params.laser_wavelength.value_as("n")
+        laser_pv_watt = self.control_params.laser_power_pv.value_as("")
 
-        qe_val = 0.0
         pc_val = bright_pc.value_as("") - dark_pc.value_as("")
-        if wavelength * laser_pv != 0:  # ゼロ除算回避
-            # TODO: 定数 (1239.8...) を使用すること
-            qe_val = 1240 * pc_val / (wavelength * laser_pv) * 100
+        qe_val = calculate_quantum_efficiency(
+            current_amp=pc_val, laser_power_watt=laser_pv_watt, wavelength_nm=wavelength_nm
+        )
 
         pc = Quantity(pc_val, "A")
         qe = Quantity(qe_val, "%")
