@@ -2,14 +2,15 @@ from pydantic import BaseModel
 
 from gan_controller.common.types.electricity import ElectricProperties
 from gan_controller.common.types.quantity import Quantity
+from gan_controller.common.types.quantity.unit_types import Ampere, Volt, Watt
 
 
 class ElectricValuesDTO(BaseModel):
     """電力測定データDTO"""
 
-    current: Quantity
-    voltage: Quantity
-    power: Quantity
+    current: Quantity[Ampere]
+    voltage: Quantity[Volt]
+    power: Quantity[Watt]
 
     def get_value(self, enum: ElectricProperties) -> Quantity:
         if enum == ElectricProperties.CURRENT:

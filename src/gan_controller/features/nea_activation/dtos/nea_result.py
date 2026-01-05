@@ -3,26 +3,34 @@ from dataclasses import dataclass
 from gan_controller.common.dtos.electricity import ElectricValuesDTO
 from gan_controller.common.dtos.result import ExperimentResult
 from gan_controller.common.types.quantity.quantity import Quantity
+from gan_controller.common.types.quantity.unit_types import (
+    Ampere,
+    Dimensionless,
+    Pascal,
+    Second,
+    Volt,
+    Watt,
+)
 
 
 @dataclass
 class NEAActivationResult(ExperimentResult):
     """NEA活性化の測定結果 (必要そうな設定値や観測値は全て入れとく)"""
 
-    timestamp: Quantity
+    timestamp: Quantity[Second]
     # レーザー出力
-    laser_power_sv: Quantity  # 設定値
-    laser_power_pv: Quantity  # 実出力
+    laser_power_sv: Quantity[Watt]  # 設定値
+    laser_power_pv: Quantity[Watt]  # 実出力
     # 圧力
-    ext_pressure: Quantity
-    sip_pressure: Quantity
+    ext_pressure: Quantity[Pascal]
+    sip_pressure: Quantity[Pascal]
     # 引き出し電圧 (HV)
-    extraction_voltage: Quantity
+    extraction_voltage: Quantity[Volt]
     # フォトカレント
-    photocurrent: Quantity
-    bright_photocurrent: Quantity  # レーザー照射時
-    dark_photocurrent: Quantity  # レーザー未照射時
+    photocurrent: Quantity[Ampere]
+    bright_photocurrent: Quantity[Ampere]  # レーザー照射時
+    dark_photocurrent: Quantity[Ampere]  # レーザー未照射時
     # 量子効率
-    quantum_efficiency: Quantity
+    quantum_efficiency: Quantity[Dimensionless]
     # AMDの電源情報
     amd_electricity: ElectricValuesDTO

@@ -4,18 +4,19 @@ from abc import ABC, abstractmethod
 
 from gan_controller.common.drivers.gm10 import GM10
 from gan_controller.common.types.quantity import Quantity
+from gan_controller.common.types.quantity.unit_types import Volt
 
 
 # Interface
 class ILoggerAdapter(ABC):
     @abstractmethod
-    def read_voltage(self, channel: int | str, unit: str) -> Quantity:
+    def read_voltage(self, channel: int | str, unit: str) -> Quantity[Volt]:
         """指定チャンネルの電圧を読み取る"""
 
     @abstractmethod
     def read_integrated_voltage(
         self, channel: int | str, unit: str, n: int, interval: float
-    ) -> Quantity:
+    ) -> Quantity[Volt]:
         """指定チャンネルを積算平均して読み取る"""
 
     # 必要であればクローズ処理など
@@ -28,14 +29,14 @@ class GM10Adapter(ILoggerAdapter):
     def __init__(self, driver: GM10) -> None:
         self._driver = driver
 
-    def read_voltage(self, channel: int | str, unit: str = "V") -> Quantity:
+    def read_voltage(self, channel: int | str, unit: str = "V") -> Quantity[Volt]:
         raw_val = self._driver.read_channel(channel)
         # GM10の生の戻り値がエラー(nan)の場合のハンドリングもここで可能
         return Quantity(raw_val, unit)  # 単位はGM10の設定によるが通常Vと仮定
 
     def read_integrated_voltage(
         self, channel: int | str, unit: str = "V", n: int = 1, interval: float = 0.1
-    ) -> Quantity:
+    ) -> Quantity[Volt]:
         """指定のチャンネルについて、積算平均を行う"""
         if n <= 0:
             msg = "n must be positive"
@@ -73,7 +74,7 @@ class MockLoggerAdapter(ILoggerAdapter):
         self.base_voltage = base_voltage
         self.noise_level = noise_level
 
-    def read_voltage(self, channel: int | str, unit: str = "V") -> Quantity:  # noqa: ARG002
+    def read_voltage(self, channel: int | str, unit: str = "V") -> Quantity[Volt]:  # noqa: ARG002
         # ランダムなノイズを乗せた値を返す
         noise = random.uniform(-self.noise_level, self.noise_level)  # noqa: S311
         val = self.base_voltage + noise
@@ -82,7 +83,7 @@ class MockLoggerAdapter(ILoggerAdapter):
 
     def read_integrated_voltage(
         self, channel: int | str, unit: str = "V", n: int = 1, interval: float = 0.1
-    ) -> Quantity:
+    ) -> Quantity[Volt]:
         # ダミーでも時間の経過をシミュレートする (UIが固まらないか確認するため)
         total_wait = n * interval
         if total_wait > 0:

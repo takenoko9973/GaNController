@@ -13,7 +13,8 @@ from gan_controller.common.drivers.pfr_100l50 import PFR100L50
 from gan_controller.common.dtos.electricity import ElectricValuesDTO
 from gan_controller.common.interfaces.runner import BaseRunner
 from gan_controller.common.services.log_manager import LogManager
-from gan_controller.common.types.quantity import Quantity
+from gan_controller.common.types.quantity import Current, Quantity, Value
+from gan_controller.common.types.quantity.unit_types import Ampere
 from gan_controller.features.nea_activation.services.nea_recorder import NEARecorder
 from gan_controller.features.nea_activation.services.sensor_reader import NEASensorReader
 from gan_controller.features.setting.model.app_config import AppConfig
@@ -233,8 +234,8 @@ class NEAActivationRunner(BaseRunner):
         devices: NEADevices,
         sensor_reader: NEASensorReader,
         timestamp: float,
-        bright_pc: Quantity,
-        dark_pc: Quantity,
+        bright_pc: Quantity[Ampere],
+        dark_pc: Quantity[Ampere],
     ) -> None:
         """測定値の計算、Result生成、通知を行う"""
         # --- 計算 ---
@@ -246,8 +247,8 @@ class NEAActivationRunner(BaseRunner):
             current_amp=pc_val, laser_power_watt=laser_pv_watt, wavelength_nm=wavelength_nm
         )
 
-        pc = Quantity(pc_val, "A")
-        qe = Quantity(qe_val, "%")
+        pc = Current(pc_val)
+        qe = Value(qe_val, "%")
 
         # --- 読み取り ---
         ext_pressure = sensor_reader.read_ext()

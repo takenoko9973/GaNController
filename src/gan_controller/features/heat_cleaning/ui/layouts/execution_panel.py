@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from gan_controller.common.types.electricity import ElectricProperties
-from gan_controller.common.types.quantity import Quantity
+from gan_controller.common.types.quantity import Pressure, Temperature, Value
 from gan_controller.common.widgets.value_label import ValueLabel
 
 
@@ -104,8 +104,8 @@ class HCExecutionPanel(QGroupBox):
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lbl.setStyleSheet("font-size: 10.5px; color: #555;")
 
-            self.hc_value_labels[electric_prop] = ValueLabel(Quantity(value=0), ".2f")
-            self.amd_value_labels[electric_prop] = ValueLabel(Quantity(value=0), ".2f")
+            self.hc_value_labels[electric_prop] = ValueLabel(Value(0), ".2f")
+            self.amd_value_labels[electric_prop] = ValueLabel(Value(0), ".2f")
 
             output_grid.addWidget(lbl, 0, i + 1)
             output_grid.addWidget(self.hc_value_labels[electric_prop], 1, i + 1)
@@ -119,10 +119,10 @@ class HCExecutionPanel(QGroupBox):
         # env_layout.setFormAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
 
         # 温度
-        self.temp_val = ValueLabel(Quantity(value=25.0, unit="℃"), ".1f")
+        self.temp_val = ValueLabel(Temperature(25.0), ".1f")
 
-        self.ext_pres_val = ValueLabel(Quantity(value=0.0, unit="Pa"), ".2e")
-        self.sip_pres_val = ValueLabel(Quantity(value=0.0, unit="Pa"), ".2e")
+        self.ext_pres_val = ValueLabel(Pressure(0.0), ".2e")
+        self.sip_pres_val = ValueLabel(Pressure(0.0), ".2e")
 
         env_layout.addRow("温度 :", self.temp_val)
         env_layout.addRow("EXT :", self.ext_pres_val)

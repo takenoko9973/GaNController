@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from gan_controller.common.types.electricity import ElectricProperties
-from gan_controller.common.types.quantity import Quantity
+from gan_controller.common.types.quantity import Current, Pressure, Time, Value
 from gan_controller.common.widgets.value_label import ValueLabel
 
 
@@ -53,7 +53,7 @@ class NEAActMeasurePanel(QGroupBox):
         self.status_value_label.setFont(status_font)
 
         # ====== 時間
-        self.elapsed_time_label = ValueLabel(Quantity(value=0, unit="s"), formatter=".1f")
+        self.elapsed_time_label = ValueLabel(Time(0), ".1f")
 
         time_layout.addWidget(QLabel("状態 :"))
         time_layout.addWidget(self.status_value_label)
@@ -72,10 +72,10 @@ class NEAActMeasurePanel(QGroupBox):
         # === 環境値
         env_layout = QHBoxLayout()
 
-        self.pc_value_label = ValueLabel(Quantity(value=0.0, unit="A"), ".2e")
-        self.qe_value_label = ValueLabel(Quantity(value=0.0, unit="%"), ".2e")
+        self.pc_value_label = ValueLabel(Current(0.0), ".2e")
+        self.qe_value_label = ValueLabel(Value(0.0, "%"), ".2e")
 
-        self.ext_pres_val = ValueLabel(Quantity(value=0.0, unit="Pa"), ".2e")
+        self.ext_pres_val = ValueLabel(Pressure(0.0), ".2e")
 
         form_layout1 = QFormLayout()
         form_layout1.addRow("Photocurrent :", self.pc_value_label)
@@ -94,7 +94,7 @@ class NEAActMeasurePanel(QGroupBox):
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lbl.setStyleSheet("font-size: 10.5px; color: #555;")
 
-            self.amd_value_labels[electric_prop] = ValueLabel(Quantity(value=0), ".2f")
+            self.amd_value_labels[electric_prop] = ValueLabel(Value(0.0), ".2f")
 
             amd_layout.addWidget(lbl, 0, i)
             amd_layout.addWidget(self.amd_value_labels[electric_prop], 1, i)

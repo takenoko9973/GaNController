@@ -2,7 +2,14 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
 
 from gan_controller.common.types.electricity import ElectricProperties
-from gan_controller.common.types.quantity.quantity import Quantity
+from gan_controller.common.types.quantity import (
+    Current,
+    Length,
+    Power,
+    Resistance,
+    Time,
+    Value,
+)
 from gan_controller.features.nea_activation.domain.nea_config import (
     ConditionConfig,
     ExecutionConfig,
@@ -134,11 +141,11 @@ class NEAActivationTab(QWidget):
         cond_p = self._main_layout.condition_setting_panel
 
         return NEAConditionParams(
-            shunt_resistance=Quantity(cond_p.shunt_r_spin.value(), "kΩ"),
-            laser_wavelength=Quantity(cond_p.laser_wavelength_spin.value(), "nm"),
-            stabilization_time=Quantity(cond_p.stabilization_time_spin.value(), "s"),
-            integration_interval=Quantity(cond_p.integrated_interval_spin.value(), "s"),
-            integration_count=Quantity(cond_p.integrated_count_spin.value(), ""),
+            shunt_resistance=Resistance(cond_p.shunt_r_spin.value(), "k"),
+            laser_wavelength=Length(cond_p.laser_wavelength_spin.value(), "n"),
+            stabilization_time=Time(cond_p.stabilization_time_spin.value()),
+            integration_interval=Time(cond_p.integrated_interval_spin.value()),
+            integration_count=Value(cond_p.integrated_count_spin.value()),
         )
 
     def get_log_params(self) -> NEALogParams:
@@ -157,9 +164,9 @@ class NEAActivationTab(QWidget):
 
         return NEAControlParams(
             amd_enable=exec_p.amd_output_current_spin.isChecked(),
-            amd_output_current=Quantity(exec_p.amd_output_current_spin.value(), "A"),
-            laser_power_sv=Quantity(exec_p.laser_sv_spin.value(), "mW"),
-            laser_power_pv=Quantity(exec_p.laser_output_spin.value(), "mW"),
+            amd_output_current=Current(exec_p.amd_output_current_spin.value()),
+            laser_power_sv=Power(exec_p.laser_sv_spin.value(), "m"),
+            laser_power_pv=Power(exec_p.laser_output_spin.value(), "m"),
         )
 
     # ==========================================================
@@ -179,7 +186,7 @@ class NEAActivationTab(QWidget):
         """測定結果で表示を更新"""
         measure_p = self._main_layout.measure_panel
 
-        measure_p.elapsed_time_label.set_value(Quantity(result.timestamp, "s"))
+        measure_p.elapsed_time_label.set_value(Time(result.timestamp))
 
         measure_p.pc_value_label.set_value(result.photocurrent)
         measure_p.qe_value_label.set_value(result.quantum_efficiency)
