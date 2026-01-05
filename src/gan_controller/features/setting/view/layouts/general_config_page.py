@@ -10,6 +10,8 @@ class GeneralConfigPage(QWidget):
     encode_edit: QLineEdit
     tz_spin: NoScrollSpinBox
 
+    _is_simulation: bool # デバック用の値を一応保持
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -26,7 +28,6 @@ class GeneralConfigPage(QWidget):
         self.encode_edit = QLineEdit()
         self.tz_spin = NoScrollSpinBox(minimum=-12, maximum=14)
 
-        common_config_form.addRow("ログ保存先 :", self.log_dir_edit)
         common_config_form.addRow("ログエンコード :", self.encode_edit)
         common_config_form.addRow("タイムゾーン (JST=9) :", self.tz_spin)
 

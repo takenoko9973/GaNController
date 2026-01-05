@@ -1,11 +1,12 @@
 [common]
-# ログディレクトリ
-log_dir = "logs"
 # ログファイルエンコード
 encode = "utf-8"
 
 # タイムゾーン (JST)
 tz_offset_hours = 9
+
+# ※ デバック用
+is_simulation_mode = true
 
 # ===============================
 

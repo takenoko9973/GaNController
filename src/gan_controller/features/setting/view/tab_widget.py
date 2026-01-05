@@ -37,9 +37,9 @@ class SettingsTab(QWidget):
     def set_config(self, config: AppConfig) -> None:
         """Configの内容を各ページのウィジェットにセット"""
         # 1. Common
-        self._main_layout.general_page.log_dir_edit.setText(config.common.log_dir)
         self._main_layout.general_page.encode_edit.setText(config.common.encode)
         self._main_layout.general_page.tz_spin.setValue(config.common.tz_offset_hours)
+        self._main_layout.general_page._is_simulation = config.common.is_simulation_mode
 
         # 2. Devices - GM10
         self._main_layout.gm10_page.visa_edit.setText(config.devices.gm10_visa)
@@ -74,9 +74,9 @@ class SettingsTab(QWidget):
         """UIの値からConfigオブジェクトを構築"""
         # Common
         common = CommonConfig(
-            log_dir=self._main_layout.general_page.log_dir_edit.text(),
             encode=self._main_layout.general_page.encode_edit.text(),
             tz_offset_hours=self._main_layout.general_page.tz_spin.value(),
+            is_simulation_mode=self._main_layout.general_page._is_simulation
         )
 
         # GM10 Config
