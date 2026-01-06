@@ -29,7 +29,9 @@ class NEAActivationResult(ExperimentResult):
     # フォトカレント
     photocurrent: Quantity[Ampere]
     bright_photocurrent: Quantity[Ampere]  # レーザー照射時
+    bright_voltage: Quantity[Volt]  # 電圧換算
     dark_photocurrent: Quantity[Ampere]  # レーザー未照射時
+    dark_voltage: Quantity[Volt]
     # 量子効率
     quantum_efficiency: Quantity[Dimensionless]
     # AMDの電源情報

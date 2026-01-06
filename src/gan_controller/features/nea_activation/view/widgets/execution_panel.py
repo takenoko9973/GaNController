@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QGridLayout,
@@ -11,20 +11,27 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from gan_controller.common.types.quantity.factory import Current, Power
 from gan_controller.common.widgets.checkable_spinbox import CheckableSpinBox
+from gan_controller.features.nea_activation.schemas import NEAControlConfig
 
 
-class NEAActExecutionPanel(QGroupBox):
+class NEAExecutionPanel(QGroupBox):
     """実行制御ウィジェット"""
 
     # === 要素
     amd_output_current_spin: CheckableSpinBox
     laser_sv_spin: QDoubleSpinBox
-    laser_output_spin: QDoubleSpinBox
+    laser_pv_spin: QDoubleSpinBox
 
     start_button: QPushButton
     stop_button: QPushButton
     apply_button: QPushButton
+
+    # === シグナル
+    start_requested = Signal()
+    stop_requested = Signal()
+    apply_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("実行制御", parent)
@@ -32,6 +39,8 @@ class NEAActExecutionPanel(QGroupBox):
         layout = QVBoxLayout(self)
         layout.addWidget(self._create_control_section())
         layout.addLayout(self._create_execution_section())  # 制御
+
+        self._connect_signal()
 
     def _create_control_section(self) -> QGroupBox:
         control_group = QGroupBox()
@@ -54,11 +63,11 @@ class NEAActExecutionPanel(QGroupBox):
         laser_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         self.laser_sv_spin = QDoubleSpinBox(value=10, suffix=" mW", decimals=1, maximum=120)
-        self.laser_output_spin = QDoubleSpinBox(value=3.01, suffix=" mW", decimals=2, maximum=120)
+        self.laser_pv_spin = QDoubleSpinBox(value=3.01, suffix=" mW", decimals=2, maximum=120)
         laser_layout.addWidget(QLabel("レーザー出力 :"), 0, 0)
         laser_layout.addWidget(self.laser_sv_spin, 0, 1)
         laser_layout.addWidget(QLabel("レーザー実出力 :"), 1, 0)
-        laser_layout.addWidget(self.laser_output_spin, 1, 1)
+        laser_layout.addWidget(self.laser_pv_spin, 1, 1)
 
         value_set_layout.addLayout(amd_control_layout, stretch=1)
         value_set_layout.addSpacing(10)
@@ -88,3 +97,24 @@ class NEAActExecutionPanel(QGroupBox):
         execution_layout.addWidget(self.stop_button)
 
         return execution_layout
+
+    def _connect_signal(self) -> None:
+        self.start_button.clicked.connect(self.start_requested)
+        self.stop_button.clicked.connect(self.stop_requested)
+        self.apply_button.clicked.connect(self.apply_requested)
+
+    # =============================================================================
+
+    def get_config(self) -> NEAControlConfig:
+        return NEAControlConfig(
+            amd_enable=self.amd_output_current_spin.isEnabled(),
+            amd_output_current=Current(self.amd_output_current_spin.value()),
+            laser_power_sv=Power(self.laser_sv_spin.value(), "m"),
+            laser_power_pv=Power(self.laser_pv_spin.value(), "m"),
+        )
+
+    def set_config(self, config: NEAControlConfig) -> None:
+        self.amd_output_current_spin.setEnabled(config.amd_enable)
+        self.amd_output_current_spin.setValue(config.amd_output_current.si_value)
+        self.laser_sv_spin.setValue(config.laser_power_sv.value_as("m"))
+        self.laser_pv_spin.setValue(config.laser_power_pv.value_as("m"))

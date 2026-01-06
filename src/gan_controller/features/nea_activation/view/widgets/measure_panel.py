@@ -16,7 +16,7 @@ from gan_controller.common.types.quantity import Current, Pressure, Time, Value
 from gan_controller.common.widgets.value_label import ValueLabel
 
 
-class NEAActMeasurePanel(QGroupBox):
+class NEAMeasurePanel(QGroupBox):
     """モニタリング表示用ウィジェット"""
 
     # === 要素

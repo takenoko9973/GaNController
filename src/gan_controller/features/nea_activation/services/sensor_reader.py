@@ -35,10 +35,10 @@ class NEASensorReader:
 
     def read_photocurrent_integrated(
         self, shunt_r: Quantity[Ohm], n: int, interval: float
-    ) -> Quantity[Ampere]:
-        """pcの値を積算"""
-        value = self._adapter.read_integrated_voltage(
+    ) -> tuple[Quantity[Volt], Quantity[Ampere]]:
+        """pcの値を積算 (生の値も返す)"""
+        current_volt = self._adapter.read_integrated_voltage(
             self._config.devices.gm10.pc_ch, "mV", n, interval
         )
-        current_val = value.si_value / shunt_r.si_value
-        return Current(current_val)
+        current_val = current_volt.si_value / shunt_r.si_value
+        return current_volt, Current(current_val)

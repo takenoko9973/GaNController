@@ -10,10 +10,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from gan_controller.common.types.quantity.factory import Length, Resistance, Time, Value
+from gan_controller.features.nea_activation.schemas import NEAConditionConfig
 
-class NEAActConditionSettingsPanel(QGroupBox):
+
+class NEAConditionSettingsPanel(QGroupBox):
     """実験条件ウィジェット"""
 
+    # === 要素
     shunt_r_spin: QDoubleSpinBox
     laser_wavelength_spin: QDoubleSpinBox
 
@@ -75,3 +79,21 @@ class NEAActConditionSettingsPanel(QGroupBox):
         setting_layout.addLayout(config_layout2, stretch=1)
 
         return setting_layout
+
+    # =============================================================================
+
+    def get_config(self) -> NEAConditionConfig:
+        return NEAConditionConfig(
+            shunt_resistance=Resistance(self.shunt_r_spin.value(), "k"),
+            laser_wavelength=Length(self.laser_wavelength_spin.value(), "n"),
+            stabilization_time=Time(self.stabilization_time_spin.value()),
+            integration_count=Value(self.integrated_count_spin.value()),
+            integration_interval=Time(self.integrated_interval_spin.value()),
+        )
+
+    def set_config(self, config: NEAConditionConfig) -> None:
+        self.shunt_r_spin.setValue(config.shunt_resistance.value_as("k"))
+        self.laser_wavelength_spin.setValue(config.laser_wavelength.value_as("n"))
+        self.stabilization_time_spin.setValue(config.stabilization_time.si_value)
+        self.integrated_count_spin.setValue(int(config.integration_count.si_value))
+        self.integrated_interval_spin.setValue(config.integration_interval.si_value)

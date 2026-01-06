@@ -14,40 +14,31 @@ from gan_controller.common.dtos.electricity import ElectricValuesDTO
 from gan_controller.common.interfaces.runner import BaseRunner
 from gan_controller.common.services.log_manager import LogManager
 from gan_controller.common.types.quantity import Ampere, Current, Quantity, Time, Value
+from gan_controller.common.types.quantity.unit_types import Volt
+from gan_controller.features.nea_activation.schemas import NEAConfig, NEAControlConfig
 from gan_controller.features.nea_activation.services.nea_recorder import NEARecorder
 from gan_controller.features.nea_activation.services.sensor_reader import NEASensorReader
 from gan_controller.features.setting.model.app_config import AppConfig
 
 from .device_manager import NEADeviceManager, NEADevices, RealDeviceFactory, SimulationDeviceFactory
-from .dtos.nea_params import NEAConditionParams, NEAControlParams, NEALogParams
 from .dtos.nea_result import NEAActivationResult
 
 
 class NEAActivationRunner(BaseRunner):
     app_config: AppConfig  # 全体設定
-    condition_params: NEAConditionParams  # 実験条件
-    log_params: NEALogParams  # ログ設定
-    control_params: NEAControlParams  # 動的制御設定
+    nea_config: NEAConfig  # 実験条件
 
     _recorder: NEARecorder
     _request_queue: queue.Queue
 
-    def __init__(
-        self,
-        app_config: AppConfig,
-        condition_params: NEAConditionParams,
-        log_params: NEALogParams,
-        init_control_params: NEAControlParams,
-    ) -> None:
+    def __init__(self, app_config: AppConfig, nea_config: NEAConfig) -> None:
         super().__init__()
         self.app_config = app_config  # VISAアドレスなど
-        self.condition_params = condition_params  # 実験条件
-        self.log_params = log_params  # ログ設定
-        self.control_params = init_control_params  # 動的制御設定
+        self.nea_config = nea_config  # 実験条件
 
         self._request_queue = queue.Queue()  # スレッド通信用キュー
 
-    def update_control_params(self, new_params: NEAControlParams) -> None:
+    def update_control_params(self, new_params: NEAControlConfig) -> None:
         """実験中にパラメータを更新する"""
         self._request_queue.put(new_params)
 
@@ -85,10 +76,10 @@ class NEAActivationRunner(BaseRunner):
         """記録用ファイルの準備とヘッダー書き込み"""
         manager = LogManager(self.app_config)
 
-        log_dir = manager.get_date_directory(update_date=self.log_params.update_date_folder)
+        log_dir = manager.get_date_directory(update_date=self.nea_config.log.update_date_folder)
 
         log_file = log_dir.create_logfile(
-            protocol_name="NEA", major_update=self.log_params.update_major_version
+            protocol_name="NEA", major_update=self.nea_config.log.update_major_number
         )
         print(f"Recording to: {log_file.path}")
 
@@ -97,9 +88,7 @@ class NEAActivationRunner(BaseRunner):
         # ヘッダー書き込み (リファレンスと完全一致させるため start_time を渡す)
         self._recorder.record_header(
             start_time=start_time,
-            condition=self.condition_params,
-            init_control=self.control_params,
-            comment=self.log_params.comment,
+            init_nea_config=self.nea_config,
         )
 
     def _setup_devices(self, devices: NEADevices) -> None:
@@ -111,7 +100,7 @@ class NEAActivationRunner(BaseRunner):
         self._init_gm10_static(devices.logger)
 
         # 動的設定の適応
-        self._apply_params_to_device(devices, self.control_params)
+        self._apply_params_to_device(devices, self.nea_config.control)
 
     def _init_laser_static(self, laser: ILaserAdapter) -> None:
         """レーザーの静的設定"""
@@ -200,31 +189,41 @@ class NEAActivationRunner(BaseRunner):
         elapsed_perf = time.perf_counter() - start_perf
         self._process_pending_requests(devices)  # 設定に変更があるか確認
 
+        stabilization_time = self.nea_config.condition.stabilization_time.si_value
+
         # 出力状態測定 (Bright)
         devices.laser.set_emission(True)  # レーザー出力開始
         # 安定するまで待機
-        if not self._wait_interruptible(self.condition_params.stabilization_time.si_value):
+        if not self._wait_interruptible(stabilization_time):
             return False  # 待機中に中断されたら終了
 
-        bright_pc = sensor_reader.read_photocurrent_integrated(
-            self.condition_params.shunt_resistance,
-            int(self.condition_params.integration_count.si_value),
-            self.condition_params.integration_interval.si_value,
+        bright_pc_volt, bright_pc = sensor_reader.read_photocurrent_integrated(
+            self.nea_config.condition.shunt_resistance,
+            int(self.nea_config.condition.integration_count.si_value),
+            self.nea_config.condition.integration_interval.si_value,
         )
 
         # バックグラウンド測定 (Dark)
         devices.laser.set_emission(False)
-        if not self._wait_interruptible(self.condition_params.stabilization_time.si_value):
+        if not self._wait_interruptible(stabilization_time):
             return False
 
-        dark_pc = sensor_reader.read_photocurrent_integrated(
-            self.condition_params.shunt_resistance,
-            int(self.condition_params.integration_count.si_value),
-            self.condition_params.integration_interval.si_value,
+        dark_pc_volt, dark_pc = sensor_reader.read_photocurrent_integrated(
+            self.nea_config.condition.shunt_resistance,
+            int(self.nea_config.condition.integration_count.si_value),
+            self.nea_config.condition.integration_interval.si_value,
         )
 
         # 4. データ集計と通知
-        self._process_and_emit_result(devices, sensor_reader, elapsed_perf, bright_pc, dark_pc)
+        self._process_and_emit_result(
+            devices,
+            sensor_reader,
+            elapsed_perf,
+            bright_pc,
+            bright_pc_volt,
+            dark_pc,
+            dark_pc_volt,
+        )
 
         return True
 
@@ -234,12 +233,14 @@ class NEAActivationRunner(BaseRunner):
         sensor_reader: NEASensorReader,
         timestamp: float,
         bright_pc: Quantity[Ampere],
+        bright_pc_volt: Quantity[Volt],
         dark_pc: Quantity[Ampere],
+        dark_pc_volt: Quantity[Volt],
     ) -> None:
         """測定値の計算、Result生成、通知を行う"""
         # --- 計算 ---
-        wavelength_nm = self.condition_params.laser_wavelength.value_as("n")
-        laser_pv_watt = self.control_params.laser_power_pv.si_value
+        wavelength_nm = self.nea_config.condition.laser_wavelength.value_as("n")
+        laser_pv_watt = self.nea_config.control.laser_power_pv.si_value
 
         pc_val = bright_pc.si_value - dark_pc.si_value
         qe_val = calculate_quantum_efficiency(
@@ -266,8 +267,8 @@ class NEAActivationRunner(BaseRunner):
         result = NEAActivationResult(
             timestamp=Time(timestamp),
             # LP
-            laser_power_sv=self.control_params.laser_power_sv,
-            laser_power_pv=self.control_params.laser_power_pv,
+            laser_power_sv=self.nea_config.control.laser_power_sv,
+            laser_power_pv=self.nea_config.control.laser_power_pv,
             # Pressure
             ext_pressure=ext_pressure,
             sip_pressure=sip_pressure,
@@ -276,7 +277,9 @@ class NEAActivationRunner(BaseRunner):
             # PC
             photocurrent=pc,
             bright_photocurrent=bright_pc,
+            bright_voltage=bright_pc_volt,
             dark_photocurrent=dark_pc,
+            dark_voltage=dark_pc_volt,
             # QE
             quantum_efficiency=qe,
             # AMD power supply
@@ -318,7 +321,7 @@ class NEAActivationRunner(BaseRunner):
 
     # =================================================================
 
-    def _get_latest_params_from_queue(self) -> NEAControlParams | None:
+    def _get_latest_config_from_queue(self) -> NEAControlConfig | None:
         """キューから最新の設定を取り出す"""
         if self._request_queue.empty():
             return None
@@ -334,14 +337,14 @@ class NEAActivationRunner(BaseRunner):
 
     def _process_pending_requests(self, dev: NEADevices) -> None:
         """キューから最新の設定を取り出してデバイスに適用する"""
-        latest_params = self._get_latest_params_from_queue()
+        latest_config = self._get_latest_config_from_queue()
 
         # 変更があった場合のみデバイス操作を実行
-        if latest_params is not None:
-            self._apply_params_to_device(dev, latest_params)
-            self.control_params = latest_params  # 現在値を更新
+        if latest_config is not None:
+            self._apply_params_to_device(dev, latest_config)
+            self.nea_config.control = latest_config  # 現在値を更新
 
-    def _apply_params_to_device(self, dev: NEADevices, params: NEAControlParams) -> None:
+    def _apply_params_to_device(self, dev: NEADevices, params: NEAControlConfig) -> None:
         """実際にデバイスにコマンドを送る処理"""
         print(
             f"Applying new params: AMD={params.amd_output_current}, Laser={params.laser_power_sv}"

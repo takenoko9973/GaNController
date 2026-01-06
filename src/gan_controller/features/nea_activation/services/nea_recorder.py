@@ -4,11 +4,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from gan_controller.common.services.log_manager import LogFile
-from gan_controller.features.nea_activation.dtos.nea_params import (
-    NEAConditionParams,
-    NEAControlParams,
-)
 from gan_controller.features.nea_activation.dtos.nea_result import NEAActivationResult
+from gan_controller.features.nea_activation.schemas import NEAConfig
 
 
 @dataclass
@@ -53,22 +50,18 @@ class NEARecorder:
             LogColumn("Event", "{}", lambda _, e: e),
         ]
 
-    def record_header(
-        self,
-        start_time: datetime.datetime,
-        condition: NEAConditionParams,
-        init_control: NEAControlParams,
-        comment: str,
-    ) -> None:
+    def record_header(self, start_time: datetime.datetime, init_nea_config: NEAConfig) -> None:
         """ヘッダー情報を記録"""
         lf = self.file
 
         # パラメータの取得 (Quantity -> float/int)
-        wavelength = int(condition.laser_wavelength.value_as("n"))
-        laser_power_sv = int(init_control.laser_power_sv.value_as("m"))
-        stabilization_time = condition.stabilization_time.si_value
-        integrated_count = int(condition.integration_count.si_value)
-        interval = condition.integration_interval.si_value
+        wavelength = int(init_nea_config.condition.laser_wavelength.value_as("n"))
+        laser_power_sv = int(init_nea_config.control.laser_power_sv.value_as("m"))
+        stabilization_time = init_nea_config.condition.stabilization_time.si_value
+        integrated_count = int(init_nea_config.condition.integration_count.si_value)
+        interval = init_nea_config.condition.integration_interval.si_value
+
+        comment = init_nea_config.log.comment
 
         # === Header Writing (Identical to reference) ===
         lf.write("#NEA activation monitor\n")

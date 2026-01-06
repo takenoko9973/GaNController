@@ -5,7 +5,7 @@ from gan_controller.common.widgets.graph import AxisScale, DualAxisGraph
 from gan_controller.features.nea_activation.dtos.nea_result import NEAActivationResult
 
 
-class NEAActGraphPanel(QWidget):
+class NEAGraphPanel(QWidget):
     """実行制御およびモニタリング表示用ウィジェット"""
 
     def __init__(self, parent: QWidget | None = None) -> None:

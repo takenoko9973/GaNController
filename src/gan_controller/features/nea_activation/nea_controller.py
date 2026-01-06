@@ -4,24 +4,24 @@ from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
 from gan_controller.common.constants import NEA_CONFIG_PATH
 from gan_controller.common.interfaces.tab_controller import ITabController
 from gan_controller.common.services.global_messenger import GlobalMessenger
+from gan_controller.features.nea_activation.schemas import NEAConfig
 from gan_controller.features.setting.model.app_config import AppConfig
 
-from .domain.nea_config import NEAConfig
 from .dtos.nea_result import NEAActivationResult
 from .nea_runner import NEAActivationRunner
 from .state import NEAActivationState
-from .view import NEAActivationTab
+from .view import NEAActivationMainView
 
 
 class NEAActivationController(ITabController):
-    _view: NEAActivationTab
+    _view: NEAActivationMainView
 
     _state: NEAActivationState
 
     runner: NEAActivationRunner | None
     worker: ExperimentWorker | None
 
-    def __init__(self, view: NEAActivationTab) -> None:
+    def __init__(self, view: NEAActivationMainView) -> None:
         super().__init__()
 
         self._view = view
@@ -35,12 +35,12 @@ class NEAActivationController(ITabController):
     def _load_initial_config(self) -> None:
         """起動時に設定ファイルを読み込んでUIにセットする"""
         config = NEAConfig.load(NEA_CONFIG_PATH)
-        self._view.set_ui_from_config(config)
+        self._view.set_full_config(config)
 
     def _attach_view(self) -> None:
-        self._view.experiment_start.connect(self.experiment_start)
-        self._view.experiment_stop.connect(self.experiment_stop)
-        self._view.setting_apply.connect(self.setting_apply)
+        self._view.execution_panel.start_requested.connect(self.experiment_start)
+        self._view.execution_panel.stop_requested.connect(self.experiment_stop)
+        self._view.execution_panel.apply_requested.connect(self.setting_apply)
 
     def _attach_worker(self, worker: ExperimentWorker) -> None:
         worker.result_emitted.connect(self.on_result)
@@ -63,7 +63,7 @@ class NEAActivationController(ITabController):
     def on_close(self) -> None:
         """アプリ終了時に設定を保存する"""
         # 現在のUIの状態からConfigオブジェクトを生成
-        current_config = self._view.get_config_from_ui()
+        current_config = self._view.get_full_config()
 
         # ファイルに保存
         current_config.save(NEA_CONFIG_PATH)
@@ -84,15 +84,11 @@ class NEAActivationController(ITabController):
         # 設定読み込み (ファイルを用いる)
         app_config = AppConfig.load()
         # 実験条件はウィンドウから所得
-        condition_params = self._view.get_condition_params()
-        log_params = self._view.get_log_params()
-        init_control_params = self._view.get_control_params()
+        config = self._view.get_full_config()
 
         self.set_state(NEAActivationState.RUNNING)
 
-        self.runner = NEAActivationRunner(
-            app_config, condition_params, log_params, init_control_params
-        )
+        self.runner = NEAActivationRunner(app_config, config)
         self.worker = ExperimentWorker(self.runner)
         self._attach_worker(self.worker)
 
@@ -110,10 +106,10 @@ class NEAActivationController(ITabController):
     @Slot()
     def setting_apply(self) -> None:
         """実験途中での値更新"""
-        params = self._view.get_control_params()
+        config = self._view.execution_panel.get_config()
 
         if self._state == NEAActivationState.RUNNING and self.runner is not None:
-            self.runner.update_control_params(params)
+            self.runner.update_control_params(config)
 
     # =================================================
     # Runner -> View

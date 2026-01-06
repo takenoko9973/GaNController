@@ -1,1 +1,1 @@
-from .nea_tab_widget import NEAActivationTab
+from .main_view import NEAActivationMainView
