@@ -1,13 +1,11 @@
 import tomllib
 from collections.abc import MutableMapping
 from pathlib import Path
-from typing import TypeVar, cast
+from typing import Any, cast
 
 import tomlkit
 from pydantic import BaseModel
 from tomlkit.items import Item, Table
-
-T = TypeVar("T", bound=BaseModel)
 
 
 def load_toml_config[T: BaseModel](model_cls: type[T], path: str | Path) -> T:
@@ -28,7 +26,7 @@ def load_toml_config[T: BaseModel](model_cls: type[T], path: str | Path) -> T:
 def save_toml_config(model_instance: BaseModel, path: str | Path) -> None:
     """PydanticモデルをTOMLファイルに保存する (コメント保持)"""
     path_obj = Path(path)
-    new_data = model_instance.model_dump()
+    new_data = model_instance.model_dump(mode="json")
 
     try:
         if path_obj.exists():
@@ -39,7 +37,7 @@ def save_toml_config(model_instance: BaseModel, path: str | Path) -> None:
 
         else:
             # 新規作成 (Pydanticのdescriptionからコメント生成)
-            doc = _generate_new_document(model_instance)
+            doc = _generate_new_document(model_instance, new_data)
 
         # 書き込み
         with path_obj.open("w", encoding="utf-8") as f:
@@ -54,32 +52,46 @@ def save_toml_config(model_instance: BaseModel, path: str | Path) -> None:
 # ==========================================
 
 
-def _generate_new_document(model_instance: BaseModel) -> tomlkit.TOMLDocument:
+def _generate_new_document(
+    model_instance: BaseModel, dump_data: dict[str, Any]
+) -> tomlkit.TOMLDocument:
     """Pydantic定義を元にコメント付きTOMLドキュメントを生成"""
     doc = tomlkit.document()
-    _append_fields_with_comments(doc, model_instance)
+    _append_fields_with_comments(doc, model_instance, dump_data)
     return doc
 
 
 def _append_fields_with_comments(
-    container: Table | tomlkit.TOMLDocument, model_instance: BaseModel
+    container: Table | tomlkit.TOMLDocument, model_instance: BaseModel, current_data: dict[str, Any]
 ) -> None:
     """フィールドとコメントを再帰的に追加"""
-    for field_name, field_info in model_instance.model_fields.items():
-        value = getattr(model_instance, field_name)
+    model_class = type(model_instance)
+    for field_name, field_info in model_class.model_fields.items():
+        if field_name not in current_data:
+            continue
 
-        if isinstance(value, BaseModel):
-            # ネストされたモデルの場合
-            table = tomlkit.table()
-            _append_fields_with_comments(table, value)
-            container.add(field_name, table)
-            if field_info.description:
-                cast("Item", container[field_name]).comment(field_info.description)
-        else:
-            # 通常の値
-            container.add(field_name, value)
-            if field_info.description:
-                cast("Item", container[field_name]).comment(field_info.description)
+        value = current_data[field_name]
+
+        # 値が辞書ならネストされたモデルとみなす
+        if isinstance(value, dict):
+            # 対応するサブモデルのインスタンスを取得 (description取得)
+            sub_model = getattr(model_instance, field_name)
+
+            if isinstance(sub_model, BaseModel):
+                table = tomlkit.table()
+
+                _append_fields_with_comments(table, sub_model, value)  # 再帰的に検索
+
+                container.add(field_name, table)
+                if field_info.description:
+                    cast("Item", container[field_name]).comment(field_info.description)
+
+                continue
+
+        # 通常の値 (float, int, str, Quantity由来のfloatなど) の処理
+        container.add(field_name, cast("Any", value))
+        if field_info.description:
+            cast("Item", container[field_name]).comment(field_info.description)
 
 
 def _recursive_update(doc: MutableMapping, new_data: dict) -> None:

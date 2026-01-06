@@ -7,7 +7,7 @@ from .prefix_registry import PREFIX_REGISTRY
 from .quantity import Quantity
 
 
-def PydanticUnit(unit_str: str):  # noqa: ANN201, N802
+def PydanticUnit(unit_str: str) -> tuple[BeforeValidator, PlainSerializer]:  # noqa: N802
     """Pydantic Annotated用のヘルパー"""
     target_prefix, target_base = split_unit(unit_str, PREFIX_REGISTRY.known_prefixes)
 
