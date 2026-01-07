@@ -1,5 +1,7 @@
 from PySide6.QtWidgets import QFormLayout, QGroupBox, QLineEdit, QVBoxLayout, QWidget
 
+from gan_controller.common.domain.quantity.factory import Current, Voltage
+from gan_controller.common.schemas.app_config import PFR100l50Config
 from gan_controller.common.ui.widgets import NoScrollDoubleSpinBox, NoScrollSpinBox
 
 
@@ -47,3 +49,21 @@ class PFR100L50ConfigPage(QWidget):
         param_config_form.addRow("OCP (過電流保護) :", self.ocp_spin)
 
         return param_config_group
+
+    # =============================================================================
+
+    def get_config(self) -> PFR100l50Config:
+        return PFR100l50Config(
+            visa=self.visa_address_edit.text(),
+            unit=self.unit_spin.value(),
+            v_limit=Voltage(self.v_limit_spin.value()),
+            ovp=Voltage(self.ovp_spin.value()),
+            ocp=Current(self.ocp_spin.value()),
+        )
+
+    def set_config(self, config: PFR100l50Config) -> None:
+        self.visa_address_edit.setText(config.visa)
+        self.unit_spin.setValue(config.unit)
+        self.v_limit_spin.setValue(config.v_limit.si_value)
+        self.ovp_spin.setValue(config.ovp.si_value)
+        self.ocp_spin.setValue(config.ocp.si_value)

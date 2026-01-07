@@ -79,7 +79,7 @@ class RealDeviceFactory(AbstractDeviceFactory):
         try:
             # Logger (GM10)
             try:
-                gm10 = GM10(rm, config.devices.gm10_visa)
+                gm10 = GM10(rm, config.devices.gm10.visa)
                 logger_adapter = GM10Adapter(gm10)
             except Exception as e:
                 print(f"GM10 Connection Error: {e}")
@@ -87,7 +87,7 @@ class RealDeviceFactory(AbstractDeviceFactory):
 
             # Power Supply (AMD/PFR100L50)
             try:
-                aps = PFR100L50(rm, config.devices.aps_visa)
+                aps = PFR100L50(rm, config.devices.aps.visa)
                 aps_adapter = PFR100L50Adapter(aps)
             except Exception as e:
                 print(f"APS Connection Error: {e}")
@@ -95,8 +95,8 @@ class RealDeviceFactory(AbstractDeviceFactory):
 
             # Laser (IBeam)
             try:
-                laser_port = f"COM{config.devices.ibeam_com_port}"
-                laser = IBeam(port=laser_port)
+                laser_port = f"COM{config.devices.ibeam.com_port}"
+                laser = IBeam(rm, laser_port)
                 laser_adapter = IBeamAdapter(laser)
             except Exception as e:
                 print(f"Laser Connection Error: {e}")

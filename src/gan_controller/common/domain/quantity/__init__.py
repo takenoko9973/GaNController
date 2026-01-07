@@ -1,5 +1,6 @@
 from .factory import Current, Length, Power, Pressure, Resistance, Temperature, Time, Value, Voltage
 from .quantity import Quantity
+from .schemas import PydanticUnit
 from .unit_types import Ampere, Celsius, Dimensionless, Meter, Ohm, Pascal, Second, Volt, Watt
 
 __all__ = [
@@ -13,6 +14,7 @@ __all__ = [
     "Pascal",
     "Power",
     "Pressure",
+    "PydanticUnit",
     "Quantity",
     "Resistance",
     "Second",

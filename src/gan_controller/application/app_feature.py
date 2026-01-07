@@ -11,7 +11,7 @@ from gan_controller.features.nea_activation.view import NEAActivationMainView
 
 # 各機能のViewとControllerをインポート
 from gan_controller.features.setting.controller import SettingsController
-from gan_controller.features.setting.view.tab_widget import SettingsTab
+from gan_controller.features.setting.view import SettingMainView
 
 
 @dataclass
@@ -42,7 +42,7 @@ class FeatureFactory:
         features.append(AppFeature("NEA Activation", nea_view, nea_ctrl))
 
         # 設定 (Settings)
-        setting_view = SettingsTab()
+        setting_view = SettingMainView()
         setting_ctrl = SettingsController(setting_view)
         features.append(AppFeature("Settings", setting_view, setting_ctrl))
 

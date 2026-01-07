@@ -1,14 +1,13 @@
 from PySide6.QtWidgets import QFormLayout, QGroupBox, QVBoxLayout, QWidget
 
+from gan_controller.common.schemas.app_config import PWUXConfig
 from gan_controller.common.ui.widgets import NoScrollSpinBox
 
 
-class IBeamConfigPage(QWidget):
-    """iBeam (Laser) 設定画面"""
+class PWUXConfigPage(QWidget):
+    """PWUX (Temp Controller) 設定画面"""
 
     com_number_edit: NoScrollSpinBox
-
-    beam_channel_spin: NoScrollSpinBox
 
     def __init__(self) -> None:
         super().__init__()
@@ -16,7 +15,6 @@ class IBeamConfigPage(QWidget):
         layout = QVBoxLayout(self)
 
         layout.addWidget(self._create_connection_config_group())
-        layout.addWidget(self._create_param_config_group())
         layout.addStretch()
 
     def _create_connection_config_group(self) -> QGroupBox:
@@ -28,11 +26,12 @@ class IBeamConfigPage(QWidget):
 
         return connection_config_group
 
-    def _create_param_config_group(self) -> QGroupBox:
-        param_config_group = QGroupBox("詳細パラメータ")
-        param_config_form = QFormLayout(param_config_group)
+    # =============================================================================
 
-        self.beam_channel_spin = NoScrollSpinBox(minimum=1, maximum=2)
-        param_config_form.addRow("Beam Channel :", self.beam_channel_spin)
+    def get_config(self) -> PWUXConfig:
+        return PWUXConfig(
+            com_port=self.com_number_edit.value(),
+        )
 
-        return param_config_group
+    def set_config(self, config: PWUXConfig) -> None:
+        self.com_number_edit.setValue(config.com_port)

@@ -111,8 +111,8 @@ class NEAActivationRunner(BaseRunner):
     def _init_aps_static(self, aps: IPowerSupplyAdapter) -> None:
         """電源(AMD)の静的設定"""
         # 電圧リミットなどの安全設定
-        v_limit = self.app_config.devices.amd.v_limit
-        aps.set_voltage(v_limit)
+        v_limit = self.app_config.devices.aps.v_limit
+        aps.set_voltage(v_limit.si_value)
 
         # 必要であればOCP(過電流保護)の設定などをここに追加
 

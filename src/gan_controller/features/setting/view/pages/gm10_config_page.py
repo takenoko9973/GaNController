@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QFormLayout, QGroupBox, QLineEdit, QVBoxLayout, QWidget
 
+from gan_controller.common.schemas.app_config import GM10Config
 from gan_controller.common.ui.widgets import NoScrollSpinBox
 
 
@@ -49,3 +50,24 @@ class GM10ConfigPage(QWidget):
         channel_config_form.addRow("TC Measure Ch :", self.tc_ch_spin)
 
         return channel_config_group
+
+    # =============================================================================
+
+    def get_config(self) -> GM10Config:
+        return GM10Config(
+            visa=self.visa_edit.text(),
+            ext_ch=self.ext_ch_spin.value(),
+            sip_ch=self.sip_ch_spin.value(),
+            pc_ch=self.pc_ch_spin.value(),
+            hv_ch=self.hv_ch_spin.value(),
+            tc_ch=self.tc_ch_spin.value(),
+        )
+
+    def set_config(self, config: GM10Config) -> None:
+        self.visa_edit.setText(config.visa)
+
+        self.ext_ch_spin.setValue(config.ext_ch)
+        self.sip_ch_spin.setValue(config.sip_ch)
+        self.pc_ch_spin.setValue(config.pc_ch)
+        self.hv_ch_spin.setValue(config.hv_ch)
+        self.tc_ch_spin.setValue(config.tc_ch)

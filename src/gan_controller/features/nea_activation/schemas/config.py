@@ -4,22 +4,20 @@ from typing import Annotated
 from pydantic import BaseModel, Field
 
 from gan_controller.common.constants import NEA_CONFIG_PATH
-from gan_controller.common.domain.quantity.factory import (
-    Current,
-    Length,
-    Power,
-    Resistance,
-    Time,
-    Value,
-)
-from gan_controller.common.domain.quantity.quantity import Quantity
-from gan_controller.common.domain.quantity.schemas import PydanticUnit
-from gan_controller.common.domain.quantity.unit_types import (
+from gan_controller.common.domain.quantity import (
     Ampere,
+    Current,
     Dimensionless,
+    Length,
     Meter,
     Ohm,
+    Power,
+    PydanticUnit,
+    Quantity,
+    Resistance,
     Second,
+    Time,
+    Value,
     Watt,
 )
 from gan_controller.common.io.toml_config_io import load_toml_config, save_toml_config

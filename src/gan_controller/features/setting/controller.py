@@ -4,14 +4,14 @@ from PySide6.QtWidgets import QMessageBox
 from gan_controller.common.application.global_messenger import GlobalMessenger
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
-from gan_controller.features.setting.view.tab_widget import SettingsTab
+from gan_controller.features.setting.view.main_view import SettingMainView
 
 
 class SettingsController(ITabController):
-    _view: SettingsTab
+    _view: SettingMainView
     _config: AppConfig
 
-    def __init__(self, view: SettingsTab) -> None:
+    def __init__(self, view: SettingMainView) -> None:
         super().__init__()
 
         self._view = view
@@ -43,7 +43,7 @@ class SettingsController(ITabController):
         try:
             # ロジック: 読み込み & 状態更新
             self._config = AppConfig.load()
-            self._view.set_config(self._config)
+            self._view.set_full_config(self._config)
 
         except Exception as e:  # noqa: BLE001
             # AppConfig.load がエラーを握りつぶさず raise するように変更した場合に備える
@@ -67,7 +67,7 @@ class SettingsController(ITabController):
         """
         try:
             # ロジック: Viewからデータ取得 -> 保存 -> 状態更新
-            new_config = self._view.create_config_from_ui()
+            new_config = self._view.get_full_config()
             new_config.save()
 
         except Exception as e:  # noqa: BLE001
@@ -98,7 +98,7 @@ class SettingsController(ITabController):
             return False
 
         try:
-            current_config = self._view.create_config_from_ui()
+            current_config = self._view.get_full_config()
         except Exception:  # noqa: BLE001
             # 入力値エラーなどでConfig生成できない場合は「変更あり」とみなす
             return True
