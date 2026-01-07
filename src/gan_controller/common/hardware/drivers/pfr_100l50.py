@@ -50,7 +50,6 @@ class PFR100L50:
         self.close()
 
     def __del__(self) -> None:
-        self.inst.clear()
         self.close()
 
     # ============================================================
@@ -142,6 +141,8 @@ class PFR100L50:
         if hasattr(self, "inst"):
             with contextlib.suppress(builtins.BaseException):
                 self.inst.close()
+
+            del self.inst
 
 
 def main() -> None:

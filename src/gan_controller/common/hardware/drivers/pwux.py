@@ -108,6 +108,8 @@ class PWUX:
             with contextlib.suppress(Exception):
                 self.inst.close()
 
+            del self.inst
+
 
 def main() -> None:
     rm = pyvisa.ResourceManager()

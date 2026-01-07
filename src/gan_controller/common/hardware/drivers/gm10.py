@@ -49,8 +49,7 @@ class GM10:
         self.close()
 
     def __del__(self) -> None:
-        self.inst.clear()
-        self.inst.close()
+        self.close()
 
     # ============================================================
     # 内部通信メソッド
@@ -184,6 +183,8 @@ class GM10:
         if hasattr(self, "inst"):
             with contextlib.suppress(Exception):
                 self.inst.close()
+
+            del self.inst
 
 
 def main() -> None:
