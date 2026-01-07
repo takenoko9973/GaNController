@@ -3,7 +3,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from gan_controller.common.services.log_manager import LogFile
+from gan_controller.common.io.log_manager import LogFile
 from gan_controller.features.nea_activation.schemas import NEAConfig, NEARunnerResult
 
 

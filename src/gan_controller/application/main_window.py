@@ -3,8 +3,8 @@ from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QLayout, QMainWindow, QStatusBar, QTabWidget, QVBoxLayout, QWidget
 
 from gan_controller.application.app_feature import AppFeature
-from gan_controller.common.interfaces.tab_controller import ITabController
-from gan_controller.common.services.global_messenger import GlobalMessenger
+from gan_controller.common.application.global_messenger import GlobalMessenger
+from gan_controller.common.ui.tab_controller import ITabController
 
 
 class MainWindow(QMainWindow):

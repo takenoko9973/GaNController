@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from PySide6.QtWidgets import QWidget
 
 # 共通基底クラス (PageControllerなど)
-from gan_controller.common.interfaces.tab_controller import ITabController
+from gan_controller.common.ui.tab_controller import ITabController
 from gan_controller.features.heat_cleaning.hc_controller import HeatCleaningController
 from gan_controller.features.heat_cleaning.ui.tab_widget import HeatCleaningTab
 from gan_controller.features.nea_activation.controller import NEAActivationController

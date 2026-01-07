@@ -2,7 +2,7 @@ from gan_controller.common.domain.quantity import Current, Voltage
 from gan_controller.common.domain.quantity.quantity import Quantity
 from gan_controller.common.domain.quantity.unit_types import Ampere, Ohm, Pascal, Volt
 from gan_controller.common.hardware.adapters.logger_adapter import ILoggerAdapter
-from gan_controller.common.services.vacuum_reader import VacuumSensorReader
+from gan_controller.common.hardware.processing.vacuum_reader import VacuumSensorReader
 from gan_controller.features.setting.model.app_config import AppConfig
 
 

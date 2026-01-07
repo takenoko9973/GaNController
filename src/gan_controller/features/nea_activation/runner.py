@@ -6,6 +6,7 @@ import traceback
 import pyvisa
 import pyvisa.constants
 
+from gan_controller.common.application.runner import BaseRunner
 from gan_controller.common.calculations.physics import calculate_quantum_efficiency
 from gan_controller.common.domain.electricity import ElectricValuesDTO
 from gan_controller.common.domain.quantity import Ampere, Current, Quantity, Time, Value
@@ -13,8 +14,7 @@ from gan_controller.common.domain.quantity.unit_types import Volt
 from gan_controller.common.hardware.adapters.laser_adapter import ILaserAdapter
 from gan_controller.common.hardware.adapters.logger_adapter import ILoggerAdapter
 from gan_controller.common.hardware.adapters.power_supply_adapter import IPowerSupplyAdapter
-from gan_controller.common.interfaces.runner import BaseRunner
-from gan_controller.common.services.log_manager import LogManager
+from gan_controller.common.io.log_manager import LogManager
 from gan_controller.features.nea_activation.recorder import NEALogRecorder
 from gan_controller.features.nea_activation.schemas import NEAConfig, NEAControlConfig
 from gan_controller.features.nea_activation.services.sensor_reader import NEASensorReader
