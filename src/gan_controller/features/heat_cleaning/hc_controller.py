@@ -1,4 +1,4 @@
-from gan_controller.common.interfaces.tab_controller import ITabController
+from gan_controller.common.ui.tab_controller import ITabController
 from gan_controller.features.heat_cleaning.ui.tab_widget import HeatCleaningTab
 
 
