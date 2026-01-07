@@ -14,7 +14,7 @@ from gan_controller.common.types.quantity.unit_types import (
 
 
 @dataclass
-class NEAActivationResult(ExperimentResult):
+class NEARunnerResult(ExperimentResult):
     """NEA活性化の測定結果 (必要そうな設定値や観測値は全て入れとく)"""
 
     timestamp: Quantity[Second]

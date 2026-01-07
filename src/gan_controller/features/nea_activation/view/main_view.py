@@ -1,8 +1,7 @@
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 
 from gan_controller.common.types.electricity import ElectricProperties
-from gan_controller.features.nea_activation.dtos.nea_result import NEAActivationResult
-from gan_controller.features.nea_activation.schemas import NEAConfig
+from gan_controller.features.nea_activation.schemas import NEAConfig, NEARunnerResult
 from gan_controller.features.nea_activation.state import NEAActivationState
 from gan_controller.features.nea_activation.view.widgets import (
     NEAConditionSettingsPanel,
@@ -107,7 +106,7 @@ class NEAActivationMainView(QWidget):
             self.execution_panel.stop_button.setEnabled(False)
             self.measure_panel.set_status("停止処理中", False)
 
-    def update_view(self, result: NEAActivationResult) -> None:
+    def update_view(self, result: NEARunnerResult) -> None:
         """結果をUIに反映"""
         self._update_measure_values(result)
         self.graph_panel.update_graph(result)
@@ -116,7 +115,7 @@ class NEAActivationMainView(QWidget):
         """グラフや表示を初期化"""
         self.graph_panel.clear_graph()
 
-    def _update_measure_values(self, result: NEAActivationResult) -> None:
+    def _update_measure_values(self, result: NEARunnerResult) -> None:
         """測定結果で表示を更新"""
         measure_p = self.measure_panel
 

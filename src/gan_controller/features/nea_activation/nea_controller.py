@@ -7,8 +7,8 @@ from gan_controller.common.services.global_messenger import GlobalMessenger
 from gan_controller.features.nea_activation.schemas import NEAConfig
 from gan_controller.features.setting.model.app_config import AppConfig
 
-from .dtos.nea_result import NEAActivationResult
 from .nea_runner import NEAActivationRunner
+from .schemas.result import NEARunnerResult
 from .state import NEAActivationState
 from .view import NEAActivationMainView
 
@@ -116,7 +116,7 @@ class NEAActivationController(ITabController):
     # =================================================
 
     @Slot(object)
-    def on_result(self, result: NEAActivationResult) -> None:
+    def on_result(self, result: NEARunnerResult) -> None:
         """結果表示とログ出力処理"""
         self._view.update_view(result)
         # self.logger.log(result)

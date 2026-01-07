@@ -21,7 +21,7 @@ from gan_controller.features.nea_activation.services.sensor_reader import NEASen
 from gan_controller.features.setting.model.app_config import AppConfig
 
 from .device_manager import NEADeviceManager, NEADevices, RealDeviceFactory, SimulationDeviceFactory
-from .dtos.nea_result import NEAActivationResult
+from .schemas.result import NEARunnerResult
 
 
 class NEAActivationRunner(BaseRunner):
@@ -264,7 +264,7 @@ class NEAActivationRunner(BaseRunner):
 
         # --- Result生成 ---
 
-        result = NEAActivationResult(
+        result = NEARunnerResult(
             timestamp=Time(timestamp),
             # LP
             laser_power_sv=self.nea_config.control.laser_power_sv,

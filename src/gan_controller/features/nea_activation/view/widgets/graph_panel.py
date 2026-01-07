@@ -2,7 +2,7 @@ from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget
 
 from gan_controller.common.widgets.graph import AxisScale, DualAxisGraph
-from gan_controller.features.nea_activation.dtos.nea_result import NEAActivationResult
+from gan_controller.features.nea_activation.schemas import NEARunnerResult
 
 
 class NEAGraphPanel(QWidget):
@@ -71,7 +71,7 @@ class NEAGraphPanel(QWidget):
         )
         self.graph_qe.add_line("pres", "Pressure", "black", is_right_axis=True)
 
-    def update_graph(self, result: NEAActivationResult) -> None:
+    def update_graph(self, result: NEARunnerResult) -> None:
         t = result.timestamp
 
         # PC, QE が負の場合は描画しない

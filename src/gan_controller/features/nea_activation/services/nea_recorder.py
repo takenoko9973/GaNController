@@ -4,8 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from gan_controller.common.services.log_manager import LogFile
-from gan_controller.features.nea_activation.dtos.nea_result import NEAActivationResult
-from gan_controller.features.nea_activation.schemas import NEAConfig
+from gan_controller.features.nea_activation.schemas import NEAConfig, NEARunnerResult
 
 
 @dataclass
@@ -16,7 +15,7 @@ class LogColumn:
     fmt: str  # フォーマット文字列 (例: "{:.4E}")
 
     # 値取り出し形式 (引数: Result, Event文字列)
-    extractor: Callable[[NEAActivationResult, str], Any]
+    extractor: Callable[[NEARunnerResult, str], Any]
 
 
 class NEARecorder:
@@ -93,7 +92,7 @@ class NEARecorder:
         header_row = "\t".join([c.header for c in self.columns])
         lf.write(header_row + "\n")
 
-    def record_data(self, result: NEAActivationResult, event: str = "") -> None:
+    def record_data(self, result: NEARunnerResult, event: str = "") -> None:
         """測定結果を1行記録"""
         row_data = []
 
