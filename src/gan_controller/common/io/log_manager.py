@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 
 from gan_controller.common.constants import LOG_DIR
-from gan_controller.features.setting.model.app_config import AppConfig
+from gan_controller.common.schemas.app_config import AppConfig
 
 # ログファイル名の正規表現パターン: [Number]Protocol-yyyymmddHHMMSS.ext
 LOGFILE_PATTERN = re.compile(r"^\[(\d+\.\d+)\]([A-Z0-9]+)\-(\d{14})\.dat$")

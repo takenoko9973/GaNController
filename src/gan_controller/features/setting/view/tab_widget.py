@@ -1,7 +1,7 @@
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
 
-from gan_controller.features.setting.model.app_config import (
+from gan_controller.common.schemas.app_config import (
     AppConfig,
     CommonConfig,
     DevicesConfig,

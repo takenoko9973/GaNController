@@ -10,7 +10,7 @@ from gan_controller.features.nea_activation.controller import NEAActivationContr
 from gan_controller.features.nea_activation.view import NEAActivationMainView
 
 # 各機能のViewとControllerをインポート
-from gan_controller.features.setting.setting_controller import SettingsController
+from gan_controller.features.setting.controller import SettingsController
 from gan_controller.features.setting.view.tab_widget import SettingsTab
 
 

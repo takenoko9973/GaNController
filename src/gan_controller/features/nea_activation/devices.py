@@ -23,7 +23,7 @@ from gan_controller.common.hardware.adapters.power_supply_adapter import (
 from gan_controller.common.hardware.drivers.gm10 import GM10
 from gan_controller.common.hardware.drivers.ibeam import IBeam
 from gan_controller.common.hardware.drivers.pfr_100l50 import PFR100L50
-from gan_controller.features.setting.model.app_config import AppConfig
+from gan_controller.common.schemas.app_config import AppConfig
 
 
 @dataclass

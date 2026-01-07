@@ -3,9 +3,9 @@ from PySide6.QtCore import Slot
 from gan_controller.common.application.global_messenger import GlobalMessenger
 from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
 from gan_controller.common.constants import NEA_CONFIG_PATH
+from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
 from gan_controller.features.nea_activation.schemas import NEAConfig
-from gan_controller.features.setting.model.app_config import AppConfig
 
 from .runner import NEAActivationRunner
 from .schemas.result import NEARunnerResult

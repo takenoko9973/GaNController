@@ -15,10 +15,10 @@ from gan_controller.common.hardware.adapters.laser_adapter import ILaserAdapter
 from gan_controller.common.hardware.adapters.logger_adapter import ILoggerAdapter
 from gan_controller.common.hardware.adapters.power_supply_adapter import IPowerSupplyAdapter
 from gan_controller.common.io.log_manager import LogManager
+from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.features.nea_activation.recorder import NEALogRecorder
 from gan_controller.features.nea_activation.schemas import NEAConfig, NEAControlConfig
-from gan_controller.features.nea_activation.services.sensor_reader import NEASensorReader
-from gan_controller.features.setting.model.app_config import AppConfig
+from gan_controller.features.nea_activation.sensor_reader import NEASensorReader
 
 from .devices import NEADeviceManager, NEADevices, RealDeviceFactory, SimulationDeviceFactory
 from .schemas.result import NEARunnerResult

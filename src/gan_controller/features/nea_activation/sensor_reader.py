@@ -3,7 +3,7 @@ from gan_controller.common.domain.quantity.quantity import Quantity
 from gan_controller.common.domain.quantity.unit_types import Ampere, Ohm, Pascal, Volt
 from gan_controller.common.hardware.adapters.logger_adapter import ILoggerAdapter
 from gan_controller.common.hardware.processing.vacuum_reader import VacuumSensorReader
-from gan_controller.features.setting.model.app_config import AppConfig
+from gan_controller.common.schemas.app_config import AppConfig
 
 
 class NEASensorReader:
