@@ -1,7 +1,7 @@
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget
 
-from gan_controller.common.ui.widgets.graph import AxisScale, DualAxisGraph
+from gan_controller.common.ui.widgets import AxisScale, DualAxisGraph
 from gan_controller.features.nea_activation.schemas import NEARunnerResult
 
 
