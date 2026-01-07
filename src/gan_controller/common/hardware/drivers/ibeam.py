@@ -1,9 +1,9 @@
-import builtins
-import contextlib
 import time
-from typing import ClassVar
+from typing import ClassVar, cast
 
-import serial  # pip3 install pyserial
+import pyvisa
+from pyvisa.constants import Parity, StopBits
+from pyvisa.resources import SerialInstrument
 
 IBEAM_COM = 3  # デバイスマネージャーで確認
 
@@ -11,39 +11,62 @@ IBEAM_COM = 3  # デバイスマネージャーで確認
 class IBeam:
     """TOPTICA iBeam Smart"""
 
+    inst: SerialInstrument
+
     VALID_CHANNELS: ClassVar = [1, 2]
+
+    # --- 通信定数 ---
+    TERMINATION = "\r\n"
+    ACK_WORD = "[OK]"
+    PROMPT_WORD = "CMD>"
+
+    # --- タイミング設定 (秒) ---
+    WAIT_AFTER_MODE_SWITCH = 0.5
+    WAIT_FOR_BUFFER = 0.1
 
     def __init__(
         self,
-        port: str,
-        baud_rate: int = 115200,
-        wait_time: float = 0.05,
-        timeout: float = 1,
+        rm: pyvisa.ResourceManager,
+        resource_name: str,
+        baud_rate: int = 9600,
+        timeout: int = 2000,
     ) -> None:
-        self.port = port
+        self.rm = rm
+        self.resource_name = resource_name
         self.baud_rate = baud_rate
-        self.wait_time = wait_time
         self.timeout = timeout
 
+        self._connect()
+
+    def _connect(self) -> None:
+        """機器への接続と初期設定を行う"""
         try:
-            self.inst = serial.Serial(
-                port=port,
-                baudrate=self.baud_rate,
-                bytesize=serial.EIGHTBITS,
-                parity=serial.PARITY_NONE,
-                stopbits=serial.STOPBITS_ONE,
-                timeout=self.timeout,
-            )
+            self.inst = cast("SerialInstrument", self.rm.open_resource(self.resource_name))
 
-            time.sleep(self.wait_time)
+            # 通信パラメータ設定
+            self.inst.baud_rate = self.baud_rate
+            self.inst.timeout = self.timeout
 
-            self.inst.reset_input_buffer()  # バッファ削除
+            self.inst.data_bits = 8
+            self.inst.parity = Parity.none
+            self.inst.stop_bits = StopBits.one
 
-            self.set_prompt(False)  # Responseを[OK]に設定
+            self.inst.read_termination = self.TERMINATION
+            self.inst.write_termination = self.TERMINATION
 
-        except Exception:
-            print("Visa io error")
-            raise
+            # 接続直後のゴミデータを掃除 (inst.clear()は使用しない)
+            self._flush_buffer()
+
+            print(f"[iBeam] Connected to {self.resource_name}")
+
+            # 自動化モードへ移行
+            self._set_protocol_mode(interactive=False)
+
+        except Exception as e:
+            # 接続失敗時はリソースを解放
+            self.close()
+            msg = f"Failed to connect to {self.resource_name}: {e}"
+            raise ConnectionError(msg) from e
 
     def __enter__(self) -> "IBeam":
         return self
@@ -52,12 +75,35 @@ class IBeam:
         self.close()
 
     def __del__(self) -> None:
-        if hasattr(self, "inst"):
-            self.close()
+        self.close()
 
     # ============================================================
     # 内部通信メソッド
     # ============================================================
+
+    def _flush_buffer(self) -> None:
+        """受信バッファに残っているデータをバイト単位で読み捨てる。
+
+        inst.clear() が不安定なデバイスのための対策。
+        """
+        if not self.inst:
+            return
+
+        try:
+            # データ到着待ち
+            time.sleep(self.WAIT_FOR_BUFFER)
+
+            bytes_to_read = self.inst.bytes_in_buffer
+            while bytes_to_read > 0:
+                self.inst.read_bytes(bytes_to_read)
+
+                # 読み込み後、さらにデータが流れてきていないか少し待って確認
+                time.sleep(self.WAIT_FOR_BUFFER)
+                bytes_to_read = self.inst.bytes_in_buffer
+
+        except pyvisa.VisaIOError:
+            # 読み込みエラーは「バッファが空」とみなして無視
+            pass
 
     def _validate_channel(self, ch: int) -> None:
         """チャンネル番号が正しい確認"""
@@ -65,51 +111,77 @@ class IBeam:
             msg = f"Invalid Channel: {ch}. Available channels are {self.VALID_CHANNELS}"
             raise ValueError(msg)
 
-    def _read_until_ok(self) -> list[str]:
-        start_time = time.time()
-        lines = []
-        while True:
-            if time.time() - start_time > self.timeout / 1000:
-                msg = "Device did not return [OK]"
-                raise TimeoutError(msg)
+    def send_command(self, command: str) -> list[str]:
+        """コマンドを送信し、[OK]が返るまでの応答を行リストとして返す。
 
-            with contextlib.suppress(builtins.BaseException):
-                line = self.inst.read_until(b"\r\n").decode("utf-8").strip()
+        Returns:
+            List[str]: 応答メッセージのリスト ([OK]行を除く)
 
-            # "[OK]" が来るまで通信を続ける
-            if line == "[OK]":
-                break
+        """
+        if not self.inst:
+            msg = "Device not connected."
+            raise ConnectionError(msg)
 
-            if line:
-                lines.append(line)
+        try:
+            # バッファに何もないことを確認
+            if self.inst.bytes_in_buffer > 0:
+                self._flush_buffer()
 
-        return lines
+            self.inst.write(command)
+            response_lines = []
+            while True:
+                # 1行読み込み (read_terminationで区切られる)
+                line = self.inst.read().strip()
+                if not line:
+                    continue
 
-    def _send_command(self, cmd: str) -> None:
-        full_cmd = cmd + "\r\n"
-        self.inst.write(full_cmd.encode("ascii"))
+                # 終了条件
+                if line == self.ACK_WORD:  # [OK] が来たら終了
+                    break
 
-        self._read_until_ok()
+                # エッジケース対策: まれに混入するプロンプトを無視
+                if line.endswith(self.PROMPT_WORD):  # CMD> が流れたら無視
+                    continue
 
-    def _query(self, cmd: str) -> str | None:
-        full_cmd = cmd + "\r\n"
-        self.inst.write(full_cmd.encode("ascii"))
+                response_lines.append(line)
 
-        lines = self._read_until_ok()
-        return lines[0] if lines else None
+        except pyvisa.VisaIOError as e:
+            print(f"[Error] Communication failed: {e}")
+            return []
 
-    # ============================================================
-    # ユーザー用メソッド
-    # ============================================================
-
-    def set_prompt(self, enable: bool = False) -> None:
-        if enable:
-            # [OK]が帰ってこなくなるので、独自で送信する
-            self.inst.flush()
-            self._send_command("prom on")
-            time.sleep(self.wait_time)
         else:
-            self._send_command("prom off")
+            return response_lines
+
+    # ============================================================
+    # 内部用メソッド
+    # ============================================================
+    def _set_protocol_mode(self, interactive: bool) -> None:
+        """通信プロトコルモードを切り替える。
+
+        Args:
+            interactive (bool):
+                True  -> 'prom on' (対話モード: 末尾 CMD>)
+                False -> 'prom off' (自動化モード: 末尾 [OK])
+
+        """
+        cmd = "prom on" if interactive else "prom off"
+        try:
+            self.inst.write(cmd)
+
+            # モード切替完了まで待機
+            time.sleep(self.WAIT_AFTER_MODE_SWITCH)
+
+            # 切替に伴う出力(CMD>など)を全て破棄
+            self._flush_buffer()
+
+            # 自動化モードへの移行時は、同期確認のために空打ちを行う
+            if not interactive:
+                self.inst.write("")
+                time.sleep(self.WAIT_FOR_BUFFER)
+                self._flush_buffer()
+
+        except Exception as e:  # noqa: BLE001
+            print(f"[Warning] Mode switch to '{cmd}' failed: {e}")
 
     # ============================================================
     # ユーザー用メソッド
@@ -117,94 +189,94 @@ class IBeam:
     def set_emission(self, enable: bool) -> None:
         """レーザー発振(Emission)制御"""
         cmd = "la on" if enable else "la off"
-        self._send_command(cmd)
+        self.send_command(cmd)
 
     def set_channel_enable(self, ch: int, enable: bool) -> None:
         """チャンネル有効/無効"""
         self._validate_channel(ch)
 
         cmd = f"en {ch}" if enable else f"di {ch}"
-        self._send_command(cmd)
+        self.send_command(cmd)
 
     def set_channel_power(self, ch: int, power_mw: float) -> None:
         """出力パワー設定(mW)"""
         self._validate_channel(ch)
 
         power_uw = int(power_mw * 1000)
-        self._send_command(f"ch {ch} pow {power_uw}")
+        self.send_command(f"ch {ch} pow {power_uw}")  # uW で入力
 
     def get_channel_power(self, ch: int) -> str | None:
         """出力パワー取得(mW)"""
         self._validate_channel(ch)
+        message = self.send_command("sh pow")  # レーザー出力中でないと取得できない
 
-        # %SYS-I-077, scaled と返ってくる(tempも) → 搭載していないか非対応なのか...?
-        # tempもTOPAS iBeam smartで90 mW出力で
-        # しばらく様子見ても変化しない(30.2℃)ので、非対応なのかも
-        return self._query("sh pow")
+        return message[ch - 1]
 
-    def get_current(self) -> str | None:
-        return self._query("sh cur")
+    def get_current(self, ch: int) -> str | None:
+        self._validate_channel(ch)
+        message = self.send_command("sh cur")  # レーザー出力中でないと取得できない
 
-    def get_status(self, status: str = "LD_Driver", ch: int = 1) -> str | None:  # noqa: ARG002
+        return message[ch - 1]
+
+    def get_status(self, status: str = "LD_Driver", ch: int = 1) -> list[str] | None:  # noqa: ARG002
         if status == "LD_Driver":
-            return self._query("sta la")
+            return self.send_command("sta la")
         if status == "Temp":
-            return self._query("sta temp")
+            return self.send_command("sta temp")  # 温度は機能してなさそう
         if status == "UpTime":
-            return self._query("sta up")
+            return self.send_command("sta up")
 
         return None
 
-    def get_error(self) -> str | None:
-        return self._query("err")
-
     def close(self) -> None:
-        if hasattr(self, "inst"):
-            with contextlib.suppress(builtins.BaseException):
-                self.set_prompt(True)  # Prompt設定戻さないと、iBeamSmartソフトウェアが使えない
-                self.inst.flush()
+        """接続を終了する。終了前に必ず対話モード(prom on)に戻す。"""
+        if self.inst:
+            try:
+                print("\n[iBeam] Restoring device settings...")
+                self._set_protocol_mode(interactive=True)
+
+            except Exception as e:  # noqa: BLE001
+                print(f"[Error] Failed to restore settings: {e}")
+
+            finally:
                 self.inst.close()
+                del self.inst
+                print("[iBeam] Connection closed.")
 
 
 def main() -> None:
     print("TOPTICA iBeam test")  # Ch1だと出力かわらないので、Ch2でやること
     print(f"COM Port: {IBEAM_COM}")
 
-    laser = IBeam(f"COM{IBEAM_COM}")
+    rm = pyvisa.ResourceManager()
+    laser = IBeam(rm, f"COM{IBEAM_COM}")
 
     try:
         laser.set_channel_enable(2, True)
-        laser.set_lp(2, 50)
-        laser.laser_on()
+        laser.set_channel_power(2, 50)
+        laser.set_emission(True)
         time.sleep(1)
-        print(f"Power: {laser.get_lp()}")
+        print(f"Power: {laser.get_channel_power(2)}")
 
         print("LD status: {}".format(laser.get_status("LD_Driver")))
 
-        laser.set_lp(2, 20)
+        laser.set_channel_power(2, 20)
         # laser.laser_on()
         time.sleep(1)
-        print(f"Power: {laser.get_lp()}")
+        print(f"Power: {laser.get_channel_power(2)}")
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print("Error stop:", e)
 
     finally:
-        laser.laser_off()
+        laser.set_emission(False)
         print("LD status: {}".format(laser.get_status("LD_Driver")))
-        laser.ch_off(2)
+        laser.set_channel_enable(2, False)
         print("Up time: {}".format(laser.get_status("UpTime")))
-        print(f"Error: {laser.get_error()}")
+
         del laser
         print("END")
 
 
 if __name__ == "__main__":
     main()
-
-""" ----------------------------------------------------------------------
-Rivision history
-2022/09/27: Version1.0 Created a program @Idei
-2024/07/17: Version2.0 変数名などを改修 @Idei
-2025/04/11  Version2.0 微修正 @Idei
----------------------------------------------------------------------- """
