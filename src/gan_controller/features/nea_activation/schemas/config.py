@@ -4,7 +4,7 @@ from typing import Annotated
 from pydantic import BaseModel, Field
 
 from gan_controller.common.constants import NEA_CONFIG_PATH
-from gan_controller.common.types.quantity.factory import (
+from gan_controller.common.domain.quantity.factory import (
     Current,
     Length,
     Power,
@@ -12,9 +12,9 @@ from gan_controller.common.types.quantity.factory import (
     Time,
     Value,
 )
-from gan_controller.common.types.quantity.quantity import Quantity
-from gan_controller.common.types.quantity.schemas import PydanticUnit
-from gan_controller.common.types.quantity.unit_types import (
+from gan_controller.common.domain.quantity.quantity import Quantity
+from gan_controller.common.domain.quantity.schemas import PydanticUnit
+from gan_controller.common.domain.quantity.unit_types import (
     Ampere,
     Dimensionless,
     Meter,
@@ -22,7 +22,7 @@ from gan_controller.common.types.quantity.unit_types import (
     Second,
     Watt,
 )
-from gan_controller.common.utils.toml_config_io import load_toml_config, save_toml_config
+from gan_controller.common.io.toml_config_io import load_toml_config, save_toml_config
 
 
 class NEAConditionConfig(BaseModel):

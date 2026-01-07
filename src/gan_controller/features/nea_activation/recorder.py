@@ -18,7 +18,7 @@ class LogColumn:
     extractor: Callable[[NEARunnerResult, str], Any]
 
 
-class NEARecorder:
+class NEALogRecorder:
     """NEA実験データの記録を担当するクラス (Recorder)"""
 
     def __init__(self, log_file: LogFile) -> None:

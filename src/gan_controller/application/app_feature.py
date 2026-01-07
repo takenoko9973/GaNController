@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QWidget
 from gan_controller.common.interfaces.tab_controller import ITabController
 from gan_controller.features.heat_cleaning.hc_controller import HeatCleaningController
 from gan_controller.features.heat_cleaning.ui.tab_widget import HeatCleaningTab
-from gan_controller.features.nea_activation.nea_controller import NEAActivationController
+from gan_controller.features.nea_activation.controller import NEAActivationController
 from gan_controller.features.nea_activation.view import NEAActivationMainView
 
 # 各機能のViewとControllerをインポート

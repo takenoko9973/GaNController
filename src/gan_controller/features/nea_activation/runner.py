@@ -6,21 +6,21 @@ import traceback
 import pyvisa
 import pyvisa.constants
 
-from gan_controller.common.adapters.laser_adapter import ILaserAdapter
-from gan_controller.common.adapters.logger_adapter import ILoggerAdapter
-from gan_controller.common.adapters.power_supply_adapter import IPowerSupplyAdapter
 from gan_controller.common.calculations.physics import calculate_quantum_efficiency
-from gan_controller.common.dtos.electricity import ElectricValuesDTO
+from gan_controller.common.domain.electricity import ElectricValuesDTO
+from gan_controller.common.domain.quantity import Ampere, Current, Quantity, Time, Value
+from gan_controller.common.domain.quantity.unit_types import Volt
+from gan_controller.common.hardware.adapters.laser_adapter import ILaserAdapter
+from gan_controller.common.hardware.adapters.logger_adapter import ILoggerAdapter
+from gan_controller.common.hardware.adapters.power_supply_adapter import IPowerSupplyAdapter
 from gan_controller.common.interfaces.runner import BaseRunner
 from gan_controller.common.services.log_manager import LogManager
-from gan_controller.common.types.quantity import Ampere, Current, Quantity, Time, Value
-from gan_controller.common.types.quantity.unit_types import Volt
+from gan_controller.features.nea_activation.recorder import NEALogRecorder
 from gan_controller.features.nea_activation.schemas import NEAConfig, NEAControlConfig
-from gan_controller.features.nea_activation.services.nea_recorder import NEARecorder
 from gan_controller.features.nea_activation.services.sensor_reader import NEASensorReader
 from gan_controller.features.setting.model.app_config import AppConfig
 
-from .device_manager import NEADeviceManager, NEADevices, RealDeviceFactory, SimulationDeviceFactory
+from .devices import NEADeviceManager, NEADevices, RealDeviceFactory, SimulationDeviceFactory
 from .schemas.result import NEARunnerResult
 
 
@@ -28,7 +28,7 @@ class NEAActivationRunner(BaseRunner):
     app_config: AppConfig  # 全体設定
     nea_config: NEAConfig  # 実験条件
 
-    _recorder: NEARecorder
+    _recorder: NEALogRecorder
     _request_queue: queue.Queue
 
     def __init__(self, app_config: AppConfig, nea_config: NEAConfig) -> None:
@@ -83,7 +83,7 @@ class NEAActivationRunner(BaseRunner):
         )
         print(f"Recording to: {log_file.path}")
 
-        self._recorder = NEARecorder(log_file)
+        self._recorder = NEALogRecorder(log_file)
 
         # ヘッダー書き込み (リファレンスと完全一致させるため start_time を渡す)
         self._recorder.record_header(

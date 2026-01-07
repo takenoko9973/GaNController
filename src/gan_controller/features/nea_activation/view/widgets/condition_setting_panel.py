@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from gan_controller.common.types.quantity.factory import Length, Resistance, Time, Value
+from gan_controller.common.domain.quantity.factory import Length, Resistance, Time, Value
 from gan_controller.features.nea_activation.schemas import NEAConditionConfig
 
 

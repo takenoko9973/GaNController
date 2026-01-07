@@ -4,7 +4,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from gan_controller.common.constants import APP_CONFIG_PATH
-from gan_controller.common.utils.toml_config_io import load_toml_config, save_toml_config
+from gan_controller.common.io.toml_config_io import load_toml_config, save_toml_config
 
 
 # gm10 セクション

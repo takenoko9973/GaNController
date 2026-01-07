@@ -5,24 +5,24 @@ from typing import Any
 import pyvisa
 
 # ドライバのインポート
-from gan_controller.common.adapters.laser_adapter import (
+from gan_controller.common.hardware.adapters.laser_adapter import (
     IBeamAdapter,
     ILaserAdapter,
     MockLaserAdapter,
 )
-from gan_controller.common.adapters.logger_adapter import (
+from gan_controller.common.hardware.adapters.logger_adapter import (
     GM10Adapter,
     ILoggerAdapter,
     MockLoggerAdapter,
 )
-from gan_controller.common.adapters.power_supply_adapter import (
+from gan_controller.common.hardware.adapters.power_supply_adapter import (
     IPowerSupplyAdapter,
     MockPowerSupplyAdapter,
     PFR100L50Adapter,
 )
-from gan_controller.common.drivers.gm10 import GM10
-from gan_controller.common.drivers.ibeam import IBeam
-from gan_controller.common.drivers.pfr_100l50 import PFR100L50
+from gan_controller.common.hardware.drivers.gm10 import GM10
+from gan_controller.common.hardware.drivers.ibeam import IBeam
+from gan_controller.common.hardware.drivers.pfr_100l50 import PFR100L50
 from gan_controller.features.setting.model.app_config import AppConfig
 
 

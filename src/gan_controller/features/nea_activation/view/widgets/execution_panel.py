@@ -11,8 +11,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from gan_controller.common.types.quantity.factory import Current, Power
-from gan_controller.common.widgets.checkable_spinbox import CheckableSpinBox
+from gan_controller.common.domain.quantity.factory import Current, Power
+from gan_controller.common.ui.widgets import CheckableSpinBox
 from gan_controller.features.nea_activation.schemas import NEAControlConfig
 
 

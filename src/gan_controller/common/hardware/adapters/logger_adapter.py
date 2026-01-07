@@ -2,9 +2,8 @@ import random
 import time
 from abc import ABC, abstractmethod
 
-from gan_controller.common.drivers.gm10 import GM10
-from gan_controller.common.types.quantity import Quantity
-from gan_controller.common.types.quantity.unit_types import Volt
+from gan_controller.common.domain.quantity import Quantity, Volt
+from gan_controller.common.hardware.drivers.gm10 import GM10
 
 
 # Interface

@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 
-from gan_controller.common.dtos.electricity import ElectricValuesDTO
-from gan_controller.common.dtos.result import ExperimentResult
-from gan_controller.common.types.quantity.quantity import Quantity
-from gan_controller.common.types.quantity.unit_types import (
+from gan_controller.common.domain.electricity import ElectricValuesDTO
+from gan_controller.common.domain.quantity.quantity import Quantity
+from gan_controller.common.domain.quantity.unit_types import (
     Ampere,
     Dimensionless,
     Pascal,
@@ -11,6 +10,7 @@ from gan_controller.common.types.quantity.unit_types import (
     Volt,
     Watt,
 )
+from gan_controller.common.schemas.result import ExperimentResult
 
 
 @dataclass

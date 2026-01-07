@@ -1,7 +1,7 @@
 from PySide6.QtCore import QThread, Signal
 
-from gan_controller.common.dtos.result import ExperimentResult
 from gan_controller.common.interfaces.runner import BaseRunner
+from gan_controller.common.schemas.result import ExperimentResult
 
 
 class ExperimentWorker(QThread):

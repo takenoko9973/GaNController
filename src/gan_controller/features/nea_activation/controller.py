@@ -7,7 +7,7 @@ from gan_controller.common.services.global_messenger import GlobalMessenger
 from gan_controller.features.nea_activation.schemas import NEAConfig
 from gan_controller.features.setting.model.app_config import AppConfig
 
-from .nea_runner import NEAActivationRunner
+from .runner import NEAActivationRunner
 from .schemas.result import NEARunnerResult
 from .state import NEAActivationState
 from .view import NEAActivationMainView

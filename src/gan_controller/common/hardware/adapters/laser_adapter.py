@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from gan_controller.common.drivers.ibeam import IBeam
+from gan_controller.common.hardware.drivers.ibeam import IBeam
 
 
 # Interface

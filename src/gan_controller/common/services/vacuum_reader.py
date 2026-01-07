@@ -1,10 +1,10 @@
-from gan_controller.common.adapters.logger_adapter import ILoggerAdapter
 from gan_controller.common.calculations.vacuum import (
     calc_ext_pressure_from_voltage,
     calc_sip_pressure_from_voltage,
 )
-from gan_controller.common.types.quantity import Pressure, Quantity
-from gan_controller.common.types.quantity.unit_types import Pascal
+from gan_controller.common.domain.quantity import Pressure, Quantity
+from gan_controller.common.domain.quantity.unit_types import Pascal
+from gan_controller.common.hardware.adapters.logger_adapter import ILoggerAdapter
 from gan_controller.features.setting.model.app_config import GM10Config
 
 

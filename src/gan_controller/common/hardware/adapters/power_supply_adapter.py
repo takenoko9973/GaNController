@@ -1,9 +1,9 @@
 import random
 from abc import ABC, abstractmethod
 
-from gan_controller.common.drivers.pfr_100l50 import PFR100L50
-from gan_controller.common.types.quantity import Current, Power, Quantity, Voltage
-from gan_controller.common.types.quantity.unit_types import Ampere, Volt, Watt
+from gan_controller.common.domain.quantity import Current, Power, Quantity, Voltage
+from gan_controller.common.domain.quantity.unit_types import Ampere, Volt, Watt
+from gan_controller.common.hardware.drivers.pfr_100l50 import PFR100L50
 
 
 # Interface
