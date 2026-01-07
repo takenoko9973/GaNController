@@ -5,6 +5,7 @@ from typing import Any, cast
 
 import tomlkit
 from pydantic import BaseModel
+from tomlkit import TOMLDocument, item
 from tomlkit.items import Item, Table
 
 
@@ -33,7 +34,7 @@ def save_toml_config(model_instance: BaseModel, path: str | Path) -> None:
             # 既存ファイルがある場合は読み込んで更新 (コメント構造を維持するため)
             with path_obj.open("r", encoding="utf-8") as f:
                 doc = tomlkit.load(f)
-            _recursive_update(doc, new_data)
+            _append_fields_with_comments(doc, model_instance, new_data)
 
         else:
             # 新規作成 (Pydanticのdescriptionからコメント生成)
@@ -52,9 +53,7 @@ def save_toml_config(model_instance: BaseModel, path: str | Path) -> None:
 # ==========================================
 
 
-def _generate_new_document(
-    model_instance: BaseModel, dump_data: dict[str, Any]
-) -> tomlkit.TOMLDocument:
+def _generate_new_document(model_instance: BaseModel, dump_data: dict[str, Any]) -> TOMLDocument:
     """Pydantic定義を元にコメント付きTOMLドキュメントを生成"""
     doc = tomlkit.document()
     _append_fields_with_comments(doc, model_instance, dump_data)
@@ -62,7 +61,7 @@ def _generate_new_document(
 
 
 def _append_fields_with_comments(
-    container: Table | tomlkit.TOMLDocument, model_instance: BaseModel, current_data: dict[str, Any]
+    container: Table | TOMLDocument, model_instance: BaseModel, current_data: dict[str, Any]
 ) -> None:
     """フィールドとコメントを再帰的に追加"""
     model_class = type(model_instance)
@@ -70,34 +69,64 @@ def _append_fields_with_comments(
         if field_name not in current_data:
             continue
 
+        sub_model = getattr(model_instance, field_name)
         value = current_data[field_name]
+        description = field_info.description
 
-        # 値が辞書ならネストされたモデルとみなす
-        if isinstance(value, dict):
-            # 対応するサブモデルのインスタンスを取得 (description取得)
-            sub_model = getattr(model_instance, field_name)
-
-            if isinstance(sub_model, BaseModel):
-                table = tomlkit.table()
-
-                _append_fields_with_comments(table, sub_model, value)  # 再帰的に検索
-
-                container.add(field_name, table)
-                if field_info.description:
-                    cast("Item", container[field_name]).comment(field_info.description)
-
-                continue
-
-        # 通常の値 (float, int, str, Quantity由来のfloatなど) の処理
-        container.add(field_name, cast("Any", value))
-        if field_info.description:
-            cast("Item", container[field_name]).comment(field_info.description)
-
-
-def _recursive_update(doc: MutableMapping, new_data: dict) -> None:
-    """構造を維持して値を更新"""
-    for key, value in new_data.items():
-        if key in doc and isinstance(doc[key], MutableMapping) and isinstance(value, dict):
-            _recursive_update(doc[key], value)
+        if isinstance(value, dict) and isinstance(sub_model, BaseModel):
+            # ネストされたPydanticモデルの場合
+            _process_nested_model(container, field_name, value, sub_model, description)
         else:
-            doc[key] = value
+            # 通常の値 (またはBaseModelではない辞書)
+            _process_simple_value(container, field_name, value, description)
+
+
+def _process_nested_model(
+    container: Table | TOMLDocument,
+    key: str,
+    value: dict,
+    sub_model: BaseModel,
+    description: str | None,
+) -> None:
+    """ネストされたモデル(テーブル)の再帰処理"""
+    if key in container:
+        # === 既存データの場合
+        existing_table = container[key]
+
+        if isinstance(existing_table, MutableMapping):
+            _append_fields_with_comments(cast("Table", existing_table), sub_model, value)
+        else:
+            # 型不整合などの場合 (基本ありえないが上書きで対処)
+            container[key] = value
+
+    else:
+        # === 新規データの場合
+        new_table = tomlkit.table()
+
+        if description:
+            # あらかじめコメントをつけておく
+            new_table.comment(description)
+
+        # 再帰呼び出し
+        _append_fields_with_comments(new_table, sub_model, value)
+        container.add(key, new_table)
+
+
+def _process_simple_value(
+    container: Table | TOMLDocument,
+    key: str,
+    value: Any,  # noqa: ANN401
+    description: str | None,
+) -> None:
+    """単純な値の更新または追加"""
+    if key in container:
+        # [既存] 値のみ更新 (既存コメントを維持)
+        container[key] = value
+
+    else:
+        # [新規] 追加してコメント付与
+        it: Item = item(value)
+        if description:
+            it.comment(description)
+
+        container.add(key, it)

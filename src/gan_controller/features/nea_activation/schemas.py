@@ -29,9 +29,7 @@ class NEAConditionConfig(BaseModel):
     """実験中不変の設定値"""
 
     shunt_resistance: Annotated[
-        Quantity[Ohm],
-        *PydanticUnit("kΩ"),
-        Field(description="換算抵抗 (シャント抵抗)[kΩ]"),
+        Quantity[Ohm], *PydanticUnit("kΩ"), Field(description="換算抵抗 (シャント抵抗)[kΩ]")
     ] = Resistance(10, "k")
     laser_wavelength: Annotated[
         Quantity[Meter], *PydanticUnit("nm"), Field(description="レーザー波長[nm]")
