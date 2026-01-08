@@ -45,7 +45,7 @@ class NEAActivationController(ITabController):
     def _attach_worker(self, worker: ExperimentWorker) -> None:
         worker.result_emitted.connect(self.on_result)
         worker.error_occurred.connect(self.on_error)
-        worker.finished_ok.connect(self.on_finished)
+        worker.finished.connect(self.on_finished)
 
     def _cleanup(self) -> None:
         self.worker = None

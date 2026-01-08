@@ -7,7 +7,6 @@ from gan_controller.common.schemas.result import ExperimentResult
 class ExperimentWorker(QThread):
     result_emitted = Signal(object)  # object: ExperimentResult
     error_occurred = Signal(str)
-    finished_ok = Signal()
 
     def __init__(self, runner: BaseRunner) -> None:
         super().__init__()
@@ -20,6 +19,5 @@ class ExperimentWorker(QThread):
     def run(self) -> None:
         try:
             self.runner.run()
-            self.finished_ok.emit()
         except Exception as e:  # noqa: BLE001
             self.error_occurred.emit(str(e))
