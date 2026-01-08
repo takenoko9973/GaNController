@@ -34,7 +34,7 @@ class GM10ConfigPage(QWidget):
         return connection_config_group
 
     def _create_channel_config_group(self) -> QGroupBox:
-        channel_config_group = QGroupBox("チャンネル設定")
+        channel_config_group = QGroupBox("チャンネル設定 (0以下で無効化)")
         channel_config_form = QFormLayout(channel_config_group)
 
         self.ext_ch_spin = NoScrollSpinBox(minimum=-1, maximum=20)

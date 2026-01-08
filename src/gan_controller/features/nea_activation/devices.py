@@ -82,16 +82,19 @@ class RealDeviceFactory(AbstractDeviceFactory):
                 gm10 = GM10(rm, config.devices.gm10.visa)
                 logger_adapter = GM10Adapter(gm10)
             except Exception as e:
-                print(f"GM10 Connection Error: {e}")
+                print(f"\033[33m[CRITICAL] GM10 Connection Failed ({e}).\033[0m")
                 raise
 
             # Power Supply (AMD/PFR100L50)
             try:
                 aps = PFR100L50(rm, config.devices.aps.visa)
                 aps_adapter = PFR100L50Adapter(aps)
-            except Exception as e:
-                print(f"APS Connection Error: {e}")
-                raise
+                print(f"APS Connected: {config.devices.aps.visa}")
+
+            except Exception as e:  # noqa: BLE001
+                # 警告だけ出して、MockAdapter (何もしないクラス) を割り当てる
+                print(f"\033[33m[WARNING] APS Connection Failed ({e}). Using Mock adapter.\033[0m")
+                aps_adapter = MockPowerSupplyAdapter()
 
             # Laser (IBeam)
             try:
@@ -99,7 +102,7 @@ class RealDeviceFactory(AbstractDeviceFactory):
                 laser = IBeam(rm, laser_port)
                 laser_adapter = IBeamAdapter(laser)
             except Exception as e:
-                print(f"Laser Connection Error: {e}")
+                print(f"\033[33m[CRITICAL] IBeam Connection Failed ({e}).\033[0m")
                 raise
 
             return NEADevices(logger=logger_adapter, aps=aps_adapter, laser=laser_adapter), rm

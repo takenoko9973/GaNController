@@ -27,6 +27,11 @@ class NEASensorReader:
     # === NEA固有の機能 ===
     def read_hv(self) -> Quantity[Volt]:
         """High Voltage読み取り"""
+        target_ch = self._config.devices.gm10.hv_ch
+
+        if target_ch <= 0:
+            return Voltage(0.0)
+
         value = self._adapter.read_voltage(self._config.devices.gm10.hv_ch, "V")
 
         # なぜか 1e4 分少ないため、補正
