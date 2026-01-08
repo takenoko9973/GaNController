@@ -230,7 +230,7 @@ class IBeam:
 
     def close(self) -> None:
         """接続を終了する。終了前に必ず対話モード(prom on)に戻す。"""
-        if self.inst:
+        if hasattr(self, "inst"):
             try:
                 print("\n[iBeam] Restoring device settings...")
                 self._set_protocol_mode(interactive=True)
