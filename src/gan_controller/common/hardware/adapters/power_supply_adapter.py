@@ -1,8 +1,15 @@
 import random
 from abc import ABC, abstractmethod
 
-from gan_controller.common.domain.quantity import Current, Power, Quantity, Voltage
-from gan_controller.common.domain.quantity.unit_types import Ampere, Volt, Watt
+from gan_controller.common.domain.quantity import (
+    Ampere,
+    Current,
+    Power,
+    Quantity,
+    Volt,
+    Voltage,
+    Watt,
+)
 from gan_controller.common.hardware.drivers.pfr_100l50 import PFR100L50
 
 
@@ -13,11 +20,19 @@ class IPowerSupplyAdapter(ABC):
         pass
 
     @abstractmethod
-    def set_voltage(self, voltage: float) -> None:
+    def set_voltage(self, voltage: Quantity[Volt]) -> None:
         pass
 
     @abstractmethod
-    def set_current(self, current: float) -> None:
+    def set_current(self, current: Quantity[Ampere]) -> None:
+        pass
+
+    @abstractmethod
+    def set_ovp(self, over_voltage: Quantity[Volt]) -> None:
+        pass
+
+    @abstractmethod
+    def set_ocp(self, over_current: Quantity[Ampere]) -> None:
         pass
 
     @abstractmethod
@@ -44,11 +59,17 @@ class PFR100L50Adapter(IPowerSupplyAdapter):
     def set_output(self, on: bool) -> None:
         self._driver.set_output(on)
 
-    def set_voltage(self, voltage: float) -> None:
-        self._driver.set_voltage(voltage)
+    def set_voltage(self, voltage: Quantity[Volt]) -> None:
+        self._driver.set_voltage(voltage.value_as(""))
 
-    def set_current(self, current: float) -> None:
-        self._driver.set_current(current)
+    def set_current(self, current: Quantity[Ampere]) -> None:
+        self._driver.set_current(current.value_as(""))
+
+    def set_ovp(self, over_voltage: Quantity[Volt]) -> None:
+        self._driver.set_ovp(over_voltage.value_as(""))
+
+    def set_ocp(self, over_current: Quantity[Ampere]) -> None:
+        self._driver.set_ocp(over_current.value_as(""))
 
     def measure_voltage(self) -> Quantity[Volt]:
         val = self._driver.measure_voltage()
@@ -73,15 +94,24 @@ class MockPowerSupplyAdapter(IPowerSupplyAdapter):
         self._setting_voltage = 0.0
         self._setting_current = 0.0
 
+        self._setting_ovp = 0.0
+        self._setting_ocp = 0.0
+
     def set_output(self, on: bool) -> None:
         self._output_on = on
         print(f"[Mock] Power Supply Output: {on}")
 
-    def set_voltage(self, voltage: float) -> None:
-        self._setting_voltage = voltage
+    def set_voltage(self, voltage: Quantity[Volt]) -> None:
+        self._setting_voltage = voltage.value_as("")
 
-    def set_current(self, current: float) -> None:
-        self._setting_current = current
+    def set_current(self, current: Quantity[Ampere]) -> None:
+        self._setting_current = current.value_as("")
+
+    def set_ovp(self, over_voltage: Quantity[Volt]) -> None:
+        self._setting_ovp = over_voltage.value_as("")
+
+    def set_ocp(self, over_current: Quantity[Ampere]) -> None:
+        self._setting_ocp = over_current.value_as("")
 
     def measure_voltage(self) -> Quantity[Volt]:
         # 出力ONなら設定値付近、OFFなら0

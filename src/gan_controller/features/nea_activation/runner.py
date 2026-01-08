@@ -111,8 +111,10 @@ class NEAActivationRunner(BaseRunner):
     def _init_aps_static(self, aps: IPowerSupplyAdapter) -> None:
         """電源(AMD)の静的設定"""
         # 電圧リミットなどの安全設定
-        v_limit = self.app_config.devices.aps.v_limit
-        aps.set_voltage(v_limit.si_value)
+        aps_config = self.app_config.devices.aps
+        aps.set_voltage(aps_config.v_limit)
+        aps.set_ovp(aps_config.ovp)
+        aps.set_ocp(aps_config.ocp)
 
         # 必要であればOCP(過電流保護)の設定などをここに追加
 
@@ -123,7 +125,7 @@ class NEAActivationRunner(BaseRunner):
 
     # =================================================================
 
-    def _wait_interruptible(self, duration_sec: float) -> bool:
+    def _wait_interruptable(self, duration_sec: float) -> bool:
         """指定時間待機する。中断フラグが立ったら即座に終了する。
 
         Args:
@@ -194,7 +196,7 @@ class NEAActivationRunner(BaseRunner):
         # 出力状態測定 (Bright)
         devices.laser.set_emission(True)  # レーザー出力開始
         # 安定するまで待機
-        if not self._wait_interruptible(stabilization_time):
+        if not self._wait_interruptable(stabilization_time):
             return False  # 待機中に中断されたら終了
 
         bright_pc_volt, bright_pc = sensor_reader.read_photocurrent_integrated(
@@ -205,7 +207,7 @@ class NEAActivationRunner(BaseRunner):
 
         # バックグラウンド測定 (Dark)
         devices.laser.set_emission(False)
-        if not self._wait_interruptible(stabilization_time):
+        if not self._wait_interruptable(stabilization_time):
             return False
 
         dark_pc_volt, dark_pc = sensor_reader.read_photocurrent_integrated(
@@ -351,14 +353,11 @@ class NEAActivationRunner(BaseRunner):
         )
 
         # レーザー制御
-        dev.laser.set_channel_power(
-            self.app_config.devices.ibeam.beam_ch,
-            params.laser_power_sv.value_as("m"),  # mW
-        )
+        dev.laser.set_channel_power(self.app_config.devices.ibeam.beam_ch, params.laser_power_sv)
 
         # AMD電源の制御
         if params.amd_enable:
-            dev.aps.set_current(params.amd_output_current.si_value)  # A
+            dev.aps.set_current(params.amd_output_current)  # A
             dev.aps.set_output(True)
         else:
             dev.aps.set_output(False)
