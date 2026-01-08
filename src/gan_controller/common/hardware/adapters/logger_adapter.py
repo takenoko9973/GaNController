@@ -29,9 +29,15 @@ class GM10Adapter(ILoggerAdapter):
         self._driver = driver
 
     def read_voltage(self, channel: int | str, unit: str = "V") -> Quantity[Volt]:
-        raw_val = self._driver.read_channel(channel)
-        # GM10の生の戻り値がエラー(nan)の場合のハンドリングもここで可能
-        return Quantity(raw_val, unit)  # 単位はGM10の設定によるが通常Vと仮定
+        try:
+            raw_val = self._driver.read_channel(channel)
+            return Quantity(raw_val, unit)
+
+        except (RuntimeError, ValueError) as e:
+            # チャンネル設定ミスや、機器からのエラー応答(E1など)があった場合
+            # ログを出力して NaN (欠損値) を返す
+            print(f"GM10 Read Error (Ch: {channel}): {e}")
+            return Quantity(float("nan"), unit)
 
     def read_integrated_voltage(
         self, channel: int | str, unit: str = "V", n: int = 1, interval: float = 0.1
@@ -46,22 +52,29 @@ class GM10Adapter(ILoggerAdapter):
 
         results: list[float] = []
         t0 = time.perf_counter()
-        for i in range(n):
-            # 測定予定時刻
-            target_time = t0 + i * interval
+        try:
+            for i in range(n):
+                # 測定予定時刻
+                target_time = t0 + i * interval
 
-            # 予定時刻まで待機
-            # (sleep(t) だけでは測定による遅延を考慮できないため)
-            now = time.perf_counter()
-            sleep_time = target_time - now
-            if sleep_time > 0:
-                time.sleep(sleep_time)
+                # 予定時刻まで待機
+                # (sleep(t) だけでは測定による遅延を考慮できないため)
+                now = time.perf_counter()
+                sleep_time = target_time - now
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
 
-            # 生のドライバを呼ぶ
-            value = self._driver.read_channel(channel)
-            results.append(value)
+                # 生のドライバを呼ぶ
+                value = self._driver.read_channel(channel)
+                results.append(value)
 
-        return Quantity(sum(results) / n, unit)
+            result_avg = sum(results) / n
+            return Quantity(result_avg, unit)
+
+        except (RuntimeError, ValueError) as e:
+            # 積算中にエラーが発生した場合 (チャンネル無効など)
+            print(f"GM10 Integrated Read Error (Ch: {channel}): {e}")
+            return Quantity(float("nan"), unit)
 
     def close(self) -> None:
         self._driver.close()
@@ -73,7 +86,10 @@ class MockLoggerAdapter(ILoggerAdapter):
         self.base_voltage = base_voltage
         self.noise_level = noise_level
 
-    def read_voltage(self, channel: int | str, unit: str = "V") -> Quantity[Volt]:  # noqa: ARG002
+    def read_voltage(self, channel: int | str, unit: str = "V") -> Quantity[Volt]:
+        if isinstance(channel, int) and channel < 0:
+            return Quantity(float("nan"), unit)
+
         # ランダムなノイズを乗せた値を返す
         noise = random.uniform(-self.noise_level, self.noise_level)  # noqa: S311
         val = self.base_voltage + noise
@@ -83,6 +99,13 @@ class MockLoggerAdapter(ILoggerAdapter):
     def read_integrated_voltage(
         self, channel: int | str, unit: str = "V", n: int = 1, interval: float = 0.1
     ) -> Quantity[Volt]:
+        if n <= 0:
+            msg = "n must be positive"
+            raise ValueError(msg)
+        if interval <= 0:
+            msg = "interval must be positive"
+            raise ValueError(msg)
+
         # ダミーでも時間の経過をシミュレートする (UIが固まらないか確認するため)
         total_wait = n * interval
         if total_wait > 0:

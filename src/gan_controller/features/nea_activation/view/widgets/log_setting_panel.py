@@ -47,12 +47,12 @@ class NEALogSettingPanel(QGroupBox):
 
     def get_config(self) -> NEALogConfig:
         return NEALogConfig(
-            update_date_folder=self.chk_date_update.isEnabled(),
-            update_major_number=self.chk_major_update.isEnabled(),
+            update_date_folder=self.chk_date_update.isChecked(),
+            update_major_number=self.chk_major_update.isChecked(),
             comment=self.comment_edit.text(),
         )
 
     def set_config(self, config: NEALogConfig) -> None:
-        self.chk_date_update.setEnabled(config.update_date_folder)
-        self.chk_major_update.setEnabled(config.update_major_number)
+        self.chk_date_update.setChecked(config.update_date_folder)
+        self.chk_major_update.setChecked(config.update_major_number)
         self.comment_edit.setText(config.comment)
