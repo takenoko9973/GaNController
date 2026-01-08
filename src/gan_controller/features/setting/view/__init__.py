@@ -1,1 +1,3 @@
-from .tab_widget import SettingsTab
+from .main_view import SettingMainView
+
+__all__ = ["SettingMainView"]

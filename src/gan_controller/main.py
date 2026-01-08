@@ -8,7 +8,7 @@ from gan_controller.application.app_feature import FeatureFactory
 from gan_controller.application.main_window import MainWindow
 
 
-def run_app(argv: list[str]) -> QApplication:
+def run_app(argv: list[str]) -> int:
     app = QApplication(argv)
     app.setStyle("Fusion")
 

@@ -3,15 +3,15 @@ from dataclasses import dataclass
 from PySide6.QtWidgets import QWidget
 
 # 共通基底クラス (PageControllerなど)
-from gan_controller.common.interfaces.tab_controller import ITabController
+from gan_controller.common.ui.tab_controller import ITabController
 from gan_controller.features.heat_cleaning.hc_controller import HeatCleaningController
 from gan_controller.features.heat_cleaning.ui.tab_widget import HeatCleaningTab
-from gan_controller.features.nea_activation.nea_controller import NEAActivationController
-from gan_controller.features.nea_activation.view.nea_tab_widget import NEAActivationTab
+from gan_controller.features.nea_activation.controller import NEAActivationController
+from gan_controller.features.nea_activation.view import NEAActivationMainView
 
 # 各機能のViewとControllerをインポート
-from gan_controller.features.setting.setting_controller import SettingsController
-from gan_controller.features.setting.view.tab_widget import SettingsTab
+from gan_controller.features.setting.controller import SettingsController
+from gan_controller.features.setting.view import SettingMainView
 
 
 @dataclass
@@ -37,12 +37,12 @@ class FeatureFactory:
         features.append(AppFeature("Heat Cleaning", hc_view, hc_ctrl))
 
         # NEA活性化 (NEA Activation)
-        nea_view = NEAActivationTab()
+        nea_view = NEAActivationMainView()
         nea_ctrl = NEAActivationController(nea_view)
         features.append(AppFeature("NEA Activation", nea_view, nea_ctrl))
 
         # 設定 (Settings)
-        setting_view = SettingsTab()
+        setting_view = SettingMainView()
         setting_ctrl = SettingsController(setting_view)
         features.append(AppFeature("Settings", setting_view, setting_ctrl))
 
