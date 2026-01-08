@@ -61,13 +61,13 @@ class NEAGraphPanel(QWidget):
         """グラフにプロットする線を定義"""
         # PC Graph
         self.graph_photocurrent.add_line(
-            "pc", "Photocurrent", "blue", marker="o", linestyle="None", is_right_axis=False
+            "pc", "Photocurrent", "blue", marker="o", line_style="None", is_right_axis=False
         )
         self.graph_photocurrent.add_line("pres", "Pressure", "black", is_right_axis=True)
 
         # QE Graph
         self.graph_qe.add_line(
-            "qe", "QE", "green", marker="o", linestyle="None", is_right_axis=False
+            "qe", "QE", "green", marker="o", line_style="None", is_right_axis=False
         )
         self.graph_qe.add_line("pres", "Pressure", "black", is_right_axis=True)
 
@@ -75,7 +75,7 @@ class NEAGraphPanel(QWidget):
         t = result.timestamp
 
         # PC, QE が負の場合は描画しない
-        pc_val = result.quantum_efficiency.si_value
+        pc_val = result.photocurrent.si_value
         if pc_val <= 0:
             pc_val = float("nan")
 
