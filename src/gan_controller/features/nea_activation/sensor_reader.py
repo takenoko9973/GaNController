@@ -28,13 +28,9 @@ class NEASensorReader:
     def read_hv(self) -> Quantity[Volt]:
         """High Voltage読み取り"""
         target_ch = self._config.devices.gm10.hv_ch
+        value = self._adapter.read_voltage(target_ch, "V")
 
-        if target_ch <= 0:
-            return Voltage(0.0)
-
-        value = self._adapter.read_voltage(self._config.devices.gm10.hv_ch, "V")
-
-        # なぜか 1e4 分少ないため、補正
+        # HVの仕様上、値が 1e4 分少ないため補正
         corrected_value = value.si_value * self.HV_READING_CORRECTION_FACTOR
         return Voltage(corrected_value)
 
