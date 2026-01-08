@@ -107,17 +107,17 @@ class PFR100L50:
         """応答確認"""
         return self._query_command("*IDN?")
 
-    def set_current(self, current: float) -> None:
+    def set_current(self, current_sv: float) -> None:
         """電流設定"""
-        self._send_command(f":CURR {current}")
+        self._send_command(f":CURR {current_sv}")
 
     def measure_current(self) -> float:
         """出力電流の実測"""
         return float(self._query_command(":MEAS:CURR?"))
 
-    def set_voltage(self, sv: float) -> None:
+    def set_voltage(self, volt_sv: float) -> None:
         """電圧設定"""
-        self._send_command(f":VOLT {sv}")
+        self._send_command(f":VOLT {volt_sv}")
 
     def measure_voltage(self) -> float:
         """出力電圧の実測"""
@@ -136,6 +136,14 @@ class PFR100L50:
         """出力状態確認"""
         resp = self._query_command(":OUTP?")
         return resp == "1"
+
+    def set_ovp(self, ovp_sv: float) -> None:
+        """過電圧保護設定"""
+        self._send_command(f":VOLT:PROT {ovp_sv}")
+
+    def set_ocp(self, ocp_sv: float) -> None:
+        """過電流保護設定"""
+        self._send_command(f":CURR:PROT {ocp_sv}")
 
     def close(self) -> None:
         if hasattr(self, "inst"):
