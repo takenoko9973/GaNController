@@ -37,7 +37,7 @@ class PFR100l50Config(BaseModel):
         Voltage(19)
     )
     ocp: Annotated[Quantity[Ampere], *PydanticUnit("A"), Field(description="過電流保護値[A]")] = (
-        Current(5.0)
+        Current(5)
     )
 
 
@@ -71,16 +71,14 @@ class DevicesConfig(BaseModel):
     hps: PFR100l50Config = Field(
         default_factory=lambda: PFR100l50Config(
             visa="TCPIP0::192.168.x.x::2268::SOCKET",  # HPS用デフォルト
-            v_limit=Voltage(18),
-            ovp=Voltage(19),
+            ocp=Current(10),
         ),
         description="Heater Power Supply",
     )
     aps: PFR100l50Config = Field(
         default_factory=lambda: PFR100l50Config(
             visa="TCPIP0::192.168.x.x::2268::SOCKET",  # AMD用デフォルト
-            v_limit=Voltage(18),
-            ovp=Voltage(19),
+            ocp=Current(5),
         ),
         description="AMD Power Supply",
     )
