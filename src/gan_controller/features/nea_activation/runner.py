@@ -10,6 +10,7 @@ from gan_controller.common.application.runner import BaseRunner
 from gan_controller.common.calculations.physics import calculate_quantum_efficiency
 from gan_controller.common.domain.electricity import ElectricMeasurement
 from gan_controller.common.domain.quantity import Ampere, Current, Quantity, Time, Value
+from gan_controller.common.domain.quantity.factory import Voltage
 from gan_controller.common.domain.quantity.unit_types import Volt
 from gan_controller.common.hardware.adapters.laser_adapter import ILaserAdapter
 from gan_controller.common.hardware.adapters.logger_adapter import ILoggerAdapter
@@ -235,9 +236,9 @@ class NEAActivationRunner(BaseRunner):
         sensor_reader: NEASensorReader,
         timestamp: float,
         bright_pc: Quantity[Ampere],
-        bright_pc_volt: Quantity[Volt],
+        bright_pc_voltage: Quantity[Volt],
         dark_pc: Quantity[Ampere],
-        dark_pc_volt: Quantity[Volt],
+        dark_pc_voltage: Quantity[Volt],
     ) -> None:
         """測定値の計算、Result生成、通知を行う"""
         # --- 計算 ---
@@ -245,11 +246,14 @@ class NEAActivationRunner(BaseRunner):
         laser_pv_watt = self.nea_config.control.laser_power_pv.si_value
 
         pc_val = bright_pc.si_value - dark_pc.si_value
+        pc_v_val = bright_pc_voltage.si_value - dark_pc_voltage.si_value
+
         qe_val = calculate_quantum_efficiency(
             current_amp=pc_val, laser_power_watt=laser_pv_watt, wavelength_nm=wavelength_nm
         )
 
         pc = Current(pc_val)
+        pc_voltage = Voltage(pc_v_val)
         qe = Value(qe_val, "%")
 
         # --- 読み取り ---
@@ -278,22 +282,24 @@ class NEAActivationRunner(BaseRunner):
             extraction_voltage=extraction_voltage,
             # PC
             photocurrent=pc,
-            bright_photocurrent=bright_pc,
-            bright_voltage=bright_pc_volt,
-            dark_photocurrent=dark_pc,
-            dark_voltage=dark_pc_volt,
+            photocurrent_voltage=pc_voltage,
+            bright_pc=bright_pc,
+            bright_pc_voltage=bright_pc_voltage,
+            dark_pc=dark_pc,
+            dark_pc_voltage=dark_pc_voltage,
             # QE
             quantum_efficiency=qe,
             # AMD power supply
             amd_electricity=electricity,
         )
+        event = ""
 
         # --- 出力 ---
         print("\033[32m" + f"{timestamp:.1f}[s]\t" + "\033[0m")
         print(f"{qe:.3e}, {pc:.3e}, {ext_pressure:.2e} (EXT)")
 
         if self._recorder:
-            self._recorder.record_data(result)
+            self._recorder.record_data(result, event)
 
         if self.emit_result:
             self.emit_result(result)
