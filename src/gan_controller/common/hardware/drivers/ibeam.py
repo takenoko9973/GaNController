@@ -28,7 +28,7 @@ class IBeam:
         self,
         rm: pyvisa.ResourceManager,
         resource_name: str,
-        baud_rate: int = 9600,
+        baud_rate: int = 115200,
         timeout: int = 2000,
     ) -> None:
         self.rm = rm
