@@ -8,7 +8,7 @@ import pyvisa.constants
 
 from gan_controller.common.application.runner import BaseRunner
 from gan_controller.common.calculations.physics import calculate_quantum_efficiency
-from gan_controller.common.domain.electricity import ElectricValuesDTO
+from gan_controller.common.domain.electricity import ElectricMeasurement
 from gan_controller.common.domain.quantity import Ampere, Current, Quantity, Time, Value
 from gan_controller.common.domain.quantity.unit_types import Volt
 from gan_controller.common.hardware.adapters.laser_adapter import ILaserAdapter
@@ -262,7 +262,7 @@ class NEAActivationRunner(BaseRunner):
         amd_v = devices.aps.measure_voltage()
         amd_w = devices.aps.measure_power()
 
-        electricity = ElectricValuesDTO(voltage=amd_v, current=amd_i, power=amd_w)
+        electricity = ElectricMeasurement(voltage=amd_v, current=amd_i, power=amd_w)
 
         # --- Result生成 ---
 

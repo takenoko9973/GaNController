@@ -99,7 +99,7 @@ class HCExecutionPanel(QGroupBox):
         self.hc_value_labels = {}
         self.amd_value_labels = {}
         for i, electric_prop in enumerate(ElectricProperties):
-            header_text = f"{electric_prop.get_name()} ({electric_prop.get_unit()})"
+            header_text = f"{electric_prop.name} ({electric_prop.unit})"
             lbl = QLabel(header_text)
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lbl.setStyleSheet("font-size: 10.5px; color: #555;")

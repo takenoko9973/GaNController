@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from gan_controller.common.domain.electricity import ElectricValuesDTO
+from gan_controller.common.domain.electricity import ElectricMeasurement
 from gan_controller.common.domain.quantity.quantity import Quantity
 from gan_controller.common.domain.quantity.unit_types import (
     Ampere,
@@ -35,4 +35,4 @@ class NEARunnerResult(ExperimentResult):
     # 量子効率
     quantum_efficiency: Quantity[Dimensionless]
     # AMDの電源情報
-    amd_electricity: ElectricValuesDTO
+    amd_electricity: ElectricMeasurement

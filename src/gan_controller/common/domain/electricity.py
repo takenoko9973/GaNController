@@ -1,60 +1,43 @@
-from enum import StrEnum
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any
-
-from pydantic import BaseModel
 
 from gan_controller.common.domain.quantity import Quantity
 from gan_controller.common.domain.quantity.unit_types import Ampere, Volt, Watt
 
 
-class ElectricProperties(StrEnum):
-    """電気特性"""
+class ElectricProperties(Enum):
+    """電気特性定義 (表示名と単位を保持)"""
 
-    CURRENT = "current"
-    VOLTAGE = "voltage"
-    POWER = "power"
+    # (フィールド名, 表示名, 単位)
+    CURRENT = ("current", "Current", "A")
+    VOLTAGE = ("voltage", "Voltage", "V")
+    POWER = ("power", "Power", "W")
 
-    @classmethod
-    def get_list(cls) -> list[str]:
-        return list(cls)
+    def __init__(self, field_name: str, display_name: str, unit: str) -> None:
+        self.field_name = field_name
+        self.display_name = display_name
+        self.unit_symbol = unit
 
-    def get_name(self) -> str:
-        if self == ElectricProperties.CURRENT:
-            return "Current"
-        if self == ElectricProperties.VOLTAGE:
-            return "Voltage"
-        if self == ElectricProperties.POWER:
-            return "Power"
+    @property
+    def name(self) -> str:
+        return self.field_name
 
-        msg = "Invalid enum value."
-        raise ValueError(msg)
+    @property
+    def unit(self) -> str:
+        return self.unit_symbol
 
-    def get_unit(self) -> str:
-        if self == ElectricProperties.CURRENT:
-            return "A"
-        if self == ElectricProperties.VOLTAGE:
-            return "V"
-        if self == ElectricProperties.POWER:
-            return "W"
-
-        msg = "Invalid enum value."
-        raise ValueError(msg)
+    def __str__(self) -> str:
+        return self.display_name
 
 
-class ElectricValuesDTO(BaseModel):
+@dataclass(frozen=True)
+class ElectricMeasurement:
     """電力測定データDTO"""
 
     current: Quantity[Ampere]
     voltage: Quantity[Volt]
     power: Quantity[Watt]
 
-    def get_value(self, enum: ElectricProperties) -> Quantity[Any]:
-        if enum == ElectricProperties.CURRENT:
-            return self.current
-        if enum == ElectricProperties.VOLTAGE:
-            return self.voltage
-        if enum == ElectricProperties.POWER:
-            return self.power
-
-        msg = f"Invalid enum value: {enum}"
-        raise ValueError(msg)
+    def get_quantity(self, prop: ElectricProperties) -> Quantity[Any]:
+        return getattr(self, prop.field_name)
