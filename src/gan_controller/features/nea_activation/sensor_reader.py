@@ -28,7 +28,7 @@ class NEASensorReader:
     def read_hv(self) -> Quantity[Volt]:
         """High Voltage読み取り"""
         target_ch = self._config.devices.gm10.hv_ch
-        value = self._adapter.read_voltage(target_ch, "V")
+        value = self._adapter.read_voltage(target_ch)
 
         # HVの仕様上、値が 1e4 分少ないため補正
         corrected_value = value.si_value * self.HV_READING_CORRECTION_FACTOR
@@ -39,7 +39,7 @@ class NEASensorReader:
     ) -> tuple[Quantity[Volt], Quantity[Ampere]]:
         """pcの値を積算 (生の値も返す)"""
         current_volt = self._adapter.read_integrated_voltage(
-            self._config.devices.gm10.pc_ch, "mV", n, interval
+            self._config.devices.gm10.pc_ch, n, interval
         )
         current_val = current_volt.si_value / shunt_r.si_value
         return current_volt, Current(current_val)
