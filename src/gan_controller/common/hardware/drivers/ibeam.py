@@ -203,7 +203,7 @@ class IBeam:
         self._validate_channel(ch)
 
         power_uw = int(power_mw * 1000)
-        self.send_command(f"ch {ch} pow {power_uw}")  # uW で入力
+        self.send_command(f"ch {ch} pow {power_uw} mic")  # uW で入力
 
     def get_channel_power(self, ch: int) -> str | None:
         """出力パワー取得(mW)"""
