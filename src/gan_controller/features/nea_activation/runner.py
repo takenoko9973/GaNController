@@ -360,6 +360,7 @@ class NEAActivationRunner(BaseRunner):
 
         # レーザー制御
         dev.laser.set_channel_power(self.app_config.devices.ibeam.beam_ch, params.laser_power_sv)
+        print(f"Set power: {dev.laser.get_channel_power(2).value_as('m')} mW")
 
         # AMD電源の制御
         if params.amd_enable:
