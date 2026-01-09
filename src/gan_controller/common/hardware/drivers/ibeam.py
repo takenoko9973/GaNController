@@ -1,3 +1,4 @@
+import re
 import time
 from typing import ClassVar, cast
 
@@ -188,29 +189,72 @@ class IBeam:
     # ============================================================
     def set_emission(self, enable: bool) -> None:
         """レーザー発振(Emission)制御"""
-        cmd = "la on" if enable else "la off"
-        self.send_command(cmd)
+        enable_str = "on" if enable else "off"
+        self.send_command(f"laser {enable_str}")  # "la"
+
+    def is_emission(self) -> bool:
+        return self.send_command("status laser")[0].upper() == "ON"  # sta la
+
+    # ============================================================
 
     def set_channel_enable(self, ch: int, enable: bool) -> None:
         """チャンネル有効/無効"""
         self._validate_channel(ch)
 
-        cmd = f"en {ch}" if enable else f"di {ch}"
-        self.send_command(cmd)
+        enable_str = "enable" if enable else "disable"  # "en" or "di"
+        self.send_command(f"{enable_str} {ch}")
+
+    def is_channel_enable(self, ch: int) -> bool:
+        return self.send_command(f"status channel {ch}")[0].upper() == "ON"  # sta ch
+
+    # ============================================================
 
     def set_channel_power(self, ch: int, power_mw: float) -> None:
         """出力パワー設定(mW)"""
         self._validate_channel(ch)
 
         power_uw = int(power_mw * 1000)
-        self.send_command(f"ch {ch} pow {power_uw} mic")  # uW で入力
+        self.send_command(f"ch {ch} pow {power_uw} mic")  # uW で入力 (mic -> micro)
 
-    def get_channel_power(self, ch: int) -> str | None:
-        """出力パワー取得(mW)"""
-        self._validate_channel(ch)
-        message = self.send_command("sh pow")  # レーザー出力中でないと取得できない
+    def _get_all_channel_powers(self) -> dict[int, float]:
+        """各チャンネルの設定出力取得 (mW)
 
-        return message[ch - 1]
+        返り値 : "CH<channel>, PWR: <value> <uW or mW>"
+        """
+        pattern = re.compile(r"CH(\d+),\s*PWR:\s*([\d.]+)\s*(mW|uW)")
+
+        reply = self.send_command("show level power")  # sh le? pow
+
+        powers: dict[int, float] = {}
+        for ln in reply:
+            match = re.match(pattern, ln, flags=re.IGNORECASE)  # 大文字小文字は一応無視
+
+            if match:
+                prefix_correct = 1e-3 if match[3].lower() == "uw" else 1
+                power = float(match[2]) * prefix_correct  # mW に変換
+                powers[int(match[1])] = power
+
+        return powers
+
+    def get_channel_power(self, ch: int) -> float:
+        """設定出力取得 (mW)"""
+        return self._get_all_channel_powers()[ch]
+
+    def get_output_power(self) -> float:
+        """実出力取得 (mW)"""
+        pattern = re.compile(r"PIC\s*=\s*([\d.]+)\s*(mW|uW)")
+
+        reply = self.send_command("show power")[-1]  # sh pow
+
+        match = re.match(pattern, reply, flags=re.IGNORECASE)
+        if match:
+            prefix_correct = 1e-3 if match[2].lower() == "uw" else 1
+            return float(match[1]) * prefix_correct  # mW に変換
+
+        print(f"[Warning] Can not parse output replay '{reply}'")
+        return float("nan")
+
+    # ============================================================
 
     def get_current(self, ch: int) -> str | None:
         self._validate_channel(ch)
@@ -218,15 +262,26 @@ class IBeam:
 
         return message[ch - 1]
 
-    def get_status(self, status: str = "LD_Driver", ch: int = 1) -> list[str] | None:  # noqa: ARG002
-        if status == "LD_Driver":
-            return self.send_command("sta la")
-        if status == "Temp":
-            return self.send_command("sta temp")  # 温度は機能してなさそう
-        if status == "UpTime":
-            return self.send_command("sta up")
+    def get_work_time(self) -> list[str]:
+        """Get the work hours (power on time and laser on time)"""
+        return self.send_command("status uptime")  # "sta up"
 
-        return None
+    def get_temperatures(self) -> list[float]:
+        """温度を取得 (仮)
+
+        機能してないかもしれない
+        """
+        pattern = re.compile(r"TEMP\s*=\s*([\d.]+)\s*C")
+
+        temperatures = []
+        for cmd in ["show temperature", "show temperature system"]:
+            reply = self.send_command(cmd)[-1]
+
+            match = re.match(pattern, reply, flags=re.IGNORECASE)
+            if match:
+                temperatures.append(float(match[1]))
+
+        return temperatures
 
     def close(self) -> None:
         """接続を終了する。終了前に必ず対話モード(prom on)に戻す。"""
@@ -257,11 +312,9 @@ def main() -> None:
         laser.set_emission(True)
         time.sleep(1)
         print(f"Power: {laser.get_channel_power(2)}")
-
-        print("LD status: {}".format(laser.get_status("LD_Driver")))
+        print(f"LD status: {laser.is_emission()}")
 
         laser.set_channel_power(2, 20)
-        # laser.laser_on()
         time.sleep(1)
         print(f"Power: {laser.get_channel_power(2)}")
 
@@ -270,9 +323,9 @@ def main() -> None:
 
     finally:
         laser.set_emission(False)
-        print("LD status: {}".format(laser.get_status("LD_Driver")))
+        print(f"LD status: {laser.is_emission()}")
         laser.set_channel_enable(2, False)
-        print("Up time: {}".format(laser.get_status("UpTime")))
+        print(f"Up time: {laser.get_work_time()}")
 
         del laser
         print("END")

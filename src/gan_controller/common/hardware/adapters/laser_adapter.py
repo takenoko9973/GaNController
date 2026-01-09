@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 from gan_controller.common.domain.quantity import Quantity, Watt
+from gan_controller.common.domain.quantity.factory import Power
 from gan_controller.common.hardware.drivers.ibeam import IBeam
 
 
@@ -16,6 +17,10 @@ class ILaserAdapter(ABC):
 
     @abstractmethod
     def set_channel_power(self, channel: int, power: Quantity[Watt]) -> None:
+        pass
+
+    @abstractmethod
+    def get_channel_power(self, channel: int) -> Quantity[Watt]:
         pass
 
     @abstractmethod
@@ -36,6 +41,9 @@ class IBeamAdapter(ILaserAdapter):
     def set_channel_power(self, channel: int, power: Quantity[Watt]) -> None:
         self._driver.set_channel_power(channel, power.value_as("m"))
 
+    def get_channel_power(self, channel: int) -> Quantity[Watt]:
+        return Power(self._driver.get_channel_power(channel), "m")
+
     def close(self) -> None:
         self._driver.close()
 
@@ -44,6 +52,7 @@ class IBeamAdapter(ILaserAdapter):
 class MockLaserAdapter(ILaserAdapter):
     def __init__(self) -> None:
         self._emission = False
+        self._power = Power(0.0)
 
     def set_emission(self, on: bool) -> None:
         self._emission = on
@@ -53,7 +62,11 @@ class MockLaserAdapter(ILaserAdapter):
         print(f"[Mock] Laser CH{channel} Enable: {enable}")
 
     def set_channel_power(self, channel: int, power: Quantity[Watt]) -> None:
-        print(f"[Mock] Laser CH{channel} Power: {power.value_as('m')}mW")
+        self._power = power
+        print(f"[Mock] Laser CH{channel} Power: {self._power.value_as('m')}mW")
+
+    def get_channel_power(self, channel: int) -> Quantity[Watt]:  # noqa: ARG002
+        return self._power
 
     def close(self) -> None:
         print("[Mock] Laser Closed")
