@@ -29,6 +29,9 @@ class GM10Adapter(ILoggerAdapter):
         self._driver = driver
 
     def read_voltage(self, channel: int | str, unit: str = "V") -> Quantity[Volt]:
+        if isinstance(channel, int) and channel <= 0:
+            return Quantity(float("nan"), unit)
+
         try:
             raw_val = self._driver.read_channel(channel)
             return Quantity(raw_val, unit)
@@ -36,7 +39,7 @@ class GM10Adapter(ILoggerAdapter):
         except (RuntimeError, ValueError) as e:
             # チャンネル設定ミスや、機器からのエラー応答(E1など)があった場合
             # ログを出力して NaN (欠損値) を返す
-            print(f"GM10 Read Error (Ch: {channel}): {e}")
+            print(f"\033[33m[WARNING] GM10 Read Error (Ch: {channel}): {e}\033[0m")
             return Quantity(float("nan"), unit)
 
     def read_integrated_voltage(
@@ -49,6 +52,11 @@ class GM10Adapter(ILoggerAdapter):
         if interval <= 0:
             msg = "interval must be positive"
             raise ValueError(msg)
+
+        # ============================================================
+
+        if isinstance(channel, int) and channel <= 0:
+            return Quantity(float("nan"), unit)
 
         results: list[float] = []
         t0 = time.perf_counter()
