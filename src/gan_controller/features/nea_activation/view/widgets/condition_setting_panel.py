@@ -47,7 +47,7 @@ class NEAConditionSettingsPanel(QGroupBox):
             value=10, minimum=1, maximum=10000, decimals=0, suffix=" kΩ"
         )
         self.laser_wavelength_spin = QDoubleSpinBox(
-            value=406, minimum=1, maximum=2000, decimals=0, suffix=" nm"
+            value=406, minimum=1, maximum=1000, decimals=0, suffix=" nm"
         )
         config_layout1.addWidget(QLabel("換算抵抗 :"), 0, 0)
         config_layout1.addWidget(self.shunt_r_spin, 0, 1)
@@ -59,12 +59,12 @@ class NEAConditionSettingsPanel(QGroupBox):
         config_layout2 = QGridLayout()
         config_layout2.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.stabilization_time_spin = QDoubleSpinBox(
-            value=1, minimum=0, maximum=10, decimals=1, singleStep=0.1, suffix=" s"
+            minimum=0, maximum=3, value=1, decimals=1, singleStep=0.1, suffix=" s"
         )
         self.integrated_interval_spin = QDoubleSpinBox(
-            value=0.1, minimum=0.1, maximum=10, decimals=1, singleStep=0.1, suffix=" s"
+            minimum=0.1, maximum=3, value=0.1, decimals=1, singleStep=0.1, suffix=" s"
         )
-        self.integrated_count_spin = QSpinBox(value=1, minimum=1, maximum=1000)
+        self.integrated_count_spin = QSpinBox(minimum=1, maximum=100, value=1)
         config_layout2.addWidget(QLabel("安定化時間 :"), 0, 0)
         config_layout2.addWidget(self.stabilization_time_spin, 0, 1)
         config_layout2.addWidget(QLabel("積算間隔 :"), 1, 0)

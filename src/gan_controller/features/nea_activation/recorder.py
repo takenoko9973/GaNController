@@ -24,24 +24,28 @@ class NEALogRecorder:
     def __init__(self, log_file: LogFile) -> None:
         self.file = log_file
 
+        # ログデータ項目定義
         self.columns: list[LogColumn] = [
             LogColumn("Time[s]", "{:.1f}", lambda r, _: r.timestamp),
             # Laser power
-            LogColumn("LP(SV)[W]", "{:.4E}", lambda r, _: r.laser_power_sv.si_value),
-            LogColumn("LP(PV)[W]", "{:.4E}", lambda r, _: r.laser_power_pv.si_value),
+            LogColumn("LP(SV)[W]", "{:.2E}", lambda r, _: r.laser_power_sv.si_value),
+            LogColumn("LP(PV)[W]", "{:.2E}", lambda r, _: r.laser_power_pv.si_value),
             # Quantum efficiency
             LogColumn("QE[%]", "{:.4E}", lambda r, _: r.quantum_efficiency.value_as("%")),
             # Photocurrent
             LogColumn("PC[A]", "{:.4E}", lambda r, _: r.photocurrent.si_value),
+            LogColumn("PC_V[V]", "{:.4E}", lambda r, _: r.photocurrent_voltage.si_value),
             # Pressure
             LogColumn("Pressure(EXT)[Pa]", "{:.4E}", lambda r, _: r.ext_pressure.si_value),
             LogColumn("Pressure(SIP)[Pa]", "{:.4E}", lambda r, _: r.sip_pressure.si_value),
-            # Bright photocurrent
-            LogColumn("BPc[A]", "{:.4E}", lambda r, _: r.bright_photocurrent.si_value),
-            # Dark photocurrent
-            LogColumn("DPc[A]", "{:.4E}", lambda r, _: r.dark_photocurrent.si_value),
             # Extraction voltage
             LogColumn("ExVolt[V]", "{:.1f}", lambda r, _: r.extraction_voltage.si_value),
+            # Bright photocurrent
+            LogColumn("BPc[A]", "{:.4E}", lambda r, _: r.bright_pc.si_value),
+            LogColumn("BPc_V[V]", "{:.4E}", lambda r, _: r.bright_pc_voltage.si_value),
+            # Dark photocurrent
+            LogColumn("DPc[A]", "{:.4E}", lambda r, _: r.dark_pc.si_value),
+            LogColumn("DPc_V[V]", "{:.4E}", lambda r, _: r.dark_pc_voltage.si_value),
             # AMD power supply
             LogColumn("AMD_V[V]", "{:.3f}", lambda r, _: r.amd_electricity.voltage.si_value),
             LogColumn("AMD_I[A]", "{:.3f}", lambda r, _: r.amd_electricity.current.si_value),

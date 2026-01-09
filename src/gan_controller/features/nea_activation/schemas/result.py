@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from gan_controller.common.domain.electricity import ElectricValuesDTO
+from gan_controller.common.domain.electricity import ElectricMeasurement
 from gan_controller.common.domain.quantity.quantity import Quantity
 from gan_controller.common.domain.quantity.unit_types import (
     Ampere,
@@ -28,11 +28,12 @@ class NEARunnerResult(ExperimentResult):
     extraction_voltage: Quantity[Volt]
     # フォトカレント
     photocurrent: Quantity[Ampere]
-    bright_photocurrent: Quantity[Ampere]  # レーザー照射時
-    bright_voltage: Quantity[Volt]  # 電圧換算
-    dark_photocurrent: Quantity[Ampere]  # レーザー未照射時
-    dark_voltage: Quantity[Volt]
+    photocurrent_voltage: Quantity[Volt]
+    bright_pc: Quantity[Ampere]  # レーザー照射時
+    bright_pc_voltage: Quantity[Volt]  # 電圧換算
+    dark_pc: Quantity[Ampere]  # レーザー未照射時
+    dark_pc_voltage: Quantity[Volt]
     # 量子効率
     quantum_efficiency: Quantity[Dimensionless]
     # AMDの電源情報
-    amd_electricity: ElectricValuesDTO
+    amd_electricity: ElectricMeasurement

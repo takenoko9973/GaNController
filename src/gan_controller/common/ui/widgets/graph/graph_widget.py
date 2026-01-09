@@ -164,7 +164,7 @@ class DualAxisGraph(QWidget):
         label: str,
         color: str,
         marker: str | None = None,
-        linestyle: str | None = None,
+        line_style: str | None = None,
         is_right_axis: bool = False,
     ) -> None:
         """プロットするラインを登録"""
@@ -182,8 +182,8 @@ class DualAxisGraph(QWidget):
         }
         if marker is not None:
             plot_kwargs["marker"] = marker
-        if linestyle is not None:
-            plot_kwargs["linestyle"] = linestyle
+        if line_style is not None:
+            plot_kwargs["linestyle"] = line_style
 
         # kwargsを展開
         (line,) = axis.plot([], [], **plot_kwargs)

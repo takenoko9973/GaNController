@@ -92,18 +92,24 @@ class GM10:
 
         return lines
 
-    def _parse_fdata_lines(self, lines: list[str]) -> dict[str, float]:
+    def _parse_fdata_lines(self, lines: list[str]) -> dict[str, tuple[float, str]]:
         """FDataのASCIIレスポンス行を解析して辞書化
 
+        返り値 : (数値, 単位文字列)
+
         形式: s_cccca1a2a3a4uuuuuuuuuufddddddddE-pp
+        ※ a1-4はそれぞれ1文字で表現されるアラームステータス
+        ※ u は単位を表し、左詰めで表示される
         例:   N 0001    V          +00123456E-03
         """
         result = {}
 
-        # Group1: ステータス (N, E, O, B...)
-        # Group2: チャンネル (0001, A001...)
-        # Group3: 数値文字列 (+12345678E-03)
-        pattern = re.compile(r"^([A-Z])\s+([\w]{4}).*?([+-]\d{8}E[+-]\d{2})")
+        # Group1: ステータス (N, E, O, B,...)
+        # Group2: チャンネル (0001, 0002,...)
+        # Group3: アラーム   (<空白>,H,L,h,l,R,r,...)
+        # Group4: 単位情報   (V, mV)
+        # Group5: 数値文字列 (+12345678E-03)
+        pattern = re.compile(r"^([A-Z])\s([\w]{4})(.{4})(.{10})([+-]\d{8}E[+-]\d{2})")
 
         for line in lines:
             # 日付・時刻行はスキップ
@@ -114,7 +120,9 @@ class GM10:
             if match:
                 status = match.group(1)
                 ch_id = match.group(2)
-                val_str = match.group(3)
+                alarm_stat = match.group(3)  # noqa: F841
+                unit = match.group(4)
+                val_str = match.group(5)
 
                 try:
                     if status in {"N", "D"}:  # Normal, Delta
@@ -129,14 +137,14 @@ class GM10:
                     else:  # その他不明ステータス
                         val = float(val_str)  # 一応変換を試みる
 
-                    result[ch_id] = val
+                    result[ch_id] = (val, unit.strip())
 
                 except ValueError:
-                    result[ch_id] = float("nan")
+                    result[ch_id] = (float("nan"), unit.strip())
 
         return result
 
-    def _get_fdata_range(self, start_ch: str, end_ch: str) -> dict[str, float]:
+    def _get_fdata_range(self, start_ch: str, end_ch: str) -> dict[str, tuple[float, str]]:
         """FDataコマンドの発行とレスポンス解析"""
         cmd = f"FData,0,{start_ch},{end_ch}"
         lines = self._query_multiline(cmd)
@@ -160,24 +168,30 @@ class GM10:
 
         return "Unknown"
 
-    def read_channels(self, start_ch: int | str, end_ch: int | str) -> dict[str, float]:
+    def read_channels(self, start_ch: int | str, end_ch: int | str) -> dict[str, tuple[float, str]]:
+        # start_ch より end_ch が大きい場合は入れ替え
+        if isinstance(start_ch, int) and isinstance(end_ch, int) and start_ch < end_ch:
+            temp = start_ch
+            start_ch = end_ch
+            end_ch = temp
+            del temp
+
         s_ch = self._fmt_ch_str(start_ch)
         e_ch = self._fmt_ch_str(end_ch)
 
         return self._get_fdata_range(s_ch, e_ch)
 
-    def read_channel(self, channel: int | str) -> float:
+    def read_channel(self, channel: int | str) -> tuple[float, str]:
         ch_str = self._fmt_ch_str(channel)
 
         # FDataコマンドで「開始CH」と「終了CH」を同じにして単一取得
-        data_dict = self._get_fdata_range(ch_str, ch_str)
-
+        data_dict = self.read_channels(ch_str, ch_str)
         if ch_str in data_dict:
             return data_dict[ch_str]
 
         # 取得できなかった場合 (レスポンスに含まれていない場合)
         print(f"GM10 Warning: Channel {ch_str} not found in response.")
-        return float("nan")
+        return (float("nan"), "")
 
     def close(self) -> None:
         if hasattr(self, "inst"):
@@ -193,7 +207,8 @@ def main() -> None:
     print(visa_list)
 
     logger = GM10(rm, VISA_ADDRESS)
-    logger.read_channel(10)
+    result = logger.read_channel(10)
+    print(result)
     logger.close()
 
     del logger
@@ -202,7 +217,3 @@ def main() -> None:
 if __name__ == "__main__":
     main()
     print("END")
-
-"""
-2024/06/07  Version1.0  Idei@09Laser404
-"""
