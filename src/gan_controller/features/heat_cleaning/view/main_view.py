@@ -2,13 +2,15 @@ from PySide6.QtCore import Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 
-from gan_controller.features.heat_cleaning.view.widgets.condition_panel import HCConditionPanel
-from gan_controller.features.heat_cleaning.view.widgets.graph_panel import HCGraphPanel
-from gan_controller.features.heat_cleaning.view.widgets.log_setting_panel import HCLogSettingPanel
-from gan_controller.features.heat_cleaning.view.widgets.protocol_select_panel import (
+from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
+from gan_controller.features.heat_cleaning.view.widgets import (
+    HCConditionPanel,
+    HCExecutionPanel,
+    HCGraphPanel,
+    HCLogSettingPanel,
+    HCMeasurePanel,
     HCProtocolSelectorPanel,
 )
-from heater_amd_controller.views.heat_cleaning.execution_panel import HCExecutionPanel
 
 
 class HeatCleaningMainView(QWidget):
@@ -56,6 +58,7 @@ class HeatCleaningMainView(QWidget):
         self.condition_panel = HCConditionPanel()
         self.log_setting_panel = HCLogSettingPanel()
         self.execution_panel = HCExecutionPanel()
+        self.measure_panel = HCMeasurePanel()
 
         left_layout.addLayout(self.protocol_select_panel)
         left_layout.addSpacing(10)
@@ -64,6 +67,8 @@ class HeatCleaningMainView(QWidget):
         left_layout.addWidget(self.log_setting_panel)
         left_layout.addSpacing(10)
         left_layout.addWidget(self.execution_panel)
+        left_layout.addSpacing(10)
+        left_layout.addWidget(self.measure_panel)
         left_layout.addStretch()
 
         return left_panel
@@ -92,4 +97,16 @@ class HeatCleaningMainView(QWidget):
         self.shortcut_save_as = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
         self.shortcut_save_as.activated.connect(self.save_as_requested.emit)
 
-    # ============================================================================
+    # =============================================================================
+
+    def get_full_config(self) -> ProtocolConfig:
+        sequence, condition = self.condition_panel.get_config()
+        return ProtocolConfig(
+            sequence=sequence,
+            condition=condition,
+            log=self.log_setting_panel.get_config(),
+        )
+
+    def set_full_config(self, config: ProtocolConfig) -> None:
+        self.condition_panel.set_config(config.sequence, config.condition)
+        self.log_setting_panel.set_config(config.log)
