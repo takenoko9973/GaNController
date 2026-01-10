@@ -5,20 +5,23 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
 
+from gan_controller.common.domain.quantity.factory import Current, Time, Value
 from gan_controller.common.ui.widgets import CheckableSpinBox
 from gan_controller.features.heat_cleaning.domain.sequence import SequenceMode
+from gan_controller.features.heat_cleaning.schemas.config import HCConditionConfig, HCSequenceConfig
 
 
 class HCConditionPanel(QGroupBox):
     """シーケンス設定用ウィジェット"""
 
-    sequence_time_spins: dict[str, QDoubleSpinBox]  # シーケンス要素
+    sequence_time_spins: dict[SequenceMode, QDoubleSpinBox]  # シーケンス要素
 
-    sequence_repeat_spin: QDoubleSpinBox  # シーケンス繰り返し回数
+    sequence_repeat_spin: QSpinBox  # シーケンス繰り返し回数
     logging_interval_spin: QDoubleSpinBox  # ログ間隔
 
     hc_checked_spin: CheckableSpinBox  # HC 電流値
@@ -55,7 +58,7 @@ class HCConditionPanel(QGroupBox):
             layout.addWidget(label, col, 0)
             layout.addWidget(double_spin_box, col, 1)
 
-            self.sequence_time_spins[section_mode.display_name] = double_spin_box
+            self.sequence_time_spins[section_mode] = double_spin_box
 
         return layout
 
@@ -65,7 +68,7 @@ class HCConditionPanel(QGroupBox):
         setting_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         config_layout1 = QGridLayout()
-        self.sequence_repeat_spin = QDoubleSpinBox(value=1, minimum=1, decimals=0)
+        self.sequence_repeat_spin = QSpinBox(value=1, minimum=1)
         self.logging_interval_spin = QDoubleSpinBox(value=10, minimum=1, decimals=0, suffix=" s")
         config_layout1.addWidget(QLabel("繰り返し回数"), 0, 0)
         config_layout1.addWidget(self.sequence_repeat_spin, 0, 1)
@@ -83,3 +86,51 @@ class HCConditionPanel(QGroupBox):
         setting_layout.addLayout(config_layout2)
 
         return setting_layout
+
+    # =============================================================================
+
+    def get_config(self) -> tuple[HCSequenceConfig, HCConditionConfig]:
+        sequence_config = HCSequenceConfig(
+            rising_time=Time(self.sequence_time_spins[SequenceMode.RISING].value(), "hour"),
+            heating_time=Time(self.sequence_time_spins[SequenceMode.HEAT_CLEANING].value(), "hour"),
+            decrease_time=Time(self.sequence_time_spins[SequenceMode.DECREASE].value(), "hour"),
+            wait_time=Time(self.sequence_time_spins[SequenceMode.WAIT].value(), "hour"),
+        )
+        condition_config = HCConditionConfig(
+            repeat_count=Value(self.sequence_repeat_spin.value()),
+            logging_interval=Time(self.logging_interval_spin.value()),
+            # ===
+            hc_enabled=self.hc_checked_spin.isChecked(),
+            hc_current=Current(self.hc_checked_spin.value()),
+            # ===
+            amd_enabled=self.amd_checked_spin.isChecked(),
+            amd_current=Current(self.amd_checked_spin.value()),
+        )
+        return sequence_config, condition_config
+
+    def set_config(
+        self, sequence_config: HCSequenceConfig, condition_config: HCConditionConfig
+    ) -> None:
+        # === Sequence
+        self.sequence_time_spins[SequenceMode.RISING].setValue(
+            sequence_config.rising_time.value_as("hour")
+        )
+        self.sequence_time_spins[SequenceMode.HEAT_CLEANING].setValue(
+            sequence_config.heating_time.value_as("hour")
+        )
+        self.sequence_time_spins[SequenceMode.DECREASE].setValue(
+            sequence_config.decrease_time.value_as("hour")
+        )
+        self.sequence_time_spins[SequenceMode.WAIT].setValue(
+            sequence_config.wait_time.value_as("hour")
+        )
+
+        # === Condition
+        self.sequence_repeat_spin.setValue(int(condition_config.repeat_count.si_value))
+        self.logging_interval_spin.setValue(condition_config.logging_interval.si_value)
+        # HC
+        self.hc_checked_spin.setChecked(condition_config.hc_enabled)
+        self.hc_checked_spin.setValue(condition_config.hc_current.si_value)
+        # AMD
+        self.amd_checked_spin.setChecked(condition_config.amd_enabled)
+        self.amd_checked_spin.setValue(condition_config.amd_current.si_value)
