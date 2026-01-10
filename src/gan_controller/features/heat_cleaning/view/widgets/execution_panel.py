@@ -50,7 +50,7 @@ class HCExecutionPanel(QGroupBox):
         layout.addSpacing(10)
         layout.addLayout(self._create_control_section())  # 制御
 
-        self._setup_connections()
+        self._connect_signal()
 
     def _create_status_section(self) -> QLayout:
         time_layout = QHBoxLayout()
@@ -151,7 +151,7 @@ class HCExecutionPanel(QGroupBox):
 
         return control_layout
 
-    def _setup_connections(self) -> None:
+    def _connect_signal(self) -> None:
         """シグナル設定"""
         # クリック時のシグナル接続
         self.start_button.clicked.connect(self.start_requested.emit)

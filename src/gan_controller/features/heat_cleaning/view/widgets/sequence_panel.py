@@ -13,7 +13,7 @@ from gan_controller.common.ui.widgets import CheckableSpinBox
 from gan_controller.features.heat_cleaning.domain.sequence import SequenceMode
 
 
-class SequencesPanel(QGroupBox):
+class HCSequencePanel(QGroupBox):
     """シーケンス設定用ウィジェット"""
 
     sequence_time_spins: dict[str, QDoubleSpinBox]  # シーケンス要素

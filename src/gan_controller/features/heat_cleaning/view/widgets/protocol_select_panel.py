@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QPushButton, QWidget
 
 
-class ProtocolSelectorPanel(QHBoxLayout):
+class HCProtocolSelectorPanel(QHBoxLayout):
     protocol_combo: QComboBox
     save_button: QPushButton
 
