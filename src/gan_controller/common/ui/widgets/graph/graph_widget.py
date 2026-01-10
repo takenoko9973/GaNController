@@ -114,8 +114,8 @@ class DualAxisGraph(QWidget):
         # 線形表示の場合、軸の上の方に指数が表示されるため、手動で指定
         if left_scale == AxisScale.LINEAR:
             self.ax_left.yaxis.set_major_formatter(FuncFormatter(self._sci_mathtext))
-        if left_scale == AxisScale.LINEAR:
-            self.ax_left.yaxis.set_major_formatter(FuncFormatter(self._sci_mathtext))
+        if right_scale == AxisScale.LINEAR:
+            self.ax_right.yaxis.set_major_formatter(FuncFormatter(self._sci_mathtext))
 
         # ラインオブジェクトの辞書 (再描画の高速化用)
         self.lines_left: dict[str, Line2D] = {}
