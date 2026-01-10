@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from contextlib import ExitStack
 from dataclasses import dataclass
 from typing import Any
 
@@ -76,41 +77,43 @@ class RealDeviceFactory(AbstractDeviceFactory):
         # 実機接続用のResourceManagerを作成
         rm = pyvisa.ResourceManager()
 
-        try:
-            # Logger (GM10)
+        # 失敗した場合、デバイスとの接続を切るスタックを作成
+        with ExitStack() as stack:
+            stack.callback(rm.close)
+
             try:
+                # Logger (GM10)
                 gm10 = GM10(rm, config.devices.gm10.visa)
                 logger_adapter = GM10Adapter(gm10)
-            except Exception as e:
-                print(f"\033[33m[CRITICAL] GM10 Connection Failed ({e}).\033[0m")
-                raise
+                stack.callback(logger_adapter.close)
 
-            # Power Supply (AMD/PFR100L50)
-            try:
-                aps = PFR100L50(rm, config.devices.aps.visa)
-                aps_adapter = PFR100L50Adapter(aps)
-                print(f"APS Connected: {config.devices.aps.visa}")
+                # Power Supply (AMD/PFR100L50)
+                try:
+                    aps = PFR100L50(rm, config.devices.aps.visa)
+                    aps_adapter = PFR100L50Adapter(aps)
+                    stack.callback(aps_adapter.close)
+                except Exception as e:  # noqa: BLE001
+                    # 警告だけ出して、MockAdapter (何もしないクラス) を割り当てる
+                    print(
+                        f"\033[33m[WARNING] APS Connection Failed ({e}). Using Mock adapter.\033[0m"
+                    )
+                    aps_adapter = MockPowerSupplyAdapter()
 
-            except Exception as e:  # noqa: BLE001
-                # 警告だけ出して、MockAdapter (何もしないクラス) を割り当てる
-                print(f"\033[33m[WARNING] APS Connection Failed ({e}). Using Mock adapter.\033[0m")
-                aps_adapter = MockPowerSupplyAdapter()
-
-            # Laser (IBeam)
-            try:
+                # Laser (IBeam)
                 laser_port = f"COM{config.devices.ibeam.com_port}"
                 laser = IBeam(rm, laser_port)
                 laser_adapter = IBeamAdapter(laser)
+                stack.callback(laser_adapter.close)
+
+                # 成功したら、スタックをすべて削除
+                stack.pop_all()
+
+                return NEADevices(logger=logger_adapter, aps=aps_adapter, laser=laser_adapter), rm
+
             except Exception as e:
-                print(f"\033[33m[CRITICAL] IBeam Connection Failed ({e}).\033[0m")
+                print(f"[CRITICAL] Device creation failed: {e}")
+                # withから出ると、スタックされた処理が実行される
                 raise
-
-            return NEADevices(logger=logger_adapter, aps=aps_adapter, laser=laser_adapter), rm
-
-        except Exception:
-            # 生成途中で失敗した場合、作成したrmを閉じる必要がある
-            rm.close()
-            raise
 
 
 # =================================================================
