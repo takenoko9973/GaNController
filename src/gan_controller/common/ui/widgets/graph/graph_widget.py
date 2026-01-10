@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, StrEnum, auto
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -53,11 +53,18 @@ class DebouncedFigureCanvas(FigureCanvas):
             super().resizeEvent(new_event)
 
 
-class AxisScale(Enum):
+class AxisScale(StrEnum):
     """軸のスケール設定"""
 
     LINEAR = "linear"
     LOG = "log"
+
+
+class DisplayMode(Enum):
+    """軸の表示方法設定 (Linearのみ)"""
+
+    NORMAL = auto()
+    EXPONENTIAL = auto()
 
 
 class DualAxisGraph(QWidget):
@@ -71,6 +78,8 @@ class DualAxisGraph(QWidget):
         right_label: str,
         left_scale: AxisScale = AxisScale.LINEAR,
         right_scale: AxisScale = AxisScale.LINEAR,
+        left_display: DisplayMode = DisplayMode.NORMAL,
+        right_display: DisplayMode = DisplayMode.NORMAL,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -112,9 +121,9 @@ class DualAxisGraph(QWidget):
         self.ax_left.set_yscale(left_scale.value)
         self.ax_right.set_yscale(right_scale.value)
         # 線形表示の場合、軸の上の方に指数が表示されるため、手動で指定
-        if left_scale == AxisScale.LINEAR:
+        if left_scale == AxisScale.LINEAR and left_display == DisplayMode.EXPONENTIAL:
             self.ax_left.yaxis.set_major_formatter(FuncFormatter(self._sci_mathtext))
-        if right_scale == AxisScale.LINEAR:
+        if right_scale == AxisScale.LINEAR and right_display == DisplayMode.EXPONENTIAL:
             self.ax_right.yaxis.set_major_formatter(FuncFormatter(self._sci_mathtext))
 
         # ラインオブジェクトの辞書 (再描画の高速化用)

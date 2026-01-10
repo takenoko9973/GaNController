@@ -2,6 +2,7 @@ from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget
 
 from gan_controller.common.ui.widgets import AxisScale, DualAxisGraph
+from gan_controller.common.ui.widgets.graph.graph_widget import DisplayMode
 from gan_controller.features.nea_activation.schemas import NEARunnerResult
 
 
@@ -34,6 +35,7 @@ class NEAGraphPanel(QWidget):
             "Photocurrent (A)",
             "Pressure (Pa)",
             right_scale=AxisScale.LOG,
+            left_display=DisplayMode.EXPONENTIAL,
         )
         self.graph_photocurrent.setMinimumWidth(500)
         self.graph_photocurrent.setMinimumHeight(300)
@@ -44,6 +46,7 @@ class NEAGraphPanel(QWidget):
             "QE (%)",
             "Pressure (Pa)",
             right_scale=AxisScale.LOG,
+            left_display=DisplayMode.EXPONENTIAL,
         )
         self.graph_qe.setMinimumWidth(500)
         self.graph_qe.setMinimumHeight(300)
