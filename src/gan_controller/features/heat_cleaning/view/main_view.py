@@ -2,12 +2,12 @@ from PySide6.QtCore import Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 
+from gan_controller.features.heat_cleaning.view.widgets.condition_panel import HCConditionPanel
 from gan_controller.features.heat_cleaning.view.widgets.graph_panel import HCGraphPanel
 from gan_controller.features.heat_cleaning.view.widgets.log_setting_panel import HCLogSettingPanel
 from gan_controller.features.heat_cleaning.view.widgets.protocol_select_panel import (
     HCProtocolSelectorPanel,
 )
-from gan_controller.features.heat_cleaning.view.widgets.sequence_panel import HCSequencePanel
 from heater_amd_controller.views.heat_cleaning.execution_panel import HCExecutionPanel
 
 
@@ -17,7 +17,7 @@ class HeatCleaningMainView(QWidget):
 
     # 左側 (入力欄、装置表示)
     protocol_select_panel: HCProtocolSelectorPanel
-    sequences_panel: HCSequencePanel
+    condition_panel: HCConditionPanel
     log_setting_panel: HCLogSettingPanel
     execution_panel: HCExecutionPanel
     # 右側 (グラフ)
@@ -53,13 +53,13 @@ class HeatCleaningMainView(QWidget):
         left_layout = QVBoxLayout(left_panel)
 
         self.protocol_select_panel = HCProtocolSelectorPanel()
-        self.sequences_panel = HCSequencePanel()
+        self.condition_panel = HCConditionPanel()
         self.log_setting_panel = HCLogSettingPanel()
         self.execution_panel = HCExecutionPanel()
 
         left_layout.addLayout(self.protocol_select_panel)
         left_layout.addSpacing(10)
-        left_layout.addWidget(self.sequences_panel)
+        left_layout.addWidget(self.condition_panel)
         left_layout.addSpacing(10)
         left_layout.addWidget(self.log_setting_panel)
         left_layout.addSpacing(10)
