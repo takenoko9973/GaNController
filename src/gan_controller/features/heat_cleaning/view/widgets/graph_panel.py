@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from gan_controller.common.ui.widgets import AxisScale, DualAxisGraph
+from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
 
 
 class HCGraphPanel(QWidget):
@@ -33,3 +34,48 @@ class HCGraphPanel(QWidget):
         layout.addWidget(self.graph_power)
         layout.addSpacing(10)
         layout.addWidget(self.graph_pressure)
+
+        self._setup_lines()
+
+    def _setup_lines(self) -> None:
+        """グラフにプロットする線を定義"""
+        # Power Graph
+        self.graph_power.add_line("temp", "Temp(TC)[℃]", "red", is_right_axis=False)
+        self.graph_power.add_line("heater_power", "Heater[W]", "orange", is_right_axis=True)
+        self.graph_power.add_line("amd_power", "AMD[W]", "gold", is_right_axis=True)
+
+        # Pressure Graph
+        self.graph_pressure.add_line("temp", "Temp(TC)[℃]", "red", is_right_axis=False)
+        self.graph_pressure.add_line("ext_pres", "Pressure(EXT)[Pa]", "green", is_right_axis=True)
+        self.graph_pressure.add_line("sip_pres", "Pressure(SIP)[Pa]", "purple", is_right_axis=True)
+
+    def update_graph(self, result: HCRunnerResult) -> None:
+        t = result.total_timestamp
+
+        # --- Photocurrent Graph の更新 ---
+        # Resultオブジェクトから値を取り出し、辞書形式でグラフに渡す
+        self.graph_power.update_point(
+            x_val=t.value_as("hour"),
+            values={
+                "temp": result.case_temperature.si_value,
+                "heater_power": result.hc_electricity.power.si_value,
+                "amd_power": result.amd_electricity.power.si_value,
+            },
+        )
+
+        # --- QE Graph の更新 ---
+        self.graph_pressure.update_point(
+            x_val=t.value_as("hour"),
+            values={
+                "temp": result.case_temperature.si_value,
+                "ext_pres": result.ext_pressure.si_value,
+                "sip_pres": result.sip_pressure.si_value,
+            },
+        )
+
+    def clear_graph(self) -> None:
+        """グラフデータをクリアして再初期化"""
+        self.graph_power.clear_data()
+        self.graph_pressure.clear_data()
+
+        self._setup_lines()  # ライン再設定
