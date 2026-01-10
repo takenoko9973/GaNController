@@ -24,7 +24,7 @@ class Quantity[T]:
         self.display_unit = base
 
     @property
-    def si_value(self) -> float:
+    def base_value(self) -> float:
         """基本単位(SI)での値を取得 (例: 1.2 mA なら 0.0012)"""
         return self._value_si
 

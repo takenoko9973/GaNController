@@ -43,28 +43,28 @@ class TestQuantityParserEdgeCases:
         q_m = Quantity(1, "m")
         assert q_m.unit == "m"
         assert q_m.display_prefix == ""
-        assert q_m.si_value == 1.0
+        assert q_m.base_value == 1.0
 
         # "ms" -> ミリ秒 (prefix="m", unit="s")
         q_ms = Quantity(1, "ms")
         assert q_ms.unit == "s"
         assert q_ms.display_prefix == "m"
-        assert q_ms.si_value == 0.001  # noqa: PLR2004
+        assert q_ms.base_value == 0.001  # noqa: PLR2004
 
         # "mm" -> ミリメートル (prefix="m", unit="m")
         q_mm = Quantity(1, "mm")
         assert q_mm.unit == "m"
         assert q_mm.display_prefix == "m"
-        assert q_mm.si_value == 0.001  # noqa: PLR2004
+        assert q_mm.base_value == 0.001  # noqa: PLR2004
 
     def test_dimensionless_units(self) -> None:
         """無次元量や特殊単位のテスト"""
         # "%"
         q_pct = Quantity(50, "%")
-        assert q_pct.si_value == 0.5  # noqa: PLR2004
+        assert q_pct.base_value == 0.5  # noqa: PLR2004
         assert str(q_pct) == "50.0 %"
 
         # "ppm"
         q_ppm = Quantity(100, "ppm")
-        assert q_ppm.si_value == 100 * 1e-6
+        assert q_ppm.base_value == 100 * 1e-6
         assert str(q_ppm) == "100.0 ppm"

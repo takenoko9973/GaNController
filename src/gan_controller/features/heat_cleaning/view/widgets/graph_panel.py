@@ -57,9 +57,9 @@ class HCGraphPanel(QWidget):
         self.graph_power.update_point(
             x_val=t.value_as("hour"),
             values={
-                "temp": result.case_temperature.si_value,
-                "heater_power": result.hc_electricity.power.si_value,
-                "amd_power": result.amd_electricity.power.si_value,
+                "temp": result.case_temperature.base_value,
+                "heater_power": result.hc_electricity.power.base_value,
+                "amd_power": result.amd_electricity.power.base_value,
             },
         )
 
@@ -67,9 +67,9 @@ class HCGraphPanel(QWidget):
         self.graph_pressure.update_point(
             x_val=t.value_as("hour"),
             values={
-                "temp": result.case_temperature.si_value,
-                "ext_pres": result.ext_pressure.si_value,
-                "sip_pres": result.sip_pressure.si_value,
+                "temp": result.case_temperature.base_value,
+                "ext_pres": result.ext_pressure.base_value,
+                "sip_pres": result.sip_pressure.base_value,
             },
         )
 

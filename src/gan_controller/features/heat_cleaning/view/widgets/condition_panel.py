@@ -126,11 +126,11 @@ class HCConditionPanel(QGroupBox):
         )
 
         # === Condition
-        self.sequence_repeat_spin.setValue(int(condition_config.repeat_count.si_value))
-        self.logging_interval_spin.setValue(condition_config.logging_interval.si_value)
+        self.sequence_repeat_spin.setValue(int(condition_config.repeat_count.base_value))
+        self.logging_interval_spin.setValue(condition_config.logging_interval.base_value)
         # HC
         self.hc_checked_spin.setChecked(condition_config.hc_enabled)
-        self.hc_checked_spin.setValue(condition_config.hc_current.si_value)
+        self.hc_checked_spin.setValue(condition_config.hc_current.base_value)
         # AMD
         self.amd_checked_spin.setChecked(condition_config.amd_enabled)
-        self.amd_checked_spin.setValue(condition_config.amd_current.si_value)
+        self.amd_checked_spin.setValue(condition_config.amd_current.base_value)

@@ -7,7 +7,7 @@ from gan_controller.common.domain.quantity.quantity import Quantity
 class TestQuantity:
     def test_percent(self) -> None:
         q = Quantity(12.3, "%")
-        assert q.si_value == pytest.approx(0.123)
+        assert q.base_value == pytest.approx(0.123)
         assert q.value_as("%") == pytest.approx(12.3)
 
     def test_meter(self) -> None:
@@ -15,34 +15,34 @@ class TestQuantity:
         q = Quantity(200, "m")
         assert q.unit == "m"
         assert q.display_prefix == ""
-        assert q.si_value == 200  # noqa: PLR2004
+        assert q.base_value == 200  # noqa: PLR2004
         assert q.value_as("m") == 200000  # noqa: PLR2004
 
         q = Quantity(200, "mm")
         assert q.unit == "m"
         assert q.display_prefix == "m"
-        assert q.si_value == 0.2  # noqa: PLR2004
+        assert q.base_value == 0.2  # noqa: PLR2004
         assert q.value_as("m") == 200  # noqa: PLR2004
 
     def test_second_basic(self) -> None:
         q = Quantity(2, "s")
-        assert q.si_value == 2  # noqa: PLR2004
+        assert q.base_value == 2  # noqa: PLR2004
         assert format(q, ".1f") == "2.0 s"
 
     def test_millisecond(self) -> None:
         q = Quantity(1, "ms")
-        assert q.si_value == 0.001  # noqa: PLR2004
+        assert q.base_value == 0.001  # noqa: PLR2004
         assert format(q, ".1f") == "1.0 ms"
 
     def test_minute_normalization(self) -> None:
         q = Quantity(2, "mins")
-        assert q.si_value == 120  # noqa: PLR2004
+        assert q.base_value == 120  # noqa: PLR2004
         assert q.unit == "s"
         assert format(q, ".1f") == "2.0 min"
 
     def test_hour_normalization(self) -> None:
         q = Quantity(0.5, "hours")
-        assert q.si_value == 1800  # noqa: PLR2004
+        assert q.base_value == 1800  # noqa: PLR2004
         assert q.unit == "s"
         assert format(q, ".1f") == "0.5 hour"
 
@@ -72,29 +72,29 @@ class TestQuantity:
 class TestFactory:
     def test_factory_time(self) -> None:
         q = Time(3)
-        assert q.si_value == 3  # noqa: PLR2004
+        assert q.base_value == 3  # noqa: PLR2004
         assert format(q, ".1f") == "3.0 s"
 
     def test_factory_time_ms(self) -> None:
         q = Time(1, "m")
-        assert q.si_value == 0.001  # noqa: PLR2004
+        assert q.base_value == 0.001  # noqa: PLR2004
         assert format(q, ".1f") == "1.0 ms"
 
     def test_factory_minute(self) -> None:
         q = Time(3, "min")
-        assert q.si_value == 180  # noqa: PLR2004
+        assert q.base_value == 180  # noqa: PLR2004
         assert format(q, ".1f") == "3.0 min"
 
     def test_factory_hour(self) -> None:
         q = Time(2, "hour")
-        assert q.si_value == 7200  # noqa: PLR2004
+        assert q.base_value == 7200  # noqa: PLR2004
         assert format(q, ".1f") == "2.0 hour"
 
     def test_dimensionless(self) -> None:
         q = Value(3)
-        assert q.si_value == 3  # noqa: PLR2004
+        assert q.base_value == 3  # noqa: PLR2004
         assert format(q, ".1f") == "3.0"
 
         q = Value(12, "%")
-        assert q.si_value == 0.12  # noqa: PLR2004
+        assert q.base_value == 0.12  # noqa: PLR2004
         assert format(q, ".1f") == "12.0 %"

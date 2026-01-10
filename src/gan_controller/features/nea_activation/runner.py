@@ -192,7 +192,7 @@ class NEAActivationRunner(BaseRunner):
         elapsed_perf = time.perf_counter() - start_perf
         self._process_pending_requests(devices)  # 設定に変更があるか確認
 
-        stabilization_time = self.nea_config.condition.stabilization_time.si_value
+        stabilization_time = self.nea_config.condition.stabilization_time.base_value
 
         # 出力状態測定 (Bright)
         devices.laser.set_emission(True)  # レーザー出力開始
@@ -202,8 +202,8 @@ class NEAActivationRunner(BaseRunner):
 
         bright_pc_volt, bright_pc = sensor_reader.read_photocurrent_integrated(
             self.nea_config.condition.shunt_resistance,
-            int(self.nea_config.condition.integration_count.si_value),
-            self.nea_config.condition.integration_interval.si_value,
+            int(self.nea_config.condition.integration_count.base_value),
+            self.nea_config.condition.integration_interval.base_value,
         )
 
         # バックグラウンド測定 (Dark)
@@ -213,8 +213,8 @@ class NEAActivationRunner(BaseRunner):
 
         dark_pc_volt, dark_pc = sensor_reader.read_photocurrent_integrated(
             self.nea_config.condition.shunt_resistance,
-            int(self.nea_config.condition.integration_count.si_value),
-            self.nea_config.condition.integration_interval.si_value,
+            int(self.nea_config.condition.integration_count.base_value),
+            self.nea_config.condition.integration_interval.base_value,
         )
 
         # 4. データ集計と通知
@@ -243,10 +243,10 @@ class NEAActivationRunner(BaseRunner):
         """測定値の計算、Result生成、通知を行う"""
         # --- 計算 ---
         wavelength_nm = self.nea_config.condition.laser_wavelength.value_as("n")
-        laser_pv_watt = self.nea_config.control.laser_power_pv.si_value
+        laser_pv_watt = self.nea_config.control.laser_power_pv.base_value
 
-        pc_val = bright_pc.si_value - dark_pc.si_value
-        pc_v_val = bright_pc_voltage.si_value - dark_pc_voltage.si_value
+        pc_val = bright_pc.base_value - dark_pc.base_value
+        pc_v_val = bright_pc_voltage.base_value - dark_pc_voltage.base_value
 
         qe_val = calculate_quantum_efficiency(
             current_amp=pc_val, laser_power_watt=laser_pv_watt, wavelength_nm=wavelength_nm

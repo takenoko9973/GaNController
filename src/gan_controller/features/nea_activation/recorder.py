@@ -28,27 +28,27 @@ class NEALogRecorder:
         self.columns: list[LogColumn] = [
             LogColumn("Time[s]", "{:.1f}", lambda r, _: r.timestamp),
             # Laser power
-            LogColumn("LP(SV)[W]", "{:.2E}", lambda r, _: r.laser_power_sv.si_value),
-            LogColumn("LP(PV)[W]", "{:.2E}", lambda r, _: r.laser_power_pv.si_value),
+            LogColumn("LP(SV)[W]", "{:.2E}", lambda r, _: r.laser_power_sv.base_value),
+            LogColumn("LP(PV)[W]", "{:.2E}", lambda r, _: r.laser_power_pv.base_value),
             # Quantum efficiency
             LogColumn("QE[%]", "{:.4E}", lambda r, _: r.quantum_efficiency.value_as("%")),
             # Photocurrent
-            LogColumn("PC[A]", "{:.4E}", lambda r, _: r.photocurrent.si_value),
-            LogColumn("PC_V[V]", "{:.4E}", lambda r, _: r.photocurrent_voltage.si_value),
+            LogColumn("PC[A]", "{:.4E}", lambda r, _: r.photocurrent.base_value),
+            LogColumn("PC_V[V]", "{:.4E}", lambda r, _: r.photocurrent_voltage.base_value),
             # Pressure
-            LogColumn("Pressure(EXT)[Pa]", "{:.4E}", lambda r, _: r.ext_pressure.si_value),
-            LogColumn("Pressure(SIP)[Pa]", "{:.4E}", lambda r, _: r.sip_pressure.si_value),
+            LogColumn("Pressure(EXT)[Pa]", "{:.4E}", lambda r, _: r.ext_pressure.base_value),
+            LogColumn("Pressure(SIP)[Pa]", "{:.4E}", lambda r, _: r.sip_pressure.base_value),
             # Extraction voltage
-            LogColumn("ExVolt[V]", "{:.1f}", lambda r, _: r.extraction_voltage.si_value),
+            LogColumn("ExVolt[V]", "{:.1f}", lambda r, _: r.extraction_voltage.base_value),
             # Bright photocurrent
-            LogColumn("BPc[A]", "{:.4E}", lambda r, _: r.bright_pc.si_value),
-            LogColumn("BPc_V[V]", "{:.4E}", lambda r, _: r.bright_pc_voltage.si_value),
+            LogColumn("BPc[A]", "{:.4E}", lambda r, _: r.bright_pc.base_value),
+            LogColumn("BPc_V[V]", "{:.4E}", lambda r, _: r.bright_pc_voltage.base_value),
             # Dark photocurrent
-            LogColumn("DPc[A]", "{:.4E}", lambda r, _: r.dark_pc.si_value),
-            LogColumn("DPc_V[V]", "{:.4E}", lambda r, _: r.dark_pc_voltage.si_value),
+            LogColumn("DPc[A]", "{:.4E}", lambda r, _: r.dark_pc.base_value),
+            LogColumn("DPc_V[V]", "{:.4E}", lambda r, _: r.dark_pc_voltage.base_value),
             # AMD power supply
-            LogColumn("AMD_V[V]", "{:.3f}", lambda r, _: r.amd_electricity.voltage.si_value),
-            LogColumn("AMD_I[A]", "{:.3f}", lambda r, _: r.amd_electricity.current.si_value),
+            LogColumn("AMD_V[V]", "{:.3f}", lambda r, _: r.amd_electricity.voltage.base_value),
+            LogColumn("AMD_I[A]", "{:.3f}", lambda r, _: r.amd_electricity.current.base_value),
             # イベント文字列
             LogColumn("Event", "{}", lambda _, e: e),
         ]
@@ -60,9 +60,9 @@ class NEALogRecorder:
         # パラメータの取得 (Quantity -> float/int)
         wavelength = int(init_nea_config.condition.laser_wavelength.value_as("n"))
         laser_power_sv = int(init_nea_config.control.laser_power_sv.value_as("m"))
-        stabilization_time = init_nea_config.condition.stabilization_time.si_value
-        integrated_count = int(init_nea_config.condition.integration_count.si_value)
-        interval = init_nea_config.condition.integration_interval.si_value
+        stabilization_time = init_nea_config.condition.stabilization_time.base_value
+        integrated_count = int(init_nea_config.condition.integration_count.base_value)
+        interval = init_nea_config.condition.integration_interval.base_value
 
         comment = init_nea_config.log.comment
 

@@ -47,7 +47,7 @@ class NEAConditionConfig(BaseModel):
     @classmethod
     def validate_resistance(cls, v: Quantity[Dimensionless]) -> Quantity[Dimensionless]:
         """抵抗値は正の数"""
-        if v.si_value <= 0:
+        if v.base_value <= 0:
             msg = "Resistance must be > 0"
             raise ValueError(msg)
 
@@ -57,7 +57,7 @@ class NEAConditionConfig(BaseModel):
     @classmethod
     def validate_wavelength(cls, v: Quantity[Dimensionless]) -> Quantity[Dimensionless]:
         """波長は正の数"""
-        if v.si_value <= 0:
+        if v.base_value <= 0:
             msg = "Wavelength must be > 0"
             raise ValueError(msg)
 
@@ -67,7 +67,7 @@ class NEAConditionConfig(BaseModel):
     @classmethod
     def validate_count(cls, v: Quantity[Dimensionless]) -> Quantity[Dimensionless]:
         """積算回数は正の整数"""
-        if v.si_value < 1:
+        if v.base_value < 1:
             msg = "Integration count must be >= 1"
             raise ValueError(msg)
 
@@ -77,7 +77,7 @@ class NEAConditionConfig(BaseModel):
     @classmethod
     def validate_time(cls, v: Quantity[Second]) -> Quantity[Second]:
         """秒数は非負"""
-        if v.si_value < 0:
+        if v.base_value < 0:
             msg = "Time cannot be negative"
             raise ValueError(msg)
 
@@ -113,7 +113,7 @@ class NEAControlConfig(BaseModel):
     @classmethod
     def validate_count(cls, v: Quantity[Dimensionless]) -> Quantity[Dimensionless]:
         """電流値は非負"""
-        if v.si_value < 0:
+        if v.base_value < 0:
             msg = "Current cannot be negative"
             raise ValueError(msg)
 
@@ -123,7 +123,7 @@ class NEAControlConfig(BaseModel):
     @classmethod
     def validate_time(cls, v: Quantity[Second]) -> Quantity[Second]:
         """電力は非負"""
-        if v.si_value < 0:
+        if v.base_value < 0:
             msg = "Power cannot be negative"
             raise ValueError(msg)
 

@@ -115,6 +115,6 @@ class NEAExecutionPanel(QGroupBox):
 
     def set_config(self, config: NEAControlConfig) -> None:
         self.amd_output_current_spin.setChecked(config.amd_enable)
-        self.amd_output_current_spin.setValue(config.amd_output_current.si_value)
+        self.amd_output_current_spin.setValue(config.amd_output_current.base_value)
         self.laser_sv_spin.setValue(config.laser_power_sv.value_as("m"))
         self.laser_pv_spin.setValue(config.laser_power_pv.value_as("m"))
