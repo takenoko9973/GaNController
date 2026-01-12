@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from gan_controller.common.dtos.result import ExperimentResult
+    from gan_controller.common.schemas.result import ExperimentResult
 
 
 class BaseRunner(ABC):
