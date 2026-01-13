@@ -106,7 +106,7 @@ class HeatCleaningController(ITabController):
     @Slot(object)
     def on_result(self, result: HCRunnerResult) -> None:
         """結果表示とログ出力処理"""
-        # self._view.update_view(result)
+        self._view.update_view(result)
         # self.logger.log(result)
 
     @Slot(str)

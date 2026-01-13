@@ -3,6 +3,7 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
+from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
 from gan_controller.features.heat_cleaning.view.widgets import (
     HCConditionPanel,
     HCExecutionPanel,
@@ -22,6 +23,7 @@ class HeatCleaningMainView(QWidget):
     condition_panel: HCConditionPanel
     log_setting_panel: HCLogSettingPanel
     execution_panel: HCExecutionPanel
+    measure_panel: HCMeasurePanel
     # 右側 (グラフ)
     graph_panel: HCGraphPanel
 
@@ -96,6 +98,12 @@ class HeatCleaningMainView(QWidget):
         # Ctrl+Shift+S -> 名前を付けて保存
         self.shortcut_save_as = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
         self.shortcut_save_as.activated.connect(self.save_as_requested.emit)
+
+    # =============================================================================
+
+    def update_view(self, result: HCRunnerResult) -> None:
+        self.measure_panel.update_measure_values(result)
+        self.graph_panel.update_graph(result)
 
     # =============================================================================
 
