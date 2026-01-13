@@ -227,7 +227,6 @@ class DualAxisGraph(QWidget):
         self.ax_left.autoscale_view()
         self.ax_right.relim()
         self.ax_right.autoscale_view()
-        self.canvas.draw()
 
         # スライド表示 (Time Window) の適用
         if self._x_window is not None and len(self.model.x) > 0:
@@ -246,6 +245,8 @@ class DualAxisGraph(QWidget):
 
             self.ax_left.set_xlim(min_x, max_x)
             self.ax_right.set_xlim(min_x, max_x)
+
+        self.canvas.draw()
 
     def _update_legend(self) -> None:
         l1, lab1 = self.ax_left.get_legend_handles_labels()
