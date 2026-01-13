@@ -28,9 +28,9 @@ class ValueLabel(QLabel):
         """)
 
         self._default_formatter = formatter
-        self.set_value(value)
+        self.setValue(value)
 
-    def set_value(self, value: Any, formatter: FormatterType | None = None) -> None:  # noqa: ANN401
+    def setValue(self, value: Any, formatter: FormatterType | None = None) -> None:  # noqa: ANN401, N802
         # 表示形式に特別な指定があれば、それでフォーマット
         fmt = formatter if formatter is not None else self._default_formatter
 
