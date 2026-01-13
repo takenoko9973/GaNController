@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget
 
 from gan_controller.common.ui.widgets import AxisScale, DualAxisGraph
 from gan_controller.features.nea_activation.schemas import NEARunnerResult
@@ -18,12 +18,15 @@ class NEAGraphPanel(QWidget):
         setting_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         # グラフ表示幅
-        self.time_window_spin = QSpinBox(minimum=0, maximum=99999, value=1800, suffix=" s")
+        self.time_window_spin = QSpinBox(minimum=0, maximum=99999, value=600, suffix=" s")
         self.time_window_spin.setSpecialValueText("全期間")  # 0の時のテキスト
+        self.update_window_button = QPushButton("更新")
         setting_layout.addWidget(QLabel("表示範囲 (0s=全表示) :"))
         setting_layout.addWidget(self.time_window_spin)
+        setting_layout.addWidget(self.update_window_button)
 
-        self.time_window_spin.valueChanged.connect(self._on_time_window_changed)  # 変更時、即時反映
+        # ボタンを押すと反映
+        self.update_window_button.clicked.connect(self._on_time_window_changed)
 
         layout.addLayout(setting_layout)
 
@@ -57,7 +60,7 @@ class NEAGraphPanel(QWidget):
         self._setup_lines()
 
         # 範囲初期化
-        self._on_time_window_changed(self.time_window_spin.value())
+        self._on_time_window_changed()
 
     def _setup_lines(self) -> None:
         """グラフにプロットする線を定義"""
@@ -112,8 +115,9 @@ class NEAGraphPanel(QWidget):
         self._setup_lines()  # ライン再設定
 
     @Slot(int)
-    def _on_time_window_changed(self, window_sec: int) -> None:
+    def _on_time_window_changed(self) -> None:
         """グラフの表示幅を設定する (0以下の場合は全表示)"""
+        window_sec = self.time_window_spin.value()
         val = float(window_sec) if window_sec > 0 else None
 
         self.graph_photocurrent.set_x_window(val)
