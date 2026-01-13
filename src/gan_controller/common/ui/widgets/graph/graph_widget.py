@@ -71,6 +71,7 @@ class DualAxisGraph(QWidget):
         right_label: str,
         left_scale: AxisScale = AxisScale.LINEAR,
         right_scale: AxisScale = AxisScale.LINEAR,
+        legend_location: str = "upper right",
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -120,6 +121,9 @@ class DualAxisGraph(QWidget):
         # ラインオブジェクトの辞書 (再描画の高速化用)
         self.lines_left: dict[str, Line2D] = {}
         self.lines_right: dict[str, Line2D] = {}
+
+        # 凡例の場所
+        self.legend_location = legend_location
 
     def _sci_mathtext(self, x, _) -> str:  # noqa: ANN001
         if x == 0:
@@ -246,4 +250,4 @@ class DualAxisGraph(QWidget):
     def _update_legend(self) -> None:
         l1, lab1 = self.ax_left.get_legend_handles_labels()
         l2, lab2 = self.ax_right.get_legend_handles_labels()
-        self.ax_left.legend(l1 + l2, lab1 + lab2, loc="upper right", fontsize="x-small")
+        self.ax_left.legend(l1 + l2, lab1 + lab2, loc=self.legend_location, fontsize="x-small")

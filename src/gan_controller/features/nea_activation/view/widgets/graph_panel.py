@@ -34,6 +34,7 @@ class NEAGraphPanel(QWidget):
             "Photocurrent (A)",
             "Pressure (Pa)",
             right_scale=AxisScale.LOG,
+            legend_location="upper left",
         )
         self.graph_photocurrent.setMinimumWidth(500)
         self.graph_photocurrent.setMinimumHeight(300)
@@ -44,6 +45,7 @@ class NEAGraphPanel(QWidget):
             "QE (%)",
             "Pressure (Pa)",
             right_scale=AxisScale.LOG,
+            legend_location="upper left",
         )
         self.graph_qe.setMinimumWidth(500)
         self.graph_qe.setMinimumHeight(300)
