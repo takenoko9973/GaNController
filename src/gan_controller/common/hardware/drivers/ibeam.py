@@ -190,10 +190,10 @@ class IBeam:
     def set_emission(self, enable: bool) -> None:
         """レーザー発振(Emission)制御"""
         enable_str = "on" if enable else "off"
-        self.send_command(f"laser {enable_str}")  # "la"
+        self.send_command(f"laser {enable_str}")
 
     def is_emission(self) -> bool:
-        return self.send_command("status laser")[0].upper() == "ON"  # sta la
+        return self.send_command("status laser")[0].upper() == "ON"
 
     # ============================================================
 
@@ -201,11 +201,11 @@ class IBeam:
         """チャンネル有効/無効"""
         self._validate_channel(ch)
 
-        enable_str = "enable" if enable else "disable"  # "en" or "di"
+        enable_str = "enable" if enable else "disable"
         self.send_command(f"{enable_str} {ch}")
 
     def is_channel_enable(self, ch: int) -> bool:
-        return self.send_command(f"status channel {ch}")[0].upper() == "ON"  # sta ch
+        return self.send_command(f"status channel {ch}")[0].upper() == "ON"
 
     # ============================================================
 
@@ -214,20 +214,21 @@ class IBeam:
         self._validate_channel(ch)
 
         power_uw = int(power_mw * 1000)
-        self.send_command(f"ch {ch} pow {power_uw} mic")  # uW で入力 (mic -> micro)
+        self.send_command(f"channel {ch} power {power_uw} micro")  # uW で入力
 
     def _get_all_channel_powers(self) -> dict[int, float]:
         """各チャンネルの設定出力取得 (mW)
 
         返り値 : "CH<channel>, PWR: <value> <uW or mW>"
         """
-        pattern = re.compile(r"CH(\d+),\s*PWR:\s*([\d.]+)\s*(mW|uW)")
+        # 大文字小文字は一応無視
+        pattern = re.compile(r"CH(\d+),\s*PWR:\s*([\d.]+)\s*(mW|uW)", flags=re.IGNORECASE)
 
-        reply = self.send_command("show level power")  # sh le? pow
+        reply = self.send_command("show level power")
 
         powers: dict[int, float] = {}
         for ln in reply:
-            match = re.match(pattern, ln, flags=re.IGNORECASE)  # 大文字小文字は一応無視
+            match = re.match(pattern, ln)
 
             if match:
                 prefix_correct = 1e-3 if match[3].lower() == "uw" else 1
@@ -244,7 +245,7 @@ class IBeam:
         """実出力取得 (mW)"""
         pattern = re.compile(r"PIC\s*=\s*([\d.]+)\s*(mW|uW)")
 
-        reply = self.send_command("show power")[-1]  # sh pow
+        reply = self.send_command("show power")[-1]
 
         match = re.match(pattern, reply, flags=re.IGNORECASE)
         if match:
@@ -258,13 +259,13 @@ class IBeam:
 
     def get_current(self, ch: int) -> str | None:
         self._validate_channel(ch)
-        message = self.send_command("sh cur")  # レーザー出力中でないと取得できない
+        message = self.send_command("show current")  # レーザー出力中でないと取得できない
 
         return message[ch - 1]
 
     def get_work_time(self) -> list[str]:
         """Get the work hours (power on time and laser on time)"""
-        return self.send_command("status uptime")  # "sta up"
+        return self.send_command("status uptime")
 
     def get_temperatures(self) -> list[float]:
         """温度を取得 (仮)
