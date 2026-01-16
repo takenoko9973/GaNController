@@ -37,9 +37,6 @@ dev = ["ruff", "ty"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/gan_controller"]
 
-[tool.ty.environment]
-extra-paths = ["src/gan_controller"]
-
 [tool.ruff]
 target-version = "py312"
 
