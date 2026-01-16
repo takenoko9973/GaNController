@@ -26,7 +26,7 @@ class NEALogRecorder:
 
         # ログデータ項目定義
         self.columns: list[LogColumn] = [
-            LogColumn("Time[s]", "{:.1f}", lambda r, _: r.timestamp),
+            LogColumn("Time[s]", "{:.1f}", lambda r, _: r.timestamp.si_value),
             # Laser power
             LogColumn("LP(SV)[W]", "{:.2E}", lambda r, _: r.laser_power_sv.si_value),
             LogColumn("LP(PV)[W]", "{:.2E}", lambda r, _: r.laser_power_pv.si_value),
