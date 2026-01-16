@@ -1,3 +1,6 @@
+from pathlib import Path
+
+from common.constants import PROTOCOLS_DIR
 from PySide6.QtCore import Slot
 
 from gan_controller.common.application.global_messenger import GlobalMessenger
@@ -63,6 +66,15 @@ class HeatCleaningController(ITabController):
 
         # ファイルに保存
         # current_config.save(HC_CONFIG_PATH)
+
+    # =================================================
+
+    def fetch_protocol_names(self, protocols_dir: Path = PROTOCOLS_DIR) -> list[str]:
+        """プロトコル設定ファイルの名前一覧を取得"""
+        if not (protocols_dir.exists() and protocols_dir.is_dir()):
+            return []
+
+        return [p.stem for p in protocols_dir.glob("*.toml")]
 
     # =================================================
     # View -> Runner
