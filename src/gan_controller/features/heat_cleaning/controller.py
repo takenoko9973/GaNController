@@ -1,16 +1,19 @@
+import tomllib
 from pathlib import Path
 
-from common.constants import PROTOCOLS_DIR
 from PySide6.QtCore import Slot
 
 from gan_controller.common.application.global_messenger import GlobalMessenger
 from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
+from gan_controller.common.constants import PROTOCOLS_DIR
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
+from gan_controller.features.heat_cleaning.constants import NEW_PROTOCOL_TEXT
 from gan_controller.features.heat_cleaning.runner import HCActivationRunner
+from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
 from gan_controller.features.heat_cleaning.state import HCActivationState
-from gan_controller.features.heat_cleaning.view.main_view import HeatCleaningMainView
+from gan_controller.features.heat_cleaning.view import HeatCleaningMainView
 
 
 class HeatCleaningController(ITabController):
@@ -19,6 +22,7 @@ class HeatCleaningController(ITabController):
     _state: HCActivationState
 
     worker: ExperimentWorker | None
+    runner: HCActivationRunner | None
 
     def __init__(self, view: HeatCleaningMainView) -> None:
         super().__init__()
@@ -30,14 +34,11 @@ class HeatCleaningController(ITabController):
         self._state = HCActivationState.IDLE
         self._cleanup()
 
-        self._load_initial_config()
-
-    def _load_initial_config(self) -> None:
-        """起動時に設定ファイルを読み込んでUIにセットする"""
-        # config = HCConfig.load(HC_CONFIG_PATH)
-        # self._view.set_full_config(config)
+        self._refresh_protocol_list()
 
     def _attach_view(self) -> None:
+        self._view.protocol_select_panel.protocol_changed.connect(self._on_protocol_changed)
+
         self._view.execution_panel.start_requested.connect(self.experiment_start)
         self._view.execution_panel.stop_requested.connect(self.experiment_stop)
 
@@ -69,12 +70,62 @@ class HeatCleaningController(ITabController):
 
     # =================================================
 
-    def fetch_protocol_names(self, protocols_dir: Path = PROTOCOLS_DIR) -> list[str]:
+    def _fetch_protocol_names(self, protocols_dir: Path = PROTOCOLS_DIR) -> list[str]:
         """プロトコル設定ファイルの名前一覧を取得"""
         if not (protocols_dir.exists() and protocols_dir.is_dir()):
             return []
 
         return [p.stem for p in protocols_dir.glob("*.toml")]
+
+    def _refresh_protocol_list(self) -> None:
+        """プロトコルフォルダを走査してプルダウンを更新する"""
+        protocol_names = self._fetch_protocol_names()
+
+        # 一番下に「新しいプロトコル...」を追加
+        items = protocol_names
+        items.append(NEW_PROTOCOL_TEXT)
+        self._view.protocol_select_panel.set_items(items)
+
+        # デフォルト選択
+        self._view.protocol_select_panel.protocol_combo.blockSignals(True)  # 無駄なシグナル停止
+        default_selection = items[0] if protocol_names else NEW_PROTOCOL_TEXT
+        self._view.protocol_select_panel.set_current_text(default_selection)
+        self._view.protocol_select_panel.protocol_combo.blockSignals(False)
+
+        # 初期選択状態の内容をロード
+        self._on_protocol_changed(default_selection)
+
+    def _load_config_from_file(self, name: str) -> ProtocolConfig:
+        """ファイルから設定を読み込む"""
+        file_path = PROTOCOLS_DIR / f"{name}.toml"
+
+        if not file_path.exists():
+            # ファイルが見つからない場合はデフォルト値を返すなどのエラー処理
+            print(f"Warning: Protocol file not found: {file_path}")
+            return ProtocolConfig()
+
+        try:
+            with file_path.open("rb") as f:
+                data = tomllib.load(f)
+            return ProtocolConfig(**data)
+        except Exception as e:  # noqa: BLE001
+            print(f"Failed to load protocol {name}: {e}")  # 読み込みに失敗したら、初期値を返す
+            return ProtocolConfig()
+
+    # =================================================
+    # View Events
+    # =================================================
+
+    @Slot(str)
+    def _on_protocol_changed(self, protocol_name: str) -> None:
+        """プルダウンの選択が変更されたときの処理"""
+        if protocol_name == NEW_PROTOCOL_TEXT:
+            # 新規作成時はデフォルト設定
+            config = ProtocolConfig()
+        else:
+            config = self._load_config_from_file(protocol_name)
+
+        self._view.set_full_config(config)
 
     # =================================================
     # View -> Runner
