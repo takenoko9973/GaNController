@@ -1,7 +1,8 @@
-import tomllib
+import re
 from pathlib import Path
 
 from PySide6.QtCore import Slot
+from PySide6.QtWidgets import QInputDialog, QMessageBox
 
 from gan_controller.common.application.global_messenger import GlobalMessenger
 from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
@@ -38,6 +39,10 @@ class HeatCleaningController(ITabController):
 
     def _attach_view(self) -> None:
         self._view.protocol_select_panel.protocol_changed.connect(self._on_protocol_changed)
+        self._view.protocol_select_panel.protocol_saved.connect(self._on_save_action)
+
+        self._view.save_action_requested.connect(self._on_save_action)
+        self._view.save_as_requested.connect(self._on_save_as)
 
         self._view.execution_panel.start_requested.connect(self.experiment_start)
         self._view.execution_panel.stop_requested.connect(self.experiment_stop)
@@ -84,12 +89,12 @@ class HeatCleaningController(ITabController):
         # 一番下に「新しいプロトコル...」を追加
         items = protocol_names
         items.append(NEW_PROTOCOL_TEXT)
-        self._view.protocol_select_panel.set_items(items)
+        self._view.protocol_select_panel.set_protocol_items(items)
 
         # デフォルト選択
         self._view.protocol_select_panel.protocol_combo.blockSignals(True)  # 無駄なシグナル停止
         default_selection = items[0] if protocol_names else NEW_PROTOCOL_TEXT
-        self._view.protocol_select_panel.set_current_text(default_selection)
+        self._view.protocol_select_panel.set_current_selected_protocol(default_selection)
         self._view.protocol_select_panel.protocol_combo.blockSignals(False)
 
         # 初期選択状態の内容をロード
@@ -97,20 +102,59 @@ class HeatCleaningController(ITabController):
 
     def _load_config_from_file(self, name: str) -> ProtocolConfig:
         """ファイルから設定を読み込む"""
-        file_path = PROTOCOLS_DIR / f"{name}.toml"
-
-        if not file_path.exists():
-            # ファイルが見つからない場合はデフォルト値を返すなどのエラー処理
-            print(f"Warning: Protocol file not found: {file_path}")
-            return ProtocolConfig()
-
         try:
-            with file_path.open("rb") as f:
-                data = tomllib.load(f)
-            return ProtocolConfig(**data)
+            return ProtocolConfig.load(f"{name}.toml")
         except Exception as e:  # noqa: BLE001
             print(f"Failed to load protocol {name}: {e}")  # 読み込みに失敗したら、初期値を返す
             return ProtocolConfig()
+
+    # =================================================
+    # Protocol Save Helpers
+    # =================================================
+
+    def _validate_protocol_name(self, name: str) -> bool:
+        """プロトコル名の形式を検証し、不正なら警告を表示する"""
+        if not re.fullmatch(r"[A-Z0-9]+", name):
+            QMessageBox.warning(
+                self._view,
+                "入力エラー",
+                "プロトコル名は英大文字(A-Z)と数字(0-9)のみ使用可能です。",
+            )
+            return False
+
+        return True
+
+    def _should_overwrite(self, name: str) -> bool:
+        """同名のプロトコルが存在するか確認し、存在する場合は上書きするか確認"""
+        existing_names = self._fetch_protocol_names()
+
+        if name in existing_names:
+            ret = QMessageBox.question(
+                self._view,
+                "上書き確認",
+                f"プロトコル '{name}' は既に存在します。\n上書きしますか？",  # noqa: RUF001
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            return ret == QMessageBox.StandardButton.Yes
+
+        return True
+
+    def _ask_save_name(self, default_text: str = "") -> str | None:
+        """名前入力ダイアログを表示"""
+        text, response = QInputDialog.getText(
+            self._view,
+            "プロトコル新規保存",
+            "プロトコル名を入力してください\n(英大文字と数字のみ):",
+            text=default_text,
+        )
+
+        return text.strip() if response and text else None
+
+    def _save_protocol_config(self, name: str) -> None:
+        """プロトコル設定を保存"""
+        protocol_config = self._view.get_full_config()
+        protocol_config.save(f"{name}.toml")
 
     # =================================================
     # View Events
@@ -126,6 +170,58 @@ class HeatCleaningController(ITabController):
             config = self._load_config_from_file(protocol_name)
 
         self._view.set_full_config(config)
+
+    @Slot()
+    def _on_save_action(self) -> None:
+        """通常保存されたときの処理"""
+        current_name = self._view.protocol_select_panel.current_selected_protocol()
+        if current_name == NEW_PROTOCOL_TEXT:
+            # 新規作成
+            self._on_save_as()
+        else:
+            # 上書き保存
+            current_name = current_name.strip().upper()  # 大文字化
+            if not self._should_overwrite(current_name):  # 確認
+                return
+
+            self._save_protocol_config(current_name)
+
+    @Slot()
+    def _on_save_as(self) -> None:
+        """名前をつけて保存"""
+        current_name = self._view.protocol_select_panel.current_selected_protocol()
+
+        # 新規作成の場合はデフォルトの入力欄は空白に
+        if current_name == NEW_PROTOCOL_TEXT:
+            current_name = ""
+
+        while True:
+            new_name = self._ask_save_name(current_name)
+            if new_name is None:
+                break
+
+            new_name = new_name.strip().upper()  # 大文字化
+
+            # 名前形式確認
+            if not self._validate_protocol_name(new_name):
+                # 名前が不正なら再度入力
+                current_name = new_name
+                continue
+
+            # 上書き確認
+            if not self._should_overwrite(new_name):
+                current_name = new_name
+                continue
+
+            # 保存
+            self._save_protocol_config(new_name)
+
+            # リストを更新、新しく名付けたものを選択
+            self._refresh_protocol_list()
+            self._view.protocol_select_panel.set_current_selected_protocol(new_name)
+
+            # 保存完了ループ脱出
+            break
 
     # =================================================
     # View -> Runner

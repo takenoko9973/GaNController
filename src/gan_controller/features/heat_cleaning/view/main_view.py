@@ -32,7 +32,7 @@ class HeatCleaningMainView(QWidget):
     shortcut_save: QShortcut
     shortcut_save_as: QShortcut
     # シグナル
-    save_overwrite_requested = Signal()  # 通常保存
+    save_action_requested = Signal()  # 通常保存
     save_as_requested = Signal()  # 名前をつけて保存
 
     def __init__(self) -> None:
@@ -93,7 +93,7 @@ class HeatCleaningMainView(QWidget):
         """ショートカットキーの設定"""
         # Ctrl+S -> 上書き保存
         self.shortcut_save = QShortcut(QKeySequence("Ctrl+S"), self)
-        self.shortcut_save.activated.connect(self.save_overwrite_requested.emit)
+        self.shortcut_save.activated.connect(self.save_action_requested.emit)
 
         # Ctrl+Shift+S -> 名前を付けて保存
         self.shortcut_save_as = QShortcut(QKeySequence("Ctrl+Shift+S"), self)

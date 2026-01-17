@@ -1,7 +1,9 @@
+from pathlib import Path
 from typing import Annotated
 
 from pydantic import BaseModel, Field
 
+from gan_controller.common.constants import PROTOCOLS_DIR
 from gan_controller.common.domain.quantity import (
     Ampere,
     Current,
@@ -12,6 +14,7 @@ from gan_controller.common.domain.quantity import (
     Time,
     Value,
 )
+from gan_controller.common.io.toml_config_io import load_toml_config, save_toml_config
 
 
 class HCSequenceConfig(BaseModel):
@@ -70,3 +73,12 @@ class ProtocolConfig(BaseModel):
     sequence: HCSequenceConfig = Field(default_factory=HCSequenceConfig)
     condition: HCConditionConfig = Field(default_factory=HCConditionConfig)
     log: HCLogConfig = Field(default_factory=HCLogConfig)
+
+    @classmethod
+    def load(cls, file_name: str, config_dir: str | Path = PROTOCOLS_DIR) -> "ProtocolConfig":
+        path = Path(config_dir) / file_name
+        return load_toml_config(cls, path)
+
+    def save(self, file_name: str, config_dir: str | Path = PROTOCOLS_DIR) -> None:
+        path = Path(config_dir) / file_name
+        save_toml_config(self, path)
