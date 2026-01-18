@@ -15,6 +15,7 @@ from gan_controller.common.domain.quantity import (
     Value,
 )
 from gan_controller.common.io.toml_config_io import load_toml_config, save_toml_config
+from gan_controller.features.heat_cleaning.domain import Sequence, SequenceMode
 
 
 class HCSequenceConfig(BaseModel):
@@ -34,6 +35,19 @@ class HCSequenceConfig(BaseModel):
     wait_time: Annotated[
         Quantity[Second], *PydanticUnit("hours"), Field(description="待機時間[h]")
     ] = Time(15, "hour")
+
+    def get_sequence_time(self, mode: SequenceMode) -> Quantity[Second]:
+        if mode == SequenceMode.RISING:
+            return self.rising_time
+        if mode == SequenceMode.HEAT_CLEANING:
+            return self.heating_time
+        if mode == SequenceMode.DECREASE:
+            return self.decrease_time
+        if mode == SequenceMode.WAIT:
+            return self.wait_time
+
+        msg = "Unknown SequenceMode"
+        raise ValueError(msg)
 
 
 class HCConditionConfig(BaseModel):
@@ -73,6 +87,18 @@ class ProtocolConfig(BaseModel):
     sequence: HCSequenceConfig = Field(default_factory=HCSequenceConfig)
     condition: HCConditionConfig = Field(default_factory=HCConditionConfig)
     log: HCLogConfig = Field(default_factory=HCLogConfig)
+
+    def get_sequences(self) -> list[Sequence]:
+        sequences = []
+
+        repeat_count = int(self.condition.repeat_count.base_value)
+        for _ in range(repeat_count):
+            for sequence_mode in SequenceMode:
+                sequence_time = self.sequence.get_sequence_time(sequence_mode)
+                sequence = Sequence.create(sequence_mode, sequence_time.base_value, 0.33)
+                sequences.append(sequence)
+
+        return sequences
 
     @classmethod
     def load(cls, file_name: str, config_dir: str | Path = PROTOCOLS_DIR) -> "ProtocolConfig":
