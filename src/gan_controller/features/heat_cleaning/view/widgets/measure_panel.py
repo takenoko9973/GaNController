@@ -23,7 +23,7 @@ class HCMeasurePanel(QGroupBox):
     # === 要素
     status_value_label: QLabel  # 動作状態
 
-    sequence_time_label: ValueLabel  # シーケンスの経過時間
+    step_time_label: ValueLabel  # シーケンスの経過時間
     total_time_label: ValueLabel  # 合計の経過時間
 
     hc_value_labels: dict[ElectricProperties, ValueLabel]
@@ -60,14 +60,14 @@ class HCMeasurePanel(QGroupBox):
             h, m = divmod(m, 60)
             return f"{h:02d}:{m:02d}:{s:02d}"
 
-        self.sequence_time_label = ValueLabel(0, formatter=time_fmt)
+        self.step_time_label = ValueLabel(0, formatter=time_fmt)
         self.total_time_label = ValueLabel(0, formatter=time_fmt)
 
         time_layout.addWidget(QLabel("状態 :"))
         time_layout.addWidget(self.status_value_label)
         time_layout.addStretch()
-        time_layout.addWidget(QLabel("Sequence :"))
-        time_layout.addWidget(self.sequence_time_label)
+        time_layout.addWidget(QLabel("Step :"))
+        time_layout.addWidget(self.step_time_label)
         time_layout.addSpacing(5)
         time_layout.addWidget(QLabel("Total :"))
         time_layout.addWidget(self.total_time_label)
@@ -140,7 +140,10 @@ class HCMeasurePanel(QGroupBox):
 
     def update_measure_values(self, result: HCRunnerResult) -> None:
         """測定結果で表示を更新"""
-        self.sequence_time_label.setValue(result.sequence_timestamp.base_value)
+        text = f"{result.current_sequence_index}: {result.current_sequence_name}"
+        self.set_status(text, True)
+
+        self.step_time_label.setValue(result.step_timestamp.base_value)
         self.total_time_label.setValue(result.total_timestamp.base_value)
 
         self.temp_value_label.setValue(result.case_temperature)

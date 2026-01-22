@@ -27,7 +27,7 @@ class Sequence(ABC):
 
     @property
     def mode_name(self) -> str:
-        return self.mode_type.value
+        return self.mode_type.display_name
 
     # ====================================================================
 

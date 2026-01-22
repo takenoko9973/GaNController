@@ -9,7 +9,10 @@ from gan_controller.common.schemas.result import ExperimentResult
 class HCRunnerResult(ExperimentResult):
     """NEA活性化の測定結果 (必要そうな設定値や観測値は全て入れとく)"""
 
-    sequence_timestamp: Quantity[Second]  # シーケンス内の経過時間
+    current_sequence_index: int  # 現在のシーケンス番号 (1開始)
+    current_sequence_name: str  # 現在のシーケンス名
+
+    step_timestamp: Quantity[Second]  # シーケンス内の経過時間
     total_timestamp: Quantity[Second]  # 合計の経過時間
     # 圧力
     ext_pressure: Quantity[Pascal]

@@ -149,7 +149,7 @@ class HCActivationRunner(BaseRunner):
 
                     # ===========================================================
 
-                    current_seq, seq_elapsed = self._get_current_sequence_state(
+                    current_seq, seq_index, seq_elapsed = self._get_current_sequence_state(
                         sequences, total_elapsed
                     )
                     if current_seq is None:
@@ -161,7 +161,9 @@ class HCActivationRunner(BaseRunner):
                         self._control_devices(devices, current_seq, seq_elapsed)
 
                     # 測定
-                    result = self._measure(devices, sensor_reader, total_elapsed, seq_elapsed)
+                    result = self._measure_and_create_result(
+                        devices, sensor_reader, total_elapsed, seq_elapsed, current_seq, seq_index
+                    )
 
                     if self.emit_result is not None:
                         self.emit_result(result)
@@ -188,28 +190,28 @@ class HCActivationRunner(BaseRunner):
 
     def _get_current_sequence_state(
         self, sequences: list[Sequence], total_elapsed: float
-    ) -> tuple[Sequence | None, float]:
+    ) -> tuple[Sequence | None, int, float]:
         """現在の経過時間から、該当するシーケンスとその中での経過時間を返す
 
         Returns:
-            (Sequenceオブジェクト, シーケンス内経過時間[s])
+            (Sequenceオブジェクト, シーケンス番号, シーケンス内経過時間[s])
 
         """
         # シーケンスごとの累積時間
         accumulated_time = 0.0
 
-        for seq in sequences:
+        for i, seq in enumerate(sequences):
             duration = seq.duration_sec
 
             # まだこのシーケンスの範囲内か
             if total_elapsed < (accumulated_time + duration):
                 seq_elapsed = total_elapsed - accumulated_time
-                return seq, seq_elapsed
+                return seq, i, seq_elapsed
 
             accumulated_time += duration
 
         # 全シーケンス時間を超えている場合
-        return None, 0.0
+        return None, -1, 0.0
 
     def _control_devices(self, devices: HCDevices, seq: Sequence, seq_elapsed: float) -> None:
         """シーケンス定義に従ってデバイス(電源)を制御"""
@@ -228,13 +230,17 @@ class HCActivationRunner(BaseRunner):
 
             devices.aps.set_current(Current(target_current))
 
-    def _measure(
+    def _measure_and_create_result(
         self,
         devices: HCDevices,
         sensor_reader: HCSensorReader,
         total_elapsed: float,
         seq_elapsed: float,
+        current_seq: Sequence,
+        current_idx: int,
     ) -> HCRunnerResult:
+        seq_name = current_seq.mode_name
+
         # ケース温度
         case_temperature = devices.pyrometer.read_temperature()
 
@@ -254,7 +260,9 @@ class HCActivationRunner(BaseRunner):
         amd_electricity = ElectricMeasurement(voltage=amd_v, current=amd_i, power=amd_w)
 
         return HCRunnerResult(
-            sequence_timestamp=Quantity(seq_elapsed, "s"),
+            current_sequence_index=current_idx + 1,
+            current_sequence_name=seq_name,
+            step_timestamp=Quantity(seq_elapsed, "s"),
             total_timestamp=Quantity(total_elapsed, "s"),
             ext_pressure=ext_pressure,
             sip_pressure=sip_pressure,
