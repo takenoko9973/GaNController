@@ -137,8 +137,13 @@ class HeatCleaningMainView(QWidget):
             self.measure_panel.set_status("停止処理中", False)
 
     def update_view(self, result: HCRunnerResult) -> None:
+        """結果をUIに反映"""
         self.measure_panel.update_measure_values(result)
         self.graph_panel.update_graph(result)
+
+    def clear_view(self) -> None:
+        """グラフや表示を初期化"""
+        self.graph_panel.clear_graph()
 
     # =============================================================================
 

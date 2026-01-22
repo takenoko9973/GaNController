@@ -31,7 +31,7 @@ class HCActivationRunner(BaseRunner):
     app_config: AppConfig  # 全体設定
     protocol_config: ProtocolConfig  # 実験条件
 
-    # _recorder: HCLogRecorder
+    _recorder: HCLogRecorder
     _request_queue: queue.Queue
 
     def __init__(self, app_config: AppConfig, protocol_config: ProtocolConfig) -> None:

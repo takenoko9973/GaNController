@@ -234,7 +234,7 @@ class HeatCleaningController(ITabController):
             return
 
         # 前回のグラフ等をクリア
-        # self._view.clear_view()
+        self._view.clear_view()
 
         # 設定読み込み (ファイルを用いる)
         app_config = AppConfig.load()
@@ -264,9 +264,8 @@ class HeatCleaningController(ITabController):
 
     @Slot(object)
     def on_result(self, result: HCRunnerResult) -> None:
-        """結果表示とログ出力処理"""
+        """結果表示"""
         self._view.update_view(result)
-        # self.logger.log(result)
 
     @Slot(str)
     def on_error(self, message: str) -> None:
