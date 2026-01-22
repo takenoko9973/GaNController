@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
+from gan_controller.features.heat_cleaning.state import HCActivationState
 from gan_controller.features.heat_cleaning.view.widgets import (
     HCConditionPanel,
     HCExecutionPanel,
@@ -40,6 +41,8 @@ class HeatCleaningMainView(QWidget):
 
         self._init_ui()
         self._init_shortcuts()
+
+        self.set_running(HCActivationState.IDLE)
 
     def _init_ui(self) -> None:
         self._main_layout = QHBoxLayout(self)
@@ -100,6 +103,38 @@ class HeatCleaningMainView(QWidget):
         self.shortcut_save_as.activated.connect(self.save_as_requested.emit)
 
     # =============================================================================
+
+    def set_running(self, state: HCActivationState) -> None:
+        """実験表示 (ボタン) 切り替え"""
+        if state == HCActivationState.IDLE:
+            # 設定パネルの有効化
+            self.protocol_select_panel.setEnabled(True)
+            self.condition_panel.setEnabled(True)
+            self.log_setting_panel.setEnabled(True)
+
+            self.execution_panel.start_button.setEnabled(True)  # 実行ボタン
+            self.execution_panel.stop_button.setEnabled(False)  # 停止ボタン
+            self.measure_panel.set_status("待機中", False)
+        elif state == HCActivationState.RUNNING:
+            # 設定パネルの無効化
+            self.protocol_select_panel.setEnabled(False)
+            self.condition_panel.setEnabled(False)
+            self.log_setting_panel.setEnabled(False)
+
+            self.execution_panel.start_button.setEnabled(False)
+            self.execution_panel.stop_button.setEnabled(True)
+            print(self.execution_panel.stop_button.isEnabled())
+            self.measure_panel.set_status("実行中", True)
+        elif state == HCActivationState.STOPPING:
+            # 停止中もパネル操作不可
+            self.protocol_select_panel.setEnabled(False)
+            self.condition_panel.setEnabled(False)
+            self.log_setting_panel.setEnabled(False)
+
+            # 停止中はどちらも操作不可
+            self.execution_panel.start_button.setEnabled(False)
+            self.execution_panel.stop_button.setEnabled(False)
+            self.measure_panel.set_status("停止処理中", False)
 
     def update_view(self, result: HCRunnerResult) -> None:
         self.measure_panel.update_measure_values(result)

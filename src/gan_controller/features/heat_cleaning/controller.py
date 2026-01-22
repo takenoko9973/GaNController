@@ -59,7 +59,7 @@ class HeatCleaningController(ITabController):
     def set_state(self, state: HCActivationState) -> None:
         """状態変更"""
         self._state = state
-        # self._view.set_running(self._state)
+        self._view.set_running(self._state)
 
         # 待機中以外なら、タブをロック
         should_lock = state != HCActivationState.IDLE
