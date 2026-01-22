@@ -1,5 +1,5 @@
 from enum import Enum, StrEnum, auto
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -134,6 +134,9 @@ class DualAxisGraph(QWidget):
         # 凡例の場所
         self.legend_location = legend_location
 
+        # x軸の表示幅
+        self._x_window = None
+
     def _sci_mathtext(self, x, _) -> str:  # noqa: ANN001
         if x == 0:
             return r"$0$"
@@ -188,7 +191,7 @@ class DualAxisGraph(QWidget):
         target[name] = []
 
         # オプション引数
-        plot_kwargs = {
+        plot_kwargs: dict[str, Any] = {
             "label": label,
             "color": color,
             "linewidth": 1.5,
