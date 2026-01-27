@@ -12,7 +12,6 @@ from gan_controller.common.domain.quantity import Current, Quantity
 from gan_controller.common.hardware.adapters.logger_adapter import ILoggerAdapter
 from gan_controller.common.hardware.adapters.power_supply_adapter import IPowerSupplyAdapter
 from gan_controller.common.hardware.adapters.pyrometer_adapter import IPyrometerAdapter
-from gan_controller.common.io.log_manager import LogManager
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.features.heat_cleaning.devices import (
     HCDeviceManager,
@@ -34,10 +33,13 @@ class HCActivationRunner(BaseRunner):
     _recorder: HCLogRecorder
     _request_queue: queue.Queue
 
-    def __init__(self, app_config: AppConfig, protocol_config: ProtocolConfig) -> None:
+    def __init__(
+        self, app_config: AppConfig, protocol_config: ProtocolConfig, recorder: HCLogRecorder
+    ) -> None:
         super().__init__()
         self.app_config = app_config  # VISAアドレスなど
         self.protocol_config = protocol_config  # 実験条件
+        self._recorder = recorder
 
         self._request_queue = queue.Queue()  # スレッド通信用キュー
 
@@ -74,18 +76,7 @@ class HCActivationRunner(BaseRunner):
 
     def _setup_recorder(self, start_time: datetime.datetime) -> None:
         """記録用ファイルの準備とヘッダー書き込み"""
-        manager = LogManager(self.app_config)
-
-        # ログファイル準備
-        update_date = self.protocol_config.log.update_date_folder
-        major_update = self.protocol_config.log.update_major_number
-
-        log_dir = manager.get_date_directory(update_date)
-        log_file = log_dir.create_logfile(protocol_name="NEA", major_update=major_update)
-        print(f"Recording to: {log_file.path}")
-
-        # レコーダー準備
-        self._recorder = HCLogRecorder(log_file, self.protocol_config)
+        print(f"Recording to: {self._recorder.file.path}")
         self._recorder.record_header(start_time=start_time)
 
     def _setup_devices(self, devices: HCDevices) -> None:
@@ -165,7 +156,7 @@ class HCActivationRunner(BaseRunner):
                         devices, sensor_reader, total_elapsed, seq_elapsed, current_seq, seq_index
                     )
 
-                    if self.emit_result is not None:
+                    if is_logging_timing and self.emit_result is not None:
                         self.emit_result(result)
 
                     # ログ

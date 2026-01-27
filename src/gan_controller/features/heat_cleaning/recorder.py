@@ -90,7 +90,7 @@ class HCLogRecorder:
         comment = self.config.log.comment
 
         # === Header Writing (Identical to reference) ===
-        lf.write("#NEA activation monitor\n")
+        lf.write("#Heat Cleaning monitor\n")
         lf.write("\n")
         lf.write(f"#Protocol:\t{lf.protocol}\n")
         lf.write("\n")

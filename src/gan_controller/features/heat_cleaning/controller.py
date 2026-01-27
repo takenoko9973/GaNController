@@ -7,9 +7,11 @@ from PySide6.QtWidgets import QInputDialog, QMessageBox
 from gan_controller.common.application.global_messenger import GlobalMessenger
 from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
 from gan_controller.common.constants import PROTOCOLS_DIR
+from gan_controller.common.io.log_manager import LogFile, LogManager
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
 from gan_controller.features.heat_cleaning.constants import NEW_PROTOCOL_TEXT
+from gan_controller.features.heat_cleaning.recorder import HCLogRecorder
 from gan_controller.features.heat_cleaning.runner import HCActivationRunner
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
@@ -227,6 +229,19 @@ class HeatCleaningController(ITabController):
     # View -> Runner
     # =================================================
 
+    def _create_recorder(self, app_config: AppConfig, protocol_config: ProtocolConfig) -> LogFile:
+        manager = LogManager(app_config)
+
+        # ログファイル準備
+        update_date = protocol_config.log.update_date_folder
+        major_update = protocol_config.log.update_major_number
+
+        log_dir = manager.get_date_directory(update_date)
+        return log_dir.create_logfile(
+            protocol_name=self._view.protocol_select_panel.current_selected_protocol(),
+            major_update=major_update,
+        )
+
     @Slot()
     def experiment_start(self) -> None:
         """実験開始処理"""
@@ -241,9 +256,12 @@ class HeatCleaningController(ITabController):
         # 実験条件はウィンドウから所得
         config = self._view.get_full_config()
 
+        log_file = self._create_recorder(app_config, config)
+        recorder = HCLogRecorder(log_file, config)
+
         self.set_state(HCActivationState.RUNNING)
 
-        self.runner = HCActivationRunner(app_config, config)
+        self.runner = HCActivationRunner(app_config, config, recorder)
         self.worker = ExperimentWorker(self.runner)
         self._attach_worker(self.worker)
 
