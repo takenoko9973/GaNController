@@ -63,3 +63,6 @@ ALL_UNIT_TYPES: list[type[UnitBase]] = [
     Ohm,
     Celsius,
 ]
+
+# シンボルから単位クラスへのマッピング
+UNIT_BY_SYMBOL: dict[str, type[UnitBase]] = {u.symbol: u for u in ALL_UNIT_TYPES}

@@ -4,8 +4,8 @@ from PySide6.QtWidgets import QWidget
 
 # 共通基底クラス (PageControllerなど)
 from gan_controller.common.ui.tab_controller import ITabController
-from gan_controller.features.heat_cleaning.hc_controller import HeatCleaningController
-from gan_controller.features.heat_cleaning.ui.tab_widget import HeatCleaningTab
+from gan_controller.features.heat_cleaning.controller import HeatCleaningController
+from gan_controller.features.heat_cleaning.view import HeatCleaningMainView
 from gan_controller.features.nea_activation.controller import NEAActivationController
 from gan_controller.features.nea_activation.view import NEAActivationMainView
 
@@ -32,7 +32,7 @@ class FeatureFactory:
         features = []
 
         # 加熱洗浄 (Heat Cleaning)
-        hc_view = HeatCleaningTab()
+        hc_view = HeatCleaningMainView()
         hc_ctrl = HeatCleaningController(hc_view)
         features.append(AppFeature("Heat Cleaning", hc_view, hc_ctrl))
 

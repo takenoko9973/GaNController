@@ -20,3 +20,23 @@ class GraphData:
                 self.left[name].append(val)
             elif name in self.right:
                 self.right[name].append(val)
+
+    def decimate(self, max_points: int) -> "GraphData":
+        """データ点が max_points 以下になるように間引いたGraphDataを新たに返す"""
+        count = len(self.x)
+
+        if count <= max_points:  # もともと max_points 以下
+            # そのままコピーして返す
+            return self.__class__(
+                x=self.x[:],
+                left={k: v[:] for k, v in self.left.items()},
+                right={k: v[:] for k, v in self.right.items()},
+            )
+
+        # 間引きステップ数の計算
+        step = max(1, count // max_points)
+        return self.__class__(
+            x=self.x[::step],
+            left={k: v[::step] for k, v in self.left.items()},
+            right={k: v[::step] for k, v in self.right.items()},
+        )

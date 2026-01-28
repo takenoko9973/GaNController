@@ -2,6 +2,8 @@ from typing import Any
 
 from pydantic import BeforeValidator, PlainSerializer
 
+from gan_controller.common.domain.quantity.unit_types import UNIT_BY_SYMBOL
+
 from .parser import split_unit
 from .prefix_registry import PREFIX_REGISTRY
 from .quantity import Quantity
@@ -10,6 +12,7 @@ from .quantity import Quantity
 def PydanticUnit(unit_str: str) -> tuple[BeforeValidator, PlainSerializer]:  # noqa: N802
     """Pydantic Annotated用のヘルパー"""
     target_prefix, target_base = split_unit(unit_str, PREFIX_REGISTRY.known_prefixes)
+    target_unit_type = UNIT_BY_SYMBOL[target_base]
 
     # バリデータ (設定ファイルの数値 -> Quantity)
     def validate(v: Any) -> Quantity:  # noqa: ANN401
@@ -28,7 +31,7 @@ def PydanticUnit(unit_str: str) -> tuple[BeforeValidator, PlainSerializer]:  # n
     # シリアライザ (Quantity -> 設定ファイルの数値)
     def serialize(q: Quantity) -> float:
         # 単位の整合性チェック (実行時の確認)
-        if q.unit != target_base:
+        if q.unit != target_unit_type.symbol:
             msg = f"Unit mismatch: expected base '{target_base}' for {unit_str}, got '{q.unit}'"
             raise ValueError(msg)
 

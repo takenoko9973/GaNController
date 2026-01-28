@@ -94,6 +94,6 @@ class NEAConditionSettingsPanel(QGroupBox):
     def set_config(self, config: NEAConditionConfig) -> None:
         self.shunt_r_spin.setValue(config.shunt_resistance.value_as("k"))
         self.laser_wavelength_spin.setValue(config.laser_wavelength.value_as("n"))
-        self.stabilization_time_spin.setValue(config.stabilization_time.si_value)
-        self.integrated_count_spin.setValue(int(config.integration_count.si_value))
-        self.integrated_interval_spin.setValue(config.integration_interval.si_value)
+        self.stabilization_time_spin.setValue(config.stabilization_time.base_value)
+        self.integrated_count_spin.setValue(int(config.integration_count.base_value))
+        self.integrated_interval_spin.setValue(config.integration_interval.base_value)

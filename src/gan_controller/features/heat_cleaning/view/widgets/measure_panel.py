@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QPalette
 from PySide6.QtWidgets import (
     QFormLayout,
@@ -7,50 +7,40 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLayout,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
 
 from gan_controller.common.domain.electricity import ElectricProperties
-from gan_controller.common.domain.quantity import Pressure, Temperature, Value
+from gan_controller.common.domain.quantity import Pressure, Temperature
 from gan_controller.common.ui.widgets import ValueLabel
+from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
 
 
-class HCExecutionPanel(QGroupBox):
+class HCMeasurePanel(QGroupBox):
     """実行制御およびモニタリング表示用ウィジェット"""
 
     # === 要素
     status_value_label: QLabel  # 動作状態
 
-    sequence_time_label: ValueLabel  # シーケンスの経過時間
+    step_time_label: ValueLabel  # シーケンスの経過時間
     total_time_label: ValueLabel  # 合計の経過時間
 
     hc_value_labels: dict[ElectricProperties, ValueLabel]
     amd_value_labels: dict[ElectricProperties, ValueLabel]
 
     temp_value_label: ValueLabel
-    pressure_value_labels: dict[ElectricProperties, ValueLabel]
-
-    start_button: QPushButton
-    stop_button: QPushButton
-
-    # === シグナル
-    start_requested = Signal()
-    stop_requested = Signal()
+    ext_pres_value_label: ValueLabel
+    sip_pres_value_label: ValueLabel
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__("実行制御 / モニタリング", parent)
+        super().__init__("モニタリング", parent)
 
         layout = QVBoxLayout(self)
 
         layout.addLayout(self._create_status_section())  # 状態・時間
         layout.addSpacing(10)
         layout.addLayout(self._create_monitor_section())  # センサー値
-        layout.addSpacing(10)
-        layout.addLayout(self._create_control_section())  # 制御
-
-        self._setup_connections()
 
     def _create_status_section(self) -> QLayout:
         time_layout = QHBoxLayout()
@@ -70,14 +60,14 @@ class HCExecutionPanel(QGroupBox):
             h, m = divmod(m, 60)
             return f"{h:02d}:{m:02d}:{s:02d}"
 
-        self.sequence_time_label = ValueLabel(0, formatter=time_fmt)
+        self.step_time_label = ValueLabel(0, formatter=time_fmt)
         self.total_time_label = ValueLabel(0, formatter=time_fmt)
 
         time_layout.addWidget(QLabel("状態 :"))
         time_layout.addWidget(self.status_value_label)
         time_layout.addStretch()
-        time_layout.addWidget(QLabel("Sequence :"))
-        time_layout.addWidget(self.sequence_time_label)
+        time_layout.addWidget(QLabel("Step :"))
+        time_layout.addWidget(self.step_time_label)
         time_layout.addSpacing(5)
         time_layout.addWidget(QLabel("Total :"))
         time_layout.addWidget(self.total_time_label)
@@ -104,8 +94,8 @@ class HCExecutionPanel(QGroupBox):
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lbl.setStyleSheet("font-size: 10.5px; color: #555;")
 
-            self.hc_value_labels[electric_prop] = ValueLabel(Value(0), ".2f")
-            self.amd_value_labels[electric_prop] = ValueLabel(Value(0), ".2f")
+            self.hc_value_labels[electric_prop] = ValueLabel(0, ".2f")
+            self.amd_value_labels[electric_prop] = ValueLabel(0, ".2f")
 
             output_grid.addWidget(lbl, 0, i + 1)
             output_grid.addWidget(self.hc_value_labels[electric_prop], 1, i + 1)
@@ -119,43 +109,20 @@ class HCExecutionPanel(QGroupBox):
         # env_layout.setFormAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
 
         # 温度
-        self.temp_val = ValueLabel(Temperature(25.0), ".1f")
+        self.temp_value_label = ValueLabel(Temperature(25.0), ".1f")
 
-        self.ext_pres_val = ValueLabel(Pressure(0.0), ".2e")
-        self.sip_pres_val = ValueLabel(Pressure(0.0), ".2e")
+        self.ext_pres_value_label = ValueLabel(Pressure(0.0), ".2e")
+        self.sip_pres_value_label = ValueLabel(Pressure(0.0), ".2e")
 
-        env_layout.addRow("温度 :", self.temp_val)
-        env_layout.addRow("EXT :", self.ext_pres_val)
-        env_layout.addRow("SIP :", self.sip_pres_val)
+        env_layout.addRow("温度 :", self.temp_value_label)
+        env_layout.addRow("EXT :", self.ext_pres_value_label)
+        env_layout.addRow("SIP :", self.sip_pres_value_label)
 
         monitor_layout.addLayout(output_grid)
         monitor_layout.addStretch()
         monitor_layout.addLayout(env_layout)
 
         return monitor_layout
-
-    def _create_control_section(self) -> QLayout:
-        control_layout = QHBoxLayout()
-
-        self.start_button = QPushButton("開始")
-        self.stop_button = QPushButton("停止")
-
-        self.start_button.setMinimumHeight(40)
-        self.stop_button.setMinimumHeight(40)
-
-        # 初期状態: 停止中なので「停止」ボタンは無効化
-        self.stop_button.setEnabled(False)
-
-        control_layout.addWidget(self.start_button)
-        control_layout.addWidget(self.stop_button)
-
-        return control_layout
-
-    def _setup_connections(self) -> None:
-        """シグナル設定"""
-        # クリック時のシグナル接続
-        self.start_button.clicked.connect(self.start_requested.emit)
-        self.stop_button.clicked.connect(self.stop_requested.emit)
 
     # =============================================================================
 
@@ -170,3 +137,23 @@ class HCExecutionPanel(QGroupBox):
             pal.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.gray)
 
         self.status_value_label.setPalette(pal)
+
+    def update_measure_values(self, result: HCRunnerResult) -> None:
+        """測定結果で表示を更新"""
+        text = f"{result.current_sequence_index}: {result.current_sequence_name}"
+        self.set_status(text, True)
+
+        self.step_time_label.setValue(result.step_timestamp.base_value)
+        self.total_time_label.setValue(result.total_timestamp.base_value)
+
+        self.temp_value_label.setValue(result.case_temperature)
+        self.ext_pres_value_label.setValue(result.ext_pressure)
+        self.sip_pres_value_label.setValue(result.sip_pressure)
+
+        for electric_prop in ElectricProperties:
+            self.hc_value_labels[electric_prop].setValue(
+                result.hc_electricity.get_quantity(electric_prop).base_value
+            )
+            self.amd_value_labels[electric_prop].setValue(
+                result.amd_electricity.get_quantity(electric_prop).base_value
+            )

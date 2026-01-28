@@ -74,7 +74,7 @@ class GM10Adapter(ILoggerAdapter):
                     time.sleep(sleep_time)
 
                 q = self.read_voltage(channel)  # 単体取得
-                results.append(q.si_value)  # V に正規化
+                results.append(q.base_value)  # V に正規化
 
             result_avg = sum(results) / n
             return Voltage(result_avg)  # 正規化してるので、そのまま変換

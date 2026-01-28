@@ -119,20 +119,20 @@ class NEAActivationMainView(QWidget):
         """測定結果で表示を更新"""
         measure_p = self.measure_panel
 
-        measure_p.elapsed_time_label.set_value(result.timestamp)
+        measure_p.elapsed_time_label.setValue(result.timestamp)
 
-        measure_p.pc_value_label.set_value(result.photocurrent)
-        measure_p.qe_value_label.set_value(result.quantum_efficiency)
-        measure_p.ext_pres_val.set_value(result.ext_pressure)
+        measure_p.pc_value_label.setValue(result.photocurrent)
+        measure_p.qe_value_label.setValue(result.quantum_efficiency)
+        measure_p.ext_pres_val.setValue(result.ext_pressure)
 
         # AMD電源
-        measure_p.amd_value_labels[ElectricProperties.VOLTAGE].set_value(
+        measure_p.amd_value_labels[ElectricProperties.VOLTAGE].setValue(
             result.amd_electricity.voltage
         )
-        measure_p.amd_value_labels[ElectricProperties.CURRENT].set_value(
+        measure_p.amd_value_labels[ElectricProperties.CURRENT].setValue(
             result.amd_electricity.current
         )
-        measure_p.amd_value_labels[ElectricProperties.POWER].set_value(result.amd_electricity.power)
+        measure_p.amd_value_labels[ElectricProperties.POWER].setValue(result.amd_electricity.power)
 
     # =============================================================================
 

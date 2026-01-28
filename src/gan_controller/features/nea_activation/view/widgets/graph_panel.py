@@ -2,6 +2,7 @@ from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget
 
 from gan_controller.common.ui.widgets import AxisScale, DualAxisGraph
+from gan_controller.common.ui.widgets.graph.graph_widget import DisplayMode
 from gan_controller.features.nea_activation.schemas import NEARunnerResult
 
 
@@ -37,6 +38,7 @@ class NEAGraphPanel(QWidget):
             "Photocurrent (A)",
             "Pressure (Pa)",
             right_scale=AxisScale.LOG,
+            left_display=DisplayMode.EXPONENTIAL,
             legend_location="upper left",
         )
         self.graph_photocurrent.setMinimumWidth(500)
@@ -48,6 +50,7 @@ class NEAGraphPanel(QWidget):
             "QE (%)",
             "Pressure (Pa)",
             right_scale=AxisScale.LOG,
+            left_display=DisplayMode.EXPONENTIAL,
             legend_location="upper left",
         )
         self.graph_qe.setMinimumWidth(500)
@@ -80,7 +83,7 @@ class NEAGraphPanel(QWidget):
         t = result.timestamp
 
         # PC, QE が負の場合は描画しない
-        pc_val = result.photocurrent.si_value
+        pc_val = result.photocurrent.base_value
         if pc_val <= 0:
             pc_val = float("nan")
 
@@ -91,19 +94,19 @@ class NEAGraphPanel(QWidget):
         # --- Photocurrent Graph の更新 ---
         # Resultオブジェクトから値を取り出し、辞書形式でグラフに渡す
         self.graph_photocurrent.update_point(
-            x_val=t.si_value,
+            x_val=t.base_value,
             values={
                 "pc": pc_val,
-                "pres": result.ext_pressure.si_value,
+                "pres": result.ext_pressure.base_value,
             },
         )
 
         # --- QE Graph の更新 ---
         self.graph_qe.update_point(
-            x_val=t.si_value,
+            x_val=t.base_value,
             values={
                 "qe": qe_val,
-                "pres": result.ext_pressure.si_value,
+                "pres": result.ext_pressure.base_value,
             },
         )
 

@@ -1,16 +1,21 @@
 from abc import ABC, abstractmethod
-from enum import StrEnum
+from enum import Enum
 
 
-class SequenceMode(StrEnum):
-    RISING = "Rising"
-    HEAT_CLEANING = "HeatCleaning"
-    DECREASE = "Decrease"
-    WAIT = "Wait"
+class SequenceMode(Enum):
+    RISING = ("Rising", "r")
+    HEAT_CLEANING = ("HeatCleaning", "c")
+    DECREASE = ("Decrease", "d")
+    WAIT = ("Wait", "w")
+
+    def __init__(self, display_name: str, initial: str) -> None:
+        super().__init__()
+
+        self.display_name = display_name
+        self.initial = initial
 
 
 class Sequence(ABC):
-    mode_char: str
     mode_type: SequenceMode
 
     def __init__(self, duration_sec: float, exponent: float) -> None:
@@ -18,11 +23,11 @@ class Sequence(ABC):
         self.exponent = exponent
 
     def __str__(self) -> str:
-        return f"[{self.duration_sec}, '{self.mode_char}', {self.exponent}]"
+        return f"[{self.duration_sec}, '{self.mode_type.initial}', {self.exponent}]"
 
     @property
     def mode_name(self) -> str:
-        return self.mode_type.value
+        return self.mode_type.display_name
 
     # ====================================================================
 
@@ -49,7 +54,6 @@ class Sequence(ABC):
 
 
 class Rising(Sequence):
-    mode_init = "r"
     mode_type = SequenceMode.RISING
 
     def _current_profile(self, elapsed_time: float) -> float:
@@ -58,15 +62,13 @@ class Rising(Sequence):
 
 
 class HeatCleaning(Sequence):
-    mode_init = "c"
     mode_type = SequenceMode.HEAT_CLEANING
 
-    def _current_profile(self, _: float) -> float:
+    def _current_profile(self, elapsed_time: float) -> float:  # noqa: ARG002
         return 1
 
 
 class Decrease(Sequence):
-    mode_init = "d"
     mode_type = SequenceMode.DECREASE
 
     def _current_profile(self, elapsed_time: float) -> float:
@@ -75,8 +77,7 @@ class Decrease(Sequence):
 
 
 class Wait(Sequence):
-    mode_init = "w"
     mode_type = SequenceMode.WAIT
 
-    def _current_profile(self, _: float) -> float:
+    def _current_profile(self, elapsed_time: float) -> float:  # noqa: ARG002
         return 0

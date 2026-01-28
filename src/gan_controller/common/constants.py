@@ -7,13 +7,17 @@ PROJECT_ROOT = Path.cwd()
 CONFIG_DIR = PROJECT_ROOT / "configs"
 LOG_DIR = PROJECT_ROOT / "logs"
 
+PROTOCOLS_DIR = CONFIG_DIR / "protocols"  # HC用
+
 # 必要なディレクトリの自動作成
 if not CONFIG_DIR.exists():
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    CONFIG_DIR.mkdir(parents=True)
 
 if not LOG_DIR.exists():
-    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    LOG_DIR.mkdir(parents=True)
 
+if not PROTOCOLS_DIR.exists():
+    PROTOCOLS_DIR.mkdir(parents=True)
 
 # === ファイルパス定義 ===
 # アプリケーション全体の設定 (デバイス接続など)

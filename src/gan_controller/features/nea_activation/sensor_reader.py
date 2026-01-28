@@ -31,7 +31,7 @@ class NEASensorReader:
         value = self._adapter.read_voltage(target_ch)
 
         # HVの仕様上、値が 1e4 分少ないため補正
-        corrected_value = value.si_value * self.HV_READING_CORRECTION_FACTOR
+        corrected_value = value.base_value * self.HV_READING_CORRECTION_FACTOR
         return Voltage(corrected_value)
 
     def read_photocurrent_integrated(
@@ -41,5 +41,5 @@ class NEASensorReader:
         current_volt = self._adapter.read_integrated_voltage(
             self._config.devices.gm10.pc_ch, n, interval
         )
-        current_val = current_volt.si_value / shunt_r.si_value
+        current_val = current_volt.base_value / shunt_r.base_value
         return current_volt, Current(current_val)

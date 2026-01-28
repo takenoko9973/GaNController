@@ -1,3 +1,3 @@
-from .graph_widget import AxisScale, DualAxisGraph
+from .graph_widget import AxisScale, DisplayMode, DualAxisGraph
 
-__all__ = ["AxisScale", "DualAxisGraph"]
+__all__ = ["AxisScale", "DisplayMode", "DualAxisGraph"]

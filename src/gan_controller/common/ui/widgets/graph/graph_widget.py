@@ -1,7 +1,8 @@
-from enum import Enum
-from typing import TYPE_CHECKING
+from enum import Enum, StrEnum, auto
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
+from matplotlib.axes import Axes
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.ticker import AutoMinorLocator, FuncFormatter
@@ -53,15 +54,30 @@ class DebouncedFigureCanvas(FigureCanvas):
             super().resizeEvent(new_event)
 
 
-class AxisScale(Enum):
+class AxisScale(StrEnum):
     """軸のスケール設定"""
 
     LINEAR = "linear"
     LOG = "log"
 
 
+class DisplayMode(Enum):
+    """軸の表示方法設定 (Linearのみ)"""
+
+    NORMAL = auto()
+    EXPONENTIAL = auto()
+
+
 class DualAxisGraph(QWidget):
     """2軸データ(左・右) を表示するグラフウィジェット"""
+
+    model: GraphData
+
+    fig: Figure
+    canvas: DebouncedFigureCanvas
+
+    ax_left: Axes
+    ax_right: Axes
 
     def __init__(
         self,
@@ -71,6 +87,8 @@ class DualAxisGraph(QWidget):
         right_label: str,
         left_scale: AxisScale = AxisScale.LINEAR,
         right_scale: AxisScale = AxisScale.LINEAR,
+        left_display: DisplayMode = DisplayMode.NORMAL,
+        right_display: DisplayMode = DisplayMode.NORMAL,
         legend_location: str = "upper right",
         parent: QWidget | None = None,
     ) -> None:
@@ -85,38 +103,27 @@ class DualAxisGraph(QWidget):
         self.ax_left = self.fig.add_subplot(111)
         self.ax_right = self.ax_left.twinx()
 
-        self.ax_left.set_zorder(self.ax_right.get_zorder() + 1)
-        self.ax_left.patch.set_visible(False)
-
         # レイアウト設定
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.canvas)
 
-        # 軸ラベルとタイトルの設定
+        # タイトル
         self.ax_left.set_title(title, fontsize="x-small")
-        self.ax_left.set_xlabel(x_label, fontsize="large")
-        self.ax_left.set_ylabel(left_label, fontsize="large")
-        self.ax_right.set_ylabel(right_label, fontsize="large")
 
-        self.ax_left.yaxis.set_minor_locator(AutoMinorLocator(5))
-        self.ax_left.tick_params(which="major", labelsize="medium", direction="in", top=True)
-        self.ax_left.tick_params(which="minor", labelsize="medium", direction="in", top=True)
-
-        self.ax_right.yaxis.set_minor_locator(AutoMinorLocator(5))
-        self.ax_right.tick_params(which="major", labelsize="medium", direction="in", top=True)
-        self.ax_right.tick_params(which="minor", labelsize="medium", direction="in", top=True)
-
+        # 軸ラベル、フォーマット設定
+        self._setup_axes(
+            x_label,
+            left_label,
+            right_label,
+            left_scale,
+            right_scale,
+            left_display,
+            right_display,
+        )
+        self.ax_left.set_zorder(self.ax_right.get_zorder() + 1)
+        self.ax_left.patch.set_visible(False)
         self.ax_left.grid(True, linestyle="--", alpha=0.6)
-
-        # スケール設定
-        self.ax_left.set_yscale(left_scale.value)
-        self.ax_right.set_yscale(right_scale.value)
-        # 線形表示の場合、軸の上の方に指数が表示されるため、手動で指定
-        if left_scale == AxisScale.LINEAR:
-            self.ax_left.yaxis.set_major_formatter(FuncFormatter(self._sci_mathtext))
-        if left_scale == AxisScale.LINEAR:
-            self.ax_left.yaxis.set_major_formatter(FuncFormatter(self._sci_mathtext))
 
         # ラインオブジェクトの辞書 (再描画の高速化用)
         self.lines_left: dict[str, Line2D] = {}
@@ -124,6 +131,37 @@ class DualAxisGraph(QWidget):
 
         # 凡例の場所
         self.legend_location = legend_location
+
+        # x軸の表示幅
+        self._x_window = None
+
+    def _setup_axes(
+        self,
+        x_label: str,
+        l_label: str,
+        r_label: str,
+        l_scale: AxisScale,
+        r_scale: AxisScale,
+        l_display: DisplayMode,
+        r_display: DisplayMode,
+    ) -> None:
+        """軸のラベルやフォーマットの初期設定"""
+        self.ax_left.set_xlabel(x_label, fontsize="large")
+        self.ax_left.set_ylabel(l_label, fontsize="large")
+        self.ax_right.set_ylabel(r_label, fontsize="large")
+
+        for ax in [self.ax_left, self.ax_right]:
+            ax.yaxis.set_minor_locator(AutoMinorLocator(5))
+            ax.tick_params(which="both", labelsize="medium", direction="in", top=True)
+
+        # スケール設定
+        self.ax_left.set_yscale(l_scale.value)
+        self.ax_right.set_yscale(r_scale.value)
+        # 線形表示の場合、軸の上の方に指数が表示されるため、手動で指定
+        if l_scale == AxisScale.LINEAR and l_display == DisplayMode.EXPONENTIAL:
+            self.ax_left.yaxis.set_major_formatter(FuncFormatter(self._sci_mathtext))
+        if r_scale == AxisScale.LINEAR and r_display == DisplayMode.EXPONENTIAL:
+            self.ax_right.yaxis.set_major_formatter(FuncFormatter(self._sci_mathtext))
 
     def _sci_mathtext(self, x, _) -> str:  # noqa: ANN001
         if x == 0:
@@ -142,7 +180,8 @@ class DualAxisGraph(QWidget):
                                            Noneの場合は全範囲を表示する。
         """
         self._x_window = x_window
-        self._render()  # 設定変更を即時反映
+        self._update_axis_ranges()
+        self.canvas.draw()
 
     def set_title(self, title: str) -> None:
         """グラフのタイトルを再設定"""
@@ -179,7 +218,7 @@ class DualAxisGraph(QWidget):
         target[name] = []
 
         # オプション引数
-        plot_kwargs = {
+        plot_kwargs: dict[str, Any] = {
             "label": label,
             "color": color,
             "linewidth": 1.5,
@@ -222,13 +261,17 @@ class DualAxisGraph(QWidget):
         for name, line in self.lines_right.items():
             line.set_data(self.model.x, self.model.right[name])
 
-        # 軸のスケール調整
+        self._update_axis_ranges()
+        self.canvas.draw()
+
+    def _update_axis_ranges(self) -> None:
+        """X軸・Y軸の範囲調整"""
         self.ax_left.relim()
         self.ax_left.autoscale_view()
         self.ax_right.relim()
         self.ax_right.autoscale_view()
 
-        # スライド表示 (Time Window) の適用
+        # Time Window (スライド表示)
         if self._x_window is not None and len(self.model.x) > 0:
             latest_x = self.model.x[-1]
 
@@ -239,14 +282,13 @@ class DualAxisGraph(QWidget):
 
             self.ax_left.set_xlim(min_x, max_x)
             self.ax_right.set_xlim(min_x, max_x)
-        elif self._x_window is None:
+
+        elif self._x_window is None and len(self.model.x) > 0:
             max_x = max(self.model.x)
             min_x = 0
 
             self.ax_left.set_xlim(min_x, max_x)
             self.ax_right.set_xlim(min_x, max_x)
-
-        self.canvas.draw()
 
     def _update_legend(self) -> None:
         l1, lab1 = self.ax_left.get_legend_handles_labels()

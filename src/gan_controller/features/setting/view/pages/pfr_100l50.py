@@ -64,6 +64,6 @@ class PFR100L50ConfigPage(QWidget):
     def set_config(self, config: PFR100l50Config) -> None:
         self.visa_address_edit.setText(config.visa)
         self.unit_spin.setValue(config.unit)
-        self.v_limit_spin.setValue(config.v_limit.si_value)
-        self.ovp_spin.setValue(config.ovp.si_value)
-        self.ocp_spin.setValue(config.ocp.si_value)
+        self.v_limit_spin.setValue(config.v_limit.base_value)
+        self.ovp_spin.setValue(config.ovp.base_value)
+        self.ocp_spin.setValue(config.ocp.base_value)

@@ -19,12 +19,12 @@ class VacuumSensorReader:
         """EXT真空計の値を読み取る"""
         val_q = self._adapter.read_voltage(self._config.ext_ch)
 
-        pressure_val = calc_ext_pressure_from_voltage(val_q.si_value)
+        pressure_val = calc_ext_pressure_from_voltage(val_q.base_value)
         return Pressure(pressure_val)
 
     def read_sip_pressure(self) -> Quantity[Pascal]:
         """SIP真空計の値を読み取る"""
         val_q = self._adapter.read_voltage(self._config.sip_ch)
 
-        pressure_val = calc_sip_pressure_from_voltage(val_q.si_value)
+        pressure_val = calc_sip_pressure_from_voltage(val_q.base_value)
         return Pressure(pressure_val)
