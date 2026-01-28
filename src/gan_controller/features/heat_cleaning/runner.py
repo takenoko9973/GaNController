@@ -121,55 +121,34 @@ class HCActivationRunner(BaseRunner):
         print("Start Heat Cleaning measurement...")
 
         # 制御・ログ書き込み間隔
-        monitor_interval = 1.0  # 測定間隔
-        logging_interval = self.protocol_config.condition.logging_interval.base_value
+        interval = self.protocol_config.condition.logging_interval.base_value
 
         start_perf = time.perf_counter()  # 開始時間 (高分解能)
-        next_log_time = 0.0
+        next_target_perf = start_perf
 
         try:
             # メインループ
             while not self._stop:
-                try:
-                    current_perf = time.perf_counter()
-                    total_elapsed = current_perf - start_perf
+                # タイミング調整
+                current_perf = time.perf_counter()
+                sleep_duration = next_target_perf - current_perf
+                if sleep_duration > 0:
+                    time.sleep(sleep_duration)
 
-                    is_logging_timing = total_elapsed >= next_log_time
-                    if is_logging_timing:
-                        next_log_time += logging_interval  # 次の更新時間を更新
+                next_target_perf += interval  # 次の測定時間
 
-                    # ===========================================================
+                # =======================================================
 
-                    current_seq, seq_index, seq_elapsed = self._get_current_sequence_state(
-                        sequences, total_elapsed
-                    )
-                    if current_seq is None:
-                        print("All sequences finished.")
-                        break
+                total_elapsed = time.perf_counter() - start_perf
+                result = self._process_step(devices, sensor_reader, total_elapsed)
 
-                    # 制御 (電流値適応)
-                    if is_logging_timing:  # ログと同じ間隔
-                        self._control_devices(devices, current_seq, seq_elapsed)
-
-                    # 測定
-                    result = self._measure_and_create_result(
-                        devices, sensor_reader, total_elapsed, seq_elapsed, current_seq, seq_index
-                    )
-
-                    if is_logging_timing and self.emit_result is not None:
+                if result is not None:
+                    # 送信
+                    if self.emit_result is not None:
                         self.emit_result(result)
 
-                    # ログ
-                    if is_logging_timing and result is not None:
-                        self._recorder.record_data(result)
-
-                except pyvisa.errors.VisaIOError as e:
-                    self._handle_visa_error(e)
-
-                # 測定間隔調整
-                elapsed_in_loop = time.perf_counter() - current_perf
-                sleep_time = max(0.0, monitor_interval - elapsed_in_loop)
-                time.sleep(sleep_time)
+                    # ログ書き込み
+                    self._recorder.record_data(result)
 
         except Exception as e:
             print(f"\033[31m[ERROR] Measurement loop failed: {e}\033[0m")
@@ -179,8 +158,33 @@ class HCActivationRunner(BaseRunner):
         finally:
             self._finalize_safety(devices)
 
+    def _process_step(
+        self, devices: HCDevices, sensor_reader: HCSensorReader, total_elapsed: float
+    ) -> HCRunnerResult | None:
+        try:
+            current_seq, seq_index, seq_elapsed = self._get_current_sequence_state(total_elapsed)
+            if current_seq is not None:
+                # 電流値設定
+                self._control_devices(devices, current_seq, seq_elapsed)
+            else:
+                # 終了した場合
+                print("All sequences finished.")
+                self._stop = True
+
+            time.sleep(0.1)  # 電流変化後の安定化用
+
+            # 測定
+            return self._measure_and_create_result(
+                devices, sensor_reader, total_elapsed, seq_elapsed, current_seq, seq_index
+            )
+
+        except pyvisa.errors.VisaIOError as e:
+            # 装置に関するエラー
+            self._handle_visa_error(e)
+            return None
+
     def _get_current_sequence_state(
-        self, sequences: list[Sequence], total_elapsed: float
+        self, total_elapsed: float
     ) -> tuple[Sequence | None, int, float]:
         """現在の経過時間から、該当するシーケンスとその中での経過時間を返す
 
@@ -188,6 +192,10 @@ class HCActivationRunner(BaseRunner):
             (Sequenceオブジェクト, シーケンス番号, シーケンス内経過時間[s])
 
         """
+        sequences = self.protocol_config.get_sequences()
+        if not sequences:
+            return None, -1, 0.0
+
         # シーケンスごとの累積時間
         accumulated_time = 0.0
 
@@ -227,10 +235,10 @@ class HCActivationRunner(BaseRunner):
         sensor_reader: HCSensorReader,
         total_elapsed: float,
         seq_elapsed: float,
-        current_seq: Sequence,
+        current_seq: Sequence | None,
         current_idx: int,
     ) -> HCRunnerResult:
-        seq_name = current_seq.mode_name
+        seq_name = current_seq.mode_name if current_seq else "Finish"
 
         # ケース温度
         case_temperature = devices.pyrometer.read_temperature()
