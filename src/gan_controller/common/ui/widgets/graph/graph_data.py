@@ -1,4 +1,3 @@
-# graph_data.py
 from dataclasses import dataclass, field
 
 
