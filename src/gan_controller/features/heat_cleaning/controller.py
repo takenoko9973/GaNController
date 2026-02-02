@@ -230,7 +230,7 @@ class HeatCleaningController(ITabController):
     # =================================================
 
     def _create_recorder(self, app_config: AppConfig, protocol_config: ProtocolConfig) -> LogFile:
-        manager = LogManager(app_config)
+        manager = LogManager(app_config.common.get_tz(), app_config.common.encode)
 
         # ログファイル準備
         update_date = protocol_config.log.update_date_folder

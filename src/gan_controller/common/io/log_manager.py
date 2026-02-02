@@ -3,7 +3,6 @@ import re
 from pathlib import Path
 
 from gan_controller.common.constants import LOG_DIR
-from gan_controller.common.schemas.app_config import AppConfig
 
 # ログファイル名の正規表現パターン: [Number]Protocol-yyyymmddHHMMSS.ext
 LOGFILE_PATTERN = re.compile(r"^\[(\d+\.\d+)\]([A-Z0-9]+)\-(\d{14})\.dat$")
@@ -41,11 +40,10 @@ class DateLogDirectory:
     """日付ごとのディレクトリとファイル連番を管理するクラス"""
 
     def __init__(self, path: Path, tz: datetime.timezone, encoding: str) -> None:
-        self.path = path
-        self.path.mkdir(parents=True, exist_ok=True)
+        self.path: Path = path
 
-        self.tz = tz
-        self.encoding = encoding
+        self.tz: datetime.timezone = tz
+        self.encoding: str = encoding
 
     def __str__(self) -> str:
         return f"DateLogDirectory(path={self.path})"
@@ -63,37 +61,38 @@ class DateLogDirectory:
         current_major = 0
         current_minor = 0
 
-        try:
-            for entry in self.path.iterdir():
-                if not entry.is_file():
-                    continue
+        if self.path.exists():
+            try:
+                for entry in self.path.iterdir():
+                    if not entry.is_file():
+                        continue
 
-                match = LOGFILE_PATTERN.match(entry.name)
-                if match is None:
-                    continue
+                    match = LOGFILE_PATTERN.match(entry.name)
+                    if match is None:
+                        continue
 
-                number = match.group(1)
-                number_match = number_pattern.match(number)
-                if number_match is None:
-                    msg = f"Invalid number format in file name {entry.name}"
-                    raise ValueError(msg)
+                    number = match.group(1)
+                    number_match = number_pattern.match(number)
+                    if number_match is None:
+                        msg = f"Invalid number format in file name {entry.name}"
+                        raise ValueError(msg)
 
-                major = int(number_match.group(1))
-                minor = int(number_match.group(2))
+                    major = int(number_match.group(1))
+                    minor = int(number_match.group(2))
 
-                # より大きい番号を探す
-                if major > current_major:
-                    current_major = major
-                    current_minor = minor
-                elif major == current_major and minor > current_minor:
-                    current_minor = minor
+                    # より大きい番号を探す
+                    if major > current_major:
+                        current_major = major
+                        current_minor = minor
+                    elif major == current_major and minor > current_minor:
+                        current_minor = minor
 
-        except OSError as e:
-            print(f"Error scanning directory {self.path} for versions: {e}")
+            except OSError as e:
+                print(f"Error scanning directory {self.path} for versions: {e}")
 
         return (current_major, current_minor)
 
-    def _determine_next_version(self, major_update: bool) -> tuple[int, int]:
+    def get_next_number(self, major_update: bool) -> tuple[int, int]:
         """現在の実験番号に基づき、次の実験番号を決定"""
         current_major, current_minor = self._find_current_version()
 
@@ -108,10 +107,9 @@ class DateLogDirectory:
         # マイナー番号更新
         return (current_major, current_minor + 1)
 
-    def create_logfile(self, protocol_name: str, major_update: bool = False) -> LogFile:
-        """新しいログファイルを作成する"""
+    def _create_logfile_name(self, protocol_name: str, major_update: bool = False) -> str:
         # 実験番号
-        new_major, new_minor = self._determine_next_version(major_update)
+        new_major, new_minor = self.get_next_number(major_update)
 
         # プロトコル名の正規化 (英数字のみ、大文字)
         protocol_formatted = re.sub(r"[^a-zA-Z0-9]", "", protocol_name).upper()
@@ -121,10 +119,16 @@ class DateLogDirectory:
         # タイムスタンプ
         timestamp = datetime.datetime.now(self.tz).strftime("%Y%m%d%H%M%S")
 
-        # ファイル名生成
-        filename = f"[{new_major}.{new_minor}]{protocol_formatted}-{timestamp}.dat"
+        return f"[{new_major}.{new_minor}]{protocol_formatted}-{timestamp}.dat"
+
+    def create_logfile(self, protocol_name: str, major_update: bool = False) -> LogFile:
+        """新しいログファイルを作成する"""
+        # 作成先
+        filename = self._create_logfile_name(protocol_name, major_update)
         file_path = self.path / filename
 
+        # フォルダ・ファイル作成
+        self.path.mkdir(parents=True, exist_ok=True)
         return LogFile(file_path, self.encoding)
 
 
@@ -133,12 +137,12 @@ class LogManager:
 
     DATE_DIR_PATTERN = re.compile(r"^\d{6}$")  # YYMMDD
 
-    def __init__(self, config: AppConfig) -> None:
+    def __init__(self, tz: datetime.timezone, encoding: str) -> None:
         self.base_path = Path(LOG_DIR)
         self.base_path.mkdir(parents=True, exist_ok=True)
 
-        self.tz = config.common.get_tz()
-        self.encoding = config.common.encode
+        self.tz = tz
+        self.encoding = encoding
 
         self.base_path.mkdir(parents=True, exist_ok=True)
 
