@@ -88,7 +88,7 @@ class RealHCDeviceFactory(AbstractHCDeviceFactory):
                 stack.callback(logger_adapter.close)
 
                 # Power Supply (HC/PFR100L50)
-                hps = PFR100L50(rm, config.devices.aps.visa)
+                hps = PFR100L50(rm, config.devices.hps.visa)
                 hps_adapter = PFR100L50Adapter(hps)
                 stack.callback(hps_adapter.close)
 
