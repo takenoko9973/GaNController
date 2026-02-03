@@ -98,7 +98,7 @@ class RealHCDeviceFactory(AbstractHCDeviceFactory):
                 stack.callback(aps_adapter.close)
 
                 # Pyrometer (PWUX)
-                if config.devices.pwux.com_port <= 0:
+                if config.devices.pwux.com_port > 0:
                     pyrometer = PWUX(rm, f"COM{config.devices.pwux.com_port}")
                     pyrometer_adapter = PWUXAdapter(pyrometer)
                     stack.callback(pyrometer_adapter.close)
