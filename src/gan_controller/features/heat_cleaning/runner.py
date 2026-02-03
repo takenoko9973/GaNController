@@ -12,7 +12,7 @@ from gan_controller.common.domain.quantity import Current, Quantity
 from gan_controller.common.hardware.adapters.logger_adapter import ILoggerAdapter
 from gan_controller.common.hardware.adapters.power_supply_adapter import IPowerSupplyAdapter
 from gan_controller.common.hardware.adapters.pyrometer_adapter import IPyrometerAdapter
-from gan_controller.common.schemas.app_config import AppConfig
+from gan_controller.common.schemas.app_config import AppConfig, PFR100l50Config
 from gan_controller.features.heat_cleaning.devices import (
     HCDeviceManager,
     HCDevices,
@@ -84,23 +84,25 @@ class HCActivationRunner(BaseRunner):
         print("Setting up devices...")
 
         self._init_pyrometer_static(devices.pyrometer)
-        self._init_power_supply_static(devices.hps, devices.aps)
+        self._init_power_supply_static(
+            devices.hps, self.app_config.devices.hps, self.protocol_config.condition.hc_enabled
+        )
+        self._init_power_supply_static(
+            devices.aps, self.app_config.devices.aps, self.protocol_config.condition.amd_enabled
+        )
         self._init_gm10_static(devices.logger)
 
     def _init_pyrometer_static(self, pyrometer: IPyrometerAdapter) -> None:
         """温度計(PWUX)の静的設定"""
 
-    def _init_power_supply_static(self, hps: IPowerSupplyAdapter, aps: IPowerSupplyAdapter) -> None:
+    def _init_power_supply_static(
+        self, power_supply: IPowerSupplyAdapter, config: PFR100l50Config, enable: bool
+    ) -> None:
         """電源の静的設定"""
-        hps_config = self.app_config.devices.hps
-        hps.set_voltage(hps_config.v_limit)
-        hps.set_ovp(hps_config.ovp)
-        hps.set_ocp(hps_config.ocp)
-
-        aps_config = self.app_config.devices.aps
-        aps.set_voltage(aps_config.v_limit)
-        aps.set_ovp(aps_config.ovp)
-        aps.set_ocp(aps_config.ocp)
+        power_supply.set_voltage(config.v_limit)
+        power_supply.set_ovp(config.ovp)
+        power_supply.set_ocp(config.ocp)
+        power_supply.set_output(enable)
 
     def _init_gm10_static(self, gm10: ILoggerAdapter) -> None:
         """ロガー(GM10)の静的設定"""
