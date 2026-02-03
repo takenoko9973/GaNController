@@ -1,12 +1,11 @@
-from enum import Enum, StrEnum, auto
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 from matplotlib.axes import Axes
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
-from matplotlib.ticker import AutoMinorLocator, FuncFormatter
+from matplotlib.ticker import AutoMinorLocator, FuncFormatter, ScalarFormatter
 from PySide6.QtCore import QSize, QTimer
 from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import QVBoxLayout, QWidget
@@ -14,7 +13,7 @@ from PySide6.QtWidgets import QVBoxLayout, QWidget
 from .graph_data import GraphData
 
 
-class DebouncedFigureCanvas(FigureCanvas):
+class DebouncedFigureCanvas(FigureCanvasQTAgg):
     """リサイズ時の再描画を遅延させ、ウィンドウ操作を軽量化するCanvas"""
 
     def __init__(self, figure: Figure) -> None:
@@ -52,26 +51,12 @@ class DebouncedFigureCanvas(FigureCanvas):
             super().resizeEvent(new_event)
 
 
-class AxisScale(StrEnum):
-    """軸のスケール設定"""
-
-    LINEAR = "linear"
-    LOG = "log"
-
-
-class DisplayMode(Enum):
-    """軸の表示方法設定 (Linearのみ)"""
-
-    NORMAL = auto()
-    EXPONENTIAL = auto()
-
-
 class DualAxisGraph(QWidget):
     """2軸データ(左・右) を表示するグラフウィジェット"""
 
-    _display_data: GraphData
+    _layout: QVBoxLayout
 
-    fig: Figure
+    figure: Figure
     canvas: DebouncedFigureCanvas
 
     ax_left: Axes
@@ -83,223 +68,233 @@ class DualAxisGraph(QWidget):
 
     legend_location: str
 
-    _x_window: float | None
+    _visible_x_span: float | None
 
-    def __init__(
-        self,
-        title: str,
-        x_label: str,
-        left_label: str,
-        right_label: str,
-        left_scale: AxisScale = AxisScale.LINEAR,
-        right_scale: AxisScale = AxisScale.LINEAR,
-        left_display: DisplayMode = DisplayMode.NORMAL,
-        right_display: DisplayMode = DisplayMode.NORMAL,
-        legend_location: str = "upper right",
-        parent: QWidget | None = None,
-    ) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        # 現在表示中のデータ (外部からセットされる)
-        self._display_data = GraphData()
+        # レイアウト & キャンバス
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
 
-        # Matplotlibの初期化
-        self.fig = Figure(figsize=(5, 4), dpi=100, layout="constrained")  # constrainedで自動調整
-        self.canvas = DebouncedFigureCanvas(self.fig)
+        self.figure = Figure(figsize=(5, 4), dpi=100, layout="constrained")  # constrainedで自動調整
+        self.canvas = DebouncedFigureCanvas(self.figure)
+        self._layout.addWidget(self.canvas)
 
-        self.ax_left = self.fig.add_subplot(111)
+        # Axes
+        self.ax_left = self.figure.add_subplot(111)
         self.ax_right = self.ax_left.twinx()
 
-        # レイアウト設定
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.canvas)
+        # 内部状態管理
+        # key: ラベル名, value: { 'line': Line2D, 'axis': 'left'|'right', ... }
+        self._series_map: dict[str, dict] = {}
+        self._visible_x_span = None  # x軸の表示幅
 
-        # タイトル
-        self.ax_left.set_title(title, fontsize="x-small")
+        self._legend_loc: str = "best"  # 凡例場所
+        self._current_data_source: GraphData | None = None  # 現在表示しているデータ
 
-        # 軸ラベル、フォーマット設定
-        self._setup_axes(
-            x_label,
-            left_label,
-            right_label,
-            left_scale,
-            right_scale,
-            left_display,
-            right_display,
-        )
-        self.ax_left.set_zorder(self.ax_right.get_zorder() + 1)
-        self.ax_left.patch.set_visible(False)
-        self.ax_left.grid(True, linestyle="--", alpha=0.6)
+        self._sci_formatter = FuncFormatter(self._sci_mathtext)
+        self._init_styles()
 
-        # ラインオブジェクトの辞書 (再描画の高速化用)
-        self.lines_left = {}
-        self.lines_right = {}
-
-        # 凡例の場所
-        self.legend_location = legend_location
-
-        # x軸の表示幅
-        self._x_window = None
-
-    def _setup_axes(
-        self,
-        x_label: str,
-        l_label: str,
-        r_label: str,
-        l_scale: AxisScale,
-        r_scale: AxisScale,
-        l_display: DisplayMode,
-        r_display: DisplayMode,
-    ) -> None:
-        """軸のラベルやフォーマットの初期設定"""
-        self.ax_left.set_xlabel(x_label, fontsize="large")
-        self.ax_left.set_ylabel(l_label, fontsize="large")
-        self.ax_right.set_ylabel(r_label, fontsize="large")
-
-        for ax in [self.ax_left, self.ax_right]:
-            ax.yaxis.set_minor_locator(AutoMinorLocator(5))
-            ax.tick_params(which="both", labelsize="medium", direction="in", top=True)
-
-        # スケール設定
-        self.ax_left.set_yscale(l_scale.value)
-        self.ax_right.set_yscale(r_scale.value)
-        # 線形表示の場合、軸の上の方に指数が表示されるため、手動で指定
-        if l_scale == AxisScale.LINEAR and l_display == DisplayMode.EXPONENTIAL:
-            self.ax_left.yaxis.set_major_formatter(FuncFormatter(self._sci_mathtext))
-        if r_scale == AxisScale.LINEAR and r_display == DisplayMode.EXPONENTIAL:
-            self.ax_right.yaxis.set_major_formatter(FuncFormatter(self._sci_mathtext))
-
-    def _sci_mathtext(self, x, _) -> str:  # noqa: ANN001
+    @staticmethod
+    def _sci_mathtext(x, _) -> str:  # noqa: ANN001
         if x == 0:
             return r"$0$"
         exp = int(np.floor(np.log10(abs(x))))
         mant = x / 10**exp
         return rf"${mant:.1f} \times 10^{{{exp}}}$"
 
-    # ---------- Controller ----------
+    def _init_styles(self) -> None:
+        """グラフ全体の基本スタイル適用"""
+        # タイトル
+        self.set_title("Graph")
+        # ラベル名
+        self.set_labels(x_label="X Axis", left_label="Left Y Axis", right_label="Right Y Axis")
 
-    def set_x_window(self, x_window: float | None) -> None:
+        # 凡例
+        self.set_legend_location()
+
+        # 軸・グリッド描画
+        for ax in [self.ax_left, self.ax_right]:
+            ax.yaxis.set_minor_locator(AutoMinorLocator(5))
+            ax.tick_params(which="both", labelsize="medium", direction="in", top=True)
+        self.set_grid_target("left")  # 初期は左軸にグリッドを合わせる
+
+        # 各軸のz方向位置調整 (描画調整)
+        # self.ax_left.set_zorder(self.ax_right.get_zorder() + 1)
+
+    # =========================================================================================
+    # Data
+    # =========================================================================================
+
+    def add_series(
+        self,
+        label: str,
+        target_axis: Literal["left", "right"] = "left",
+        color: str = "blue",
+        marker: str | None = None,
+        linestyle: str | None = None,
+        legend_label: str | None = None,
+        **kwargs,
+    ) -> None:
+        # 表示軸
+        ax = self.ax_left if target_axis == "left" else self.ax_right
+
+        # 凡例名
+        display_name = legend_label if legend_label is not None else label
+
+        # オプション引数
+        plot_kwargs: dict[str, Any] = {
+            "label": display_name,
+            "color": color,
+            "linewidth": 1.5,
+            **kwargs,
+        }
+        if marker is not None:
+            plot_kwargs["marker"] = marker
+        if linestyle is not None:
+            plot_kwargs["linestyle"] = linestyle
+
+        # 要素登録
+        (line,) = ax.plot([], [], **plot_kwargs)
+        self._series_map[label] = {"line": line, "target_axis": target_axis}
+
+        self.set_legend_location()
+
+    def _update_axes_limits(self) -> None:
+        """現在のデータとvisible_x_spanに基づいて軸の表示範囲を更新"""
+        if self._current_data_source is None:
+            return
+
+        df = self._current_data_source.get_data()
+        if df.empty or "x" not in df.columns:
+            return
+
+        # Y軸のオートスケール
+        self.ax_left.relim()
+        self.ax_left.autoscale_view()
+        self.ax_right.relim()
+        self.ax_right.autoscale_view()
+
+        x_data = df["x"].values
+        if self._visible_x_span is not None and len(x_data) > 1:
+            current_x = x_data[-1]
+            min_x = max(min(x_data), current_x - self._visible_x_span)
+            self.ax_left.set_xlim(min_x, current_x)
+        else:
+            self.ax_left.set_xlim(min(x_data), max(x_data))
+
+    def update_plot(self, data_source: GraphData) -> None:
+        """データソースをもとにグラフを再描画"""
+        # データソースを保持 (span変更時の即時反映用)
+        self._current_data_source = data_source
+
+        df = data_source.get_data()
+        if df.empty or "x" not in df.columns:
+            return
+
+        # データ更新
+        x_data = df["x"].values
+        for label, meta in self._series_map.items():
+            if label in df.columns:
+                y_data = df[label].values
+                meta["line"].set_data(x_data, y_data)
+
+        # 軸範囲の更新
+        self._update_axes_limits()
+        self.figure.tight_layout()
+        self.canvas.draw_idle()
+
+    def clear_view(self) -> None:
+        """表示をクリア"""
+        self._current_data_source = None
+
+        # ラインの中身を空にする
+        for series in self._series_map.values():
+            series["line"].remove()
+
+        self._series_map.clear()
+        self.canvas.draw_idle()
+
+    # =========================================================================================
+    # Display Settings
+    # =========================================================================================
+
+    def set_title(self, title: str = "") -> None:
+        """グラフタイトル設定"""
+        self.ax_left.set_title(title, fontsize="x-small")
+
+    def set_labels(
+        self,
+        /,
+        x_label: str | None = None,
+        left_label: str | None = None,
+        right_label: str | None = None,
+    ) -> None:
+        """軸ラベルの名前変更"""
+        if x_label:
+            self.ax_left.set_xlabel(x_label, fontsize="large")
+        if left_label:
+            self.ax_left.set_ylabel(left_label, fontsize="large")
+        if right_label:
+            self.ax_right.set_ylabel(right_label, fontsize="large")
+
+    def set_axis_scale(
+        self, target: Literal["left", "right"], scale: Literal["linear", "log"]
+    ) -> None:
+        """軸のスケール設定 (線形 or 対数)"""
+        ax = self.ax_left if target == "left" else self.ax_right
+        ax.set_yscale(scale)
+
+    def set_legend_location(self, loc: str | None = None) -> None:
+        """凡例の場所指定 (matplotlibのloc準拠: 'upper right', 'upper left' etc)"""
+        self._legend_loc = loc if loc is not None else self._legend_loc
+
+        # 左右の軸のLine2Dをまとめて1つの凡例にする
+        lines_l, labels_l = self.ax_left.get_legend_handles_labels()
+        lines_r, labels_r = self.ax_right.get_legend_handles_labels()
+        self.ax_right.legend(lines_l + lines_r, labels_l + labels_r, loc=self._legend_loc)
+
+    def set_grid_target(self, target: Literal["left", "right"]) -> None:
+        """グリッドをどちらの軸に合わせるか"""
+        self.ax_left.grid(False)
+        self.ax_right.grid(False)
+
+        target_ax = self.ax_left if target == "left" else self.ax_right
+        target_ax.grid(True, linestyle="--", alpha=0.6)
+
+    def set_axis_formatter(self, target: Literal["left", "right"], use_scientific: bool) -> None:
+        """軸の表示形式を切り替える"""
+        ax = self.ax_left if target == "left" else self.ax_right
+
+        if use_scientific:
+            ax.yaxis.set_major_formatter(FuncFormatter(self._sci_mathtext))
+        else:
+            ax.yaxis.set_major_formatter(ScalarFormatter())
+
+        self.canvas.draw_idle()
+
+    def set_visible_x_span(self, visible_x_span: float | None) -> None:
         """グラフのX軸の表示幅を設定する。
 
         parameter:
             x_window (float | None): x軸の表示幅。データが増えると自動でスライドする。
                                            Noneの場合は全範囲を表示する。
         """
-        self._x_window = x_window
-        self._update_axis_ranges()
-        self.canvas.draw()
+        self._visible_x_span = visible_x_span
+        if self._current_data_source:
+            # キャッシュされているデータを使って軸範囲だけ更新
+            self._update_axes_limits()
+            self.canvas.draw_idle()
 
-    def set_title(self, title: str) -> None:
-        """グラフのタイトルを再設定"""
-        self.ax_left.set_title(title, fontsize="x-small")
-        self.canvas.draw()
-
-    def set_line_label(self, key_name: str, new_label: str) -> None:
+    def set_series_legend_label(self, series_key: str, new_label: str) -> None:
         """凡例表示名を変更"""
-        target_line = None
+        if series_key in self._series_map:
+            line = self._series_map[series_key]["line"]
+            line.set_label(new_label)
 
-        if key_name in self.lines_left:
-            target_line = self.lines_left[key_name]
-        elif key_name in self.lines_right:
-            target_line = self.lines_right[key_name]
-
-        if target_line:
-            target_line.set_label(new_label)
-            self._update_legend()
-
-    def add_line(
-        self,
-        name: str,
-        label: str,
-        color: str,
-        marker: str | None = None,
-        line_style: str | None = None,
-        is_right_axis: bool = False,
-    ) -> None:
-        """プロットするラインを登録"""
-        axis = self.ax_right if is_right_axis else self.ax_left
-        target = self._display_data.right if is_right_axis else self._display_data.left
-        lines = self.lines_right if is_right_axis else self.lines_left
-
-        # データのキーだけ予約
-        if name not in target:
-            target[name] = []
-
-        # オプション引数
-        plot_kwargs: dict[str, Any] = {"label": label, "color": color, "linewidth": 1.5}
-        if marker is not None:
-            plot_kwargs["marker"] = marker
-        if line_style is not None:
-            plot_kwargs["linestyle"] = line_style
-
-        # kwargsを展開
-        (line,) = axis.plot([], [], **plot_kwargs)
-
-        lines[name] = line
-        self._update_legend()
-
-    def set_data(self, data: GraphData) -> None:
-        """表示用データを丸ごと更新して再描画"""
-        self._display_data = data
-        self._render()
-
-    def clear_view(self) -> None:
-        """表示をクリア"""
-        self._display_data = GraphData()
-
-        # ラインの中身を空にする
-        for line in self.lines_left.values():
-            line.remove()
-        for line in self.lines_right.values():
-            line.remove()
-
-        self.lines_left.clear()
-        self.lines_right.clear()
-        self.canvas.draw()
-
-    # ---------- View ----------
-
-    def _render(self) -> None:
-        """保持しているdisplay_dataに基づいて描画更新"""
-        x_data = self._display_data.x
-
-        # 描画データの更新
-        for name, line in self.lines_left.items():
-            line.set_data(x_data, self._display_data.left[name])
-        for name, line in self.lines_right.items():
-            line.set_data(x_data, self._display_data.right[name])
-
-        self._update_axis_ranges()
-        self.canvas.draw()
-
-    def _update_axis_ranges(self) -> None:
-        """X軸・Y軸の範囲調整"""
-        self.ax_left.relim()
-        self.ax_left.autoscale_view()
-        self.ax_right.relim()
-        self.ax_right.autoscale_view()
-
-        # Time Window (スライド表示)
-        if self._x_window is not None and len(self._display_data.x) > 0:
-            latest_x = self._display_data.x[-1]
-
-            # データが足りてない場合は自動拡大
-            # 幅を超えている場合のみスライド
-            min_x = max(latest_x - self._x_window, 0)
-            max_x = latest_x
-
-            self.ax_left.set_xlim(min_x, max_x)
-            self.ax_right.set_xlim(min_x, max_x)
-
-        elif self._x_window is None and len(self._display_data.x) > 0:
-            max_x = max(self._display_data.x)
-            min_x = 0
-
-            self.ax_left.set_xlim(min_x, max_x)
-            self.ax_right.set_xlim(min_x, max_x)
-
-    def _update_legend(self) -> None:
-        l1, lab1 = self.ax_left.get_legend_handles_labels()
-        l2, lab2 = self.ax_right.get_legend_handles_labels()
-        self.ax_left.legend(l1 + l2, lab1 + lab2, loc=self.legend_location, fontsize="x-small")
+            # 凡例を再描画して反映
+            self.set_legend_location()
+            self.canvas.draw_idle()
+        else:
+            print(f"Attempted to rename unknown series: {series_key}")

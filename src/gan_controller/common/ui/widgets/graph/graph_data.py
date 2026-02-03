@@ -1,41 +1,47 @@
-from dataclasses import dataclass, field
+import math
+
+import pandas as pd
 
 
-@dataclass
 class GraphData:
-    x: list[float] = field(default_factory=list)
-    left: dict[str, list[float]] = field(default_factory=dict)
-    right: dict[str, list[float]] = field(default_factory=dict)
+    _data: pd.DataFrame
 
-    def clear(self) -> None:
-        self.x.clear()
-        self.left.clear()
-        self.right.clear()
+    def __init__(self) -> None:
+        self._data = pd.DataFrame()
 
-    def append_point(self, x_val: float, values: dict[str, float]) -> None:
-        self.x.append(x_val)
-        for name, val in values.items():
-            if name in self.left:
-                self.left[name].append(val)
-            elif name in self.right:
-                self.right[name].append(val)
+    def append_point(self, x_value: float, y_values: dict[str, float]) -> None:
+        new_row = {"x": x_value}
+        new_row.update(y_values)
+        new_df = pd.DataFrame([new_row])
 
-    def decimate(self, max_points: int) -> "GraphData":
+        if self._data.empty:
+            self._data = new_df
+        else:
+            self._data = pd.concat([self._data, new_df], ignore_index=True)
+
+    def get_data(self) -> pd.DataFrame:
+        """生の全データを取得"""
+        return self._data
+
+    def get_downsampled_data(self, max_points: int) -> "GraphData":
+        """指定された点数以下になるようにデータを間引いて取得する。
+
+        :param max_points: 最大データ点数
+        :return: 間引かれたGraphData (コピー)
+        """
+        new_instance = GraphData()
+        decimated_data = self._decimate(max_points)
+
+        new_instance._data = decimated_data
+        return new_instance
+
+    def _decimate(self, max_points: int) -> pd.DataFrame:
         """データ点が max_points 以下になるように間引いたGraphDataを新たに返す"""
-        count = len(self.x)
+        total_len = len(self._data)
 
-        if count <= max_points:  # もともと max_points 以下
-            # そのままコピーして返す
-            return self.__class__(
-                x=self.x[:],
-                left={k: v[:] for k, v in self.left.items()},
-                right={k: v[:] for k, v in self.right.items()},
-            )
+        if total_len <= max_points:
+            return self._data.copy()
 
         # 間引きステップ数の計算
-        step = max(1, count // max_points)
-        return self.__class__(
-            x=self.x[::step],
-            left={k: v[::step] for k, v in self.left.items()},
-            right={k: v[::step] for k, v in self.right.items()},
-        )
+        step = math.ceil(total_len / max_points)
+        return self._data.iloc[::step].copy()
