@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
 class CommonLogSettingPanel(QGroupBox):
     """ログ設定の共通UIコンポーネント"""
 
+    _main_layout: QVBoxLayout
+
     chk_date_update: QCheckBox
     chk_major_update: QCheckBox
     comment_edit: QLineEdit
@@ -28,8 +30,8 @@ class CommonLogSettingPanel(QGroupBox):
         self._init_signals()
 
     def _init_ui(self) -> None:
-        main_layout = QVBoxLayout(self)
-        self.setLayout(main_layout)
+        self._main_layout = QVBoxLayout(self)
+        self.setLayout(self._main_layout)
 
         checks_layout = QHBoxLayout()
         self.chk_date_update = QCheckBox("日付フォルダ更新")
@@ -58,8 +60,8 @@ class CommonLogSettingPanel(QGroupBox):
         comment_layout.addWidget(QLabel("コメント :"))
         comment_layout.addWidget(self.comment_edit)
 
-        main_layout.addLayout(checks_layout)
-        main_layout.addLayout(comment_layout)
+        self._main_layout.addLayout(checks_layout)
+        self._main_layout.addLayout(comment_layout)
 
     def _init_signals(self) -> None:
         self.chk_date_update.toggled.connect(self._on_changed)
@@ -72,7 +74,18 @@ class CommonLogSettingPanel(QGroupBox):
         """ログファイル名プレビューを設定"""
         self.next_num_label.setText(text)
 
-    # --- 汎用的な値の操作 ---
+    # =======================================================================================
+
+    def insert_widget(self, index: int, widget: QWidget) -> None:
+        """GroupBox内レイアウトの指定の行に挿入
+
+        レイアウト
+        0: Date/Major Checkboxes
+        1: Comment
+        """
+        self._main_layout.insertWidget(index, widget)
+
+    # =======================================================================================
 
     def get_values(self) -> dict:
         """現在のUIの値を辞書形式で返す"""

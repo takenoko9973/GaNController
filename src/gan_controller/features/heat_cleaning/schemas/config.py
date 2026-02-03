@@ -78,6 +78,7 @@ class HCLogConfig(BaseModel):
 
     update_date_folder: bool = Field(default=False, description="日付フォルダを更新するか")
     update_major_number: bool = Field(default=False, description="実験のメジャー番号を更新するか")
+    record_pyrometer: bool = Field(default=True, description="放射温度計測定を行うかどうか")
     comment: str = Field(default="", exclude=True)
 
 

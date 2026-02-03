@@ -44,7 +44,9 @@ class AbstractHCDeviceFactory(ABC):
     """デバイス生成の抽象ファクトリー"""
 
     @abstractmethod
-    def create_devices(self, config: AppConfig) -> tuple[HCDevices, Any]:
+    def create_devices(
+        self, config: AppConfig, use_pyrometer: bool = True
+    ) -> tuple[HCDevices, Any]:
         """デバイス群を生成して返す。
 
         Returns:
@@ -58,7 +60,11 @@ class AbstractHCDeviceFactory(ABC):
 class SimulationHCDeviceFactory(AbstractHCDeviceFactory):
     """シミュレーション用 (Mock) デバイスファクトリー"""
 
-    def create_devices(self, config: AppConfig) -> tuple[HCDevices, Any]:  # noqa: ARG002
+    def create_devices(
+        self,
+        config: AppConfig,  # noqa: ARG002
+        use_pyrometer: bool = True,  # noqa: ARG002
+    ) -> tuple[HCDevices, Any]:
         print("--- SIMULATION MODE ---")
         # Mockアダプタを生成
         devices = HCDevices(
@@ -73,7 +79,9 @@ class SimulationHCDeviceFactory(AbstractHCDeviceFactory):
 class RealHCDeviceFactory(AbstractHCDeviceFactory):
     """実機用デバイスファクトリー"""
 
-    def create_devices(self, config: AppConfig) -> tuple[HCDevices, Any]:
+    def create_devices(
+        self, config: AppConfig, use_pyrometer: bool = True
+    ) -> tuple[HCDevices, Any]:
         # 実機接続用のResourceManagerを作成
         rm = pyvisa.ResourceManager()
 
@@ -98,11 +106,16 @@ class RealHCDeviceFactory(AbstractHCDeviceFactory):
                 stack.callback(aps_adapter.close)
 
                 # Pyrometer (PWUX)
-                if config.devices.pwux.com_port > 0:
+                if use_pyrometer and config.devices.pwux.com_port > 0:
                     pyrometer = PWUX(rm, f"COM{config.devices.pwux.com_port}")
                     pyrometer_adapter = PWUXAdapter(pyrometer)
                     stack.callback(pyrometer_adapter.close)
                 else:
+                    if not use_pyrometer:
+                        print("Pyrometer initialization skipped (Disabled by user).")
+                    else:
+                        print("Pyrometer initialization skipped (Invalid COM port).")
+
                     pyrometer_adapter = MockPyrometerAdapter()
 
                 # 成功したら、スタックをすべて削除
