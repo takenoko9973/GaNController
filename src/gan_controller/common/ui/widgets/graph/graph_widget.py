@@ -1,19 +1,17 @@
 from enum import Enum, StrEnum, auto
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
 from matplotlib.ticker import AutoMinorLocator, FuncFormatter
 from PySide6.QtCore import QSize, QTimer
 from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from .graph_data import GraphData
-
-if TYPE_CHECKING:
-    from matplotlib.lines import Line2D
 
 
 class DebouncedFigureCanvas(FigureCanvas):
@@ -71,13 +69,21 @@ class DisplayMode(Enum):
 class DualAxisGraph(QWidget):
     """2軸データ(左・右) を表示するグラフウィジェット"""
 
-    model: GraphData
+    _display_data: GraphData
 
     fig: Figure
     canvas: DebouncedFigureCanvas
 
     ax_left: Axes
     ax_right: Axes
+
+    # ラインオブジェクト管理
+    lines_left: dict[str, Line2D]
+    lines_right: dict[str, Line2D]
+
+    legend_location: str
+
+    _x_window: float | None
 
     def __init__(
         self,
@@ -94,7 +100,8 @@ class DualAxisGraph(QWidget):
     ) -> None:
         super().__init__(parent)
 
-        self.model = GraphData()
+        # 現在表示中のデータ (外部からセットされる)
+        self._display_data = GraphData()
 
         # Matplotlibの初期化
         self.fig = Figure(figsize=(5, 4), dpi=100, layout="constrained")  # constrainedで自動調整
@@ -126,8 +133,8 @@ class DualAxisGraph(QWidget):
         self.ax_left.grid(True, linestyle="--", alpha=0.6)
 
         # ラインオブジェクトの辞書 (再描画の高速化用)
-        self.lines_left: dict[str, Line2D] = {}
-        self.lines_right: dict[str, Line2D] = {}
+        self.lines_left = {}
+        self.lines_right = {}
 
         # 凡例の場所
         self.legend_location = legend_location
@@ -212,17 +219,15 @@ class DualAxisGraph(QWidget):
     ) -> None:
         """プロットするラインを登録"""
         axis = self.ax_right if is_right_axis else self.ax_left
-        target = self.model.right if is_right_axis else self.model.left
+        target = self._display_data.right if is_right_axis else self._display_data.left
         lines = self.lines_right if is_right_axis else self.lines_left
 
-        target[name] = []
+        # データのキーだけ予約
+        if name not in target:
+            target[name] = []
 
         # オプション引数
-        plot_kwargs: dict[str, Any] = {
-            "label": label,
-            "color": color,
-            "linewidth": 1.5,
-        }
+        plot_kwargs: dict[str, Any] = {"label": label, "color": color, "linewidth": 1.5}
         if marker is not None:
             plot_kwargs["marker"] = marker
         if line_style is not None:
@@ -234,9 +239,16 @@ class DualAxisGraph(QWidget):
         lines[name] = line
         self._update_legend()
 
-    def clear_data(self) -> None:
-        self.model.clear()
+    def set_data(self, data: GraphData) -> None:
+        """表示用データを丸ごと更新して再描画"""
+        self._display_data = data
+        self._render()
 
+    def clear_view(self) -> None:
+        """表示をクリア"""
+        self._display_data = GraphData()
+
+        # ラインの中身を空にする
         for line in self.lines_left.values():
             line.remove()
         for line in self.lines_right.values():
@@ -246,20 +258,17 @@ class DualAxisGraph(QWidget):
         self.lines_right.clear()
         self.canvas.draw()
 
-    def update_point(self, x_val: float, values: dict[str, float]) -> None:
-        """新しいデータを一点追加して再描画"""
-        self.model.append_point(x_val, values)
-        self._render()
-
     # ---------- View ----------
 
     def _render(self) -> None:
-        """データを更新して描画"""
+        """保持しているdisplay_dataに基づいて描画更新"""
+        x_data = self._display_data.x
+
         # 描画データの更新
         for name, line in self.lines_left.items():
-            line.set_data(self.model.x, self.model.left[name])
+            line.set_data(x_data, self._display_data.left[name])
         for name, line in self.lines_right.items():
-            line.set_data(self.model.x, self.model.right[name])
+            line.set_data(x_data, self._display_data.right[name])
 
         self._update_axis_ranges()
         self.canvas.draw()
@@ -272,8 +281,8 @@ class DualAxisGraph(QWidget):
         self.ax_right.autoscale_view()
 
         # Time Window (スライド表示)
-        if self._x_window is not None and len(self.model.x) > 0:
-            latest_x = self.model.x[-1]
+        if self._x_window is not None and len(self._display_data.x) > 0:
+            latest_x = self._display_data.x[-1]
 
             # データが足りてない場合は自動拡大
             # 幅を超えている場合のみスライド
@@ -283,8 +292,8 @@ class DualAxisGraph(QWidget):
             self.ax_left.set_xlim(min_x, max_x)
             self.ax_right.set_xlim(min_x, max_x)
 
-        elif self._x_window is None and len(self.model.x) > 0:
-            max_x = max(self.model.x)
+        elif self._x_window is None and len(self._display_data.x) > 0:
+            max_x = max(self._display_data.x)
             min_x = 0
 
             self.ax_left.set_xlim(min_x, max_x)

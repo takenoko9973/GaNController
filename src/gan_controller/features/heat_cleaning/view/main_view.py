@@ -139,7 +139,7 @@ class HeatCleaningMainView(QWidget):
     def update_view(self, result: HCRunnerResult) -> None:
         """結果をUIに反映"""
         self.measure_panel.update_measure_values(result)
-        self.graph_panel.update_graph(result)
+        self.graph_panel.append_data(result)
 
     def clear_view(self) -> None:
         """グラフや表示を初期化"""

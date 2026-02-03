@@ -88,7 +88,7 @@ class RealHCDeviceFactory(AbstractHCDeviceFactory):
                 stack.callback(logger_adapter.close)
 
                 # Power Supply (HC/PFR100L50)
-                hps = PFR100L50(rm, config.devices.aps.visa)
+                hps = PFR100L50(rm, config.devices.hps.visa)
                 hps_adapter = PFR100L50Adapter(hps)
                 stack.callback(hps_adapter.close)
 
@@ -98,7 +98,7 @@ class RealHCDeviceFactory(AbstractHCDeviceFactory):
                 stack.callback(aps_adapter.close)
 
                 # Pyrometer (PWUX)
-                if config.devices.pwux.com_port <= 0:
+                if config.devices.pwux.com_port > 0:
                     pyrometer = PWUX(rm, f"COM{config.devices.pwux.com_port}")
                     pyrometer_adapter = PWUXAdapter(pyrometer)
                     stack.callback(pyrometer_adapter.close)

@@ -2,7 +2,7 @@ from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget
 
 from gan_controller.common.ui.widgets import AxisScale, DualAxisGraph
-from gan_controller.common.ui.widgets.graph.graph_widget import DisplayMode
+from gan_controller.common.ui.widgets.graph import DisplayMode, GraphData
 from gan_controller.features.nea_activation.schemas import NEARunnerResult
 
 
@@ -11,6 +11,10 @@ class NEAGraphPanel(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+
+        # 履歴データ (全データ) をここに保持
+        self._history_pc = GraphData()
+        self._history_qe = GraphData()
 
         layout = QVBoxLayout(self)
 
@@ -27,12 +31,12 @@ class NEAGraphPanel(QWidget):
         setting_layout.addWidget(self.update_window_button)
 
         # ボタンを押すと反映
-        self.update_window_button.clicked.connect(self._on_time_window_changed)
+        self.update_window_button.clicked.connect(self._on_update_graph_settings)
 
         layout.addLayout(setting_layout)
 
         # === グラフ
-        self.graph_photocurrent = DualAxisGraph(
+        self.graph_pc = DualAxisGraph(
             "Photocurrent",
             "Time (s)",
             "Photocurrent (A)",
@@ -41,13 +45,13 @@ class NEAGraphPanel(QWidget):
             left_display=DisplayMode.EXPONENTIAL,
             legend_location="upper left",
         )
-        self.graph_photocurrent.setMinimumWidth(500)
-        self.graph_photocurrent.setMinimumHeight(300)
+        self.graph_pc.setMinimumWidth(500)
+        self.graph_pc.setMinimumHeight(300)
 
         self.graph_qe = DualAxisGraph(
             "Quantum Efficiency",
             "Time (s)",
-            "QE (%)",
+            "Quantum Efficiency (%)",
             "Pressure (Pa)",
             right_scale=AxisScale.LOG,
             left_display=DisplayMode.EXPONENTIAL,
@@ -56,22 +60,22 @@ class NEAGraphPanel(QWidget):
         self.graph_qe.setMinimumWidth(500)
         self.graph_qe.setMinimumHeight(300)
 
-        layout.addWidget(self.graph_photocurrent)
+        layout.addWidget(self.graph_pc)
         layout.addSpacing(10)
         layout.addWidget(self.graph_qe)
 
-        self._setup_lines()
+        self._init_lines()
 
         # 範囲初期化
-        self._on_time_window_changed()
+        self._on_update_graph_settings()
 
-    def _setup_lines(self) -> None:
+    def _init_lines(self) -> None:
         """グラフにプロットする線を定義"""
         # PC Graph
-        self.graph_photocurrent.add_line(
+        self.graph_pc.add_line(
             "pc", "Photocurrent", "blue", marker="o", line_style="None", is_right_axis=False
         )
-        self.graph_photocurrent.add_line("pres", "Pressure", "black", is_right_axis=True)
+        self.graph_pc.add_line("pres", "Pressure", "black", is_right_axis=True)
 
         # QE Graph
         self.graph_qe.add_line(
@@ -79,7 +83,14 @@ class NEAGraphPanel(QWidget):
         )
         self.graph_qe.add_line("pres", "Pressure", "black", is_right_axis=True)
 
-    def update_graph(self, result: NEARunnerResult) -> None:
+    def clear_graph(self) -> None:
+        """グラフデータをクリアして再初期化"""
+        self.graph_pc.clear_view()
+        self.graph_qe.clear_view()
+
+        self._init_lines()  # ライン再設定
+
+    def append_data(self, result: NEARunnerResult) -> None:
         t = result.timestamp
 
         # PC, QE が負の場合は描画しない
@@ -91,18 +102,15 @@ class NEAGraphPanel(QWidget):
         if qe_val <= 0:
             qe_val = float("nan")
 
-        # --- Photocurrent Graph の更新 ---
-        # Resultオブジェクトから値を取り出し、辞書形式でグラフに渡す
-        self.graph_photocurrent.update_point(
+        #  データ追加
+        self._history_pc.append_point(
             x_val=t.base_value,
             values={
                 "pc": pc_val,
                 "pres": result.ext_pressure.base_value,
             },
         )
-
-        # --- QE Graph の更新 ---
-        self.graph_qe.update_point(
+        self._history_qe.append_point(
             x_val=t.base_value,
             values={
                 "qe": qe_val,
@@ -110,18 +118,22 @@ class NEAGraphPanel(QWidget):
             },
         )
 
-    def clear_graph(self) -> None:
-        """グラフデータをクリアして再初期化"""
-        self.graph_photocurrent.clear_data()
-        self.graph_qe.clear_data()
+        # グラフ更新
+        self.graph_pc.set_data(self._history_pc)
+        self.graph_qe.set_data(self._history_qe)
 
-        self._setup_lines()  # ライン再設定
+    # =============================================================
 
     @Slot(int)
-    def _on_time_window_changed(self) -> None:
-        """グラフの表示幅を設定する (0以下の場合は全表示)"""
+    def _on_update_graph_settings(self) -> None:
+        """グラフ表示設定の変更"""
+        # 表示幅変更
         window_sec = self.time_window_spin.value()
+        self._change_time_window(window_sec)
+
+    def _change_time_window(self, window_sec: float) -> None:
+        """グラフの表示幅を設定 (0以下の場合は全表示)"""
         val = float(window_sec) if window_sec > 0 else None
 
-        self.graph_photocurrent.set_x_window(val)
+        self.graph_pc.set_x_window(val)
         self.graph_qe.set_x_window(val)

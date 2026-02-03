@@ -3,6 +3,7 @@ from PySide6.QtCore import Slot
 from gan_controller.common.application.global_messenger import GlobalMessenger
 from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
 from gan_controller.common.constants import NEA_CONFIG_PATH
+from gan_controller.common.io.log_manager import LogManager
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
 from gan_controller.features.nea_activation.schemas import NEAConfig
@@ -42,6 +43,9 @@ class NEAActivationController(ITabController):
         self._view.execution_panel.stop_requested.connect(self.experiment_stop)
         self._view.execution_panel.apply_requested.connect(self.setting_apply)
 
+        # ログ設定変更時のプレビュー更新
+        self._view.log_setting_panel.config_changed.connect(self._update_log_preview)
+
     def _attach_worker(self, worker: ExperimentWorker) -> None:
         worker.result_emitted.connect(self.on_result)
         worker.error_occurred.connect(self.on_error)
@@ -67,6 +71,25 @@ class NEAActivationController(ITabController):
 
         # ファイルに保存
         current_config.save(NEA_CONFIG_PATH)
+
+    def _update_log_preview(self) -> None:
+        """現在の設定に基づいてログファイル名をプレビュー更新"""
+        try:
+            # マネージャー呼び出し
+            app_config = AppConfig.load()
+            manager = LogManager(app_config.common.get_tz(), app_config.common.encode)
+
+            # 番号取得
+            log_config = self._view.log_setting_panel.get_config()
+            date_dir = manager.get_date_directory(log_config.update_date_folder)
+            next_numbers = date_dir.get_next_number(major_update=log_config.update_major_number)
+
+            number_text = f"{next_numbers[0]}.{next_numbers[1]}"
+            self._view.log_setting_panel.set_preview_text(number_text)
+
+        except Exception as e:  # noqa: BLE001
+            print(f"Preview update failed: {e}")
+            self._view.log_setting_panel.set_preview_text("Error")
 
     # =================================================
     # View -> Runner

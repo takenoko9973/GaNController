@@ -75,7 +75,7 @@ class NEAActivationRunner(BaseRunner):
 
     def _setup_recorder(self, start_time: datetime.datetime) -> None:
         """記録用ファイルの準備とヘッダー書き込み"""
-        manager = LogManager(self.app_config)
+        manager = LogManager(self.app_config.common.get_tz(), self.app_config.common.encode)
 
         log_dir = manager.get_date_directory(update_date=self.nea_config.log.update_date_folder)
 
