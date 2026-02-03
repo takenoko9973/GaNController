@@ -1,13 +1,18 @@
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget
 
-from gan_controller.common.ui.widgets import AxisScale, DualAxisGraph
-from gan_controller.common.ui.widgets.graph import DisplayMode, GraphData
+from gan_controller.common.ui.widgets import DualAxisGraph, GraphData
 from gan_controller.features.nea_activation.schemas import NEARunnerResult
 
 
 class NEAGraphPanel(QWidget):
     """実行制御およびモニタリング表示用ウィジェット"""
+
+    _history_pc: GraphData
+    _history_qe: GraphData
+
+    graph_pc: DualAxisGraph
+    graph_qe: DualAxisGraph
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -36,29 +41,25 @@ class NEAGraphPanel(QWidget):
         layout.addLayout(setting_layout)
 
         # === グラフ
-        self.graph_pc = DualAxisGraph(
-            "Photocurrent",
-            "Time (s)",
-            "Photocurrent (A)",
-            "Pressure (Pa)",
-            right_scale=AxisScale.LOG,
-            left_display=DisplayMode.EXPONENTIAL,
-            legend_location="upper left",
+        self.graph_pc = DualAxisGraph()
+        self.graph_pc.setMinimumSize(500, 300)
+        self.graph_pc.set_title("Photocurrent")
+        self.graph_pc.set_labels(
+            x_label="Time (s)", left_label="Photocurrent (A)", right_label="Pressure (Pa)"
         )
-        self.graph_pc.setMinimumWidth(500)
-        self.graph_pc.setMinimumHeight(300)
+        self.graph_pc.set_axis_scale("right", "log")
+        self.graph_pc.set_axis_formatter("left", True)
+        self.graph_pc.set_legend_location("upper left")
 
-        self.graph_qe = DualAxisGraph(
-            "Quantum Efficiency",
-            "Time (s)",
-            "Quantum Efficiency (%)",
-            "Pressure (Pa)",
-            right_scale=AxisScale.LOG,
-            left_display=DisplayMode.EXPONENTIAL,
-            legend_location="upper left",
+        self.graph_qe = DualAxisGraph()
+        self.graph_qe.setMinimumSize(500, 300)
+        self.graph_qe.set_title("Quantum Efficiency")
+        self.graph_qe.set_labels(
+            x_label="Time (s)", left_label="Quantum Efficiency (%)", right_label="Pressure (Pa)"
         )
-        self.graph_qe.setMinimumWidth(500)
-        self.graph_qe.setMinimumHeight(300)
+        self.graph_qe.set_axis_scale("right", "log")
+        self.graph_qe.set_axis_formatter("left", True)
+        self.graph_qe.set_legend_location("upper left")
 
         layout.addWidget(self.graph_pc)
         layout.addSpacing(10)
@@ -72,19 +73,22 @@ class NEAGraphPanel(QWidget):
     def _init_lines(self) -> None:
         """グラフにプロットする線を定義"""
         # PC Graph
-        self.graph_pc.add_line(
-            "pc", "Photocurrent", "blue", marker="o", line_style="None", is_right_axis=False
+        self.graph_pc.add_series(
+            "pc", "left", "blue", marker="o", linestyle="None", legend_label="Photocurrent"
         )
-        self.graph_pc.add_line("pres", "Pressure", "black", is_right_axis=True)
+        self.graph_pc.add_series("pres", "right", "black", legend_label="Pressure")
 
         # QE Graph
-        self.graph_qe.add_line(
-            "qe", "QE", "green", marker="o", line_style="None", is_right_axis=False
+        self.graph_qe.add_series(
+            "qe", "left", "green", marker="o", linestyle="None", legend_label="QE"
         )
-        self.graph_qe.add_line("pres", "Pressure", "black", is_right_axis=True)
+        self.graph_qe.add_series("pres", "right", "black", legend_label="Pressure")
 
     def clear_graph(self) -> None:
         """グラフデータをクリアして再初期化"""
+        self._history_pc = GraphData()
+        self._history_qe = GraphData()
+
         self.graph_pc.clear_view()
         self.graph_qe.clear_view()
 
@@ -104,23 +108,23 @@ class NEAGraphPanel(QWidget):
 
         #  データ追加
         self._history_pc.append_point(
-            x_val=t.base_value,
-            values={
+            x_value=t.base_value,
+            y_values={
                 "pc": pc_val,
                 "pres": result.ext_pressure.base_value,
             },
         )
         self._history_qe.append_point(
-            x_val=t.base_value,
-            values={
+            x_value=t.base_value,
+            y_values={
                 "qe": qe_val,
                 "pres": result.ext_pressure.base_value,
             },
         )
 
         # グラフ更新
-        self.graph_pc.set_data(self._history_pc)
-        self.graph_qe.set_data(self._history_qe)
+        self.graph_pc.update_plot(self._history_pc)
+        self.graph_qe.update_plot(self._history_qe)
 
     # =============================================================
 
@@ -135,5 +139,5 @@ class NEAGraphPanel(QWidget):
         """グラフの表示幅を設定 (0以下の場合は全表示)"""
         val = float(window_sec) if window_sec > 0 else None
 
-        self.graph_pc.set_x_window(val)
-        self.graph_qe.set_x_window(val)
+        self.graph_pc.set_visible_x_span(val)
+        self.graph_qe.set_visible_x_span(val)

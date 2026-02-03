@@ -1,12 +1,17 @@
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
-from gan_controller.common.ui.widgets import AxisScale, DualAxisGraph
-from gan_controller.common.ui.widgets.graph import GraphData
+from gan_controller.common.ui.widgets import DualAxisGraph, GraphData
 from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
 
 
 class HCGraphPanel(QWidget):
     """実行制御およびモニタリング表示用ウィジェット"""
+
+    _history_power: GraphData
+    _history_pressure: GraphData
+
+    graph_power: DualAxisGraph
+    graph_pressure: DualAxisGraph
 
     # グラフ描画時の最大点数 (これを超えると間引かれる)
     MAX_PLOT_POINTS = 2000
@@ -20,22 +25,20 @@ class HCGraphPanel(QWidget):
 
         layout = QVBoxLayout(self)
 
-        self.graph_power = DualAxisGraph(
-            "Power",
-            "Time (h)",
-            "Temperature (°C)",
-            "Power (W)",
-        )
+        self.graph_power = DualAxisGraph()
         self.graph_power.setMinimumSize(500, 300)
+        self.graph_power.set_title("Power")
+        self.graph_power.set_labels(
+            x_label="Time (h)", left_label="Temperature (°C)", right_label="Power (W)"
+        )
 
-        self.graph_pressure = DualAxisGraph(
-            "Pressure",
-            "Time (h)",
-            "Temperature (°C)",
-            "Pressure (Pa)",
-            right_scale=AxisScale.LOG,
+        self.graph_pressure = DualAxisGraph()
+        self.graph_pressure.setMinimumSize(500, 300)
+        self.graph_pressure.set_title("Pressure")
+        self.graph_pressure.set_labels(
+            x_label="Time (h)", left_label="Temperature (°C)", right_label="Pressure (Pa)"
         )
-        self.graph_power.setMinimumSize(500, 300)
+        self.graph_pressure.set_axis_scale("right", "log")
 
         layout.addWidget(self.graph_power)
         layout.addSpacing(10)
@@ -46,17 +49,24 @@ class HCGraphPanel(QWidget):
     def _init_lines(self) -> None:
         """グラフにプロットする線を定義"""
         # Power Graph
-        self.graph_power.add_line("temp", "Temp(TC)[℃]", "red", is_right_axis=False)
-        self.graph_power.add_line("heater_power", "Heater[W]", "orange", is_right_axis=True)
-        self.graph_power.add_line("amd_power", "AMD[W]", "gold", is_right_axis=True)
+        self.graph_power.add_series("temp", "left", "red", legend_label="Temp(TC)[℃]")
+        self.graph_power.add_series("heater_power", "right", "orange", legend_label="Heater[W]")
+        self.graph_power.add_series("amd_power", "right", "gold", legend_label="AMD[W]")
 
         # Pressure Graph
-        self.graph_pressure.add_line("temp", "Temp(TC)[℃]", "red", is_right_axis=False)
-        self.graph_pressure.add_line("ext_pres", "Pressure(EXT)[Pa]", "green", is_right_axis=True)
-        self.graph_pressure.add_line("sip_pres", "Pressure(SIP)[Pa]", "purple", is_right_axis=True)
+        self.graph_pressure.add_series("temp", "left", "red", legend_label="Temp(TC)[℃]")
+        self.graph_pressure.add_series(
+            "ext_pres", "right", "green", legend_label="Pressure(EXT)[Pa]"
+        )
+        self.graph_pressure.add_series(
+            "sip_pres", "right", "purple", legend_label="Pressure(SIP)[Pa]"
+        )
 
     def clear_graph(self) -> None:
         """グラフデータをクリアして再初期化"""
+        self._history_power = GraphData()
+        self._history_pressure = GraphData()
+
         self.graph_power.clear_view()
         self.graph_pressure.clear_view()
 
@@ -67,16 +77,16 @@ class HCGraphPanel(QWidget):
 
         # データ追加
         self._history_power.append_point(
-            x_val=t.value_as("hour"),
-            values={
+            x_value=t.value_as("hour"),
+            y_values={
                 "temp": result.case_temperature.base_value,
                 "heater_power": result.hc_electricity.power.base_value,
                 "amd_power": result.amd_electricity.power.base_value,
             },
         )
         self._history_pressure.append_point(
-            x_val=t.value_as("hour"),
-            values={
+            x_value=t.value_as("hour"),
+            y_values={
                 "temp": result.case_temperature.base_value,
                 "ext_pres": result.ext_pressure.base_value,
                 "sip_pres": result.sip_pressure.base_value,
@@ -84,9 +94,9 @@ class HCGraphPanel(QWidget):
         )
 
         # データが多い場合の間引き処理
-        disp_power = self._history_power.decimate(self.MAX_PLOT_POINTS)
-        disp_pressure = self._history_pressure.decimate(self.MAX_PLOT_POINTS)
+        disp_power = self._history_power.get_downsampled_data(self.MAX_PLOT_POINTS)
+        disp_pressure = self._history_pressure.get_downsampled_data(self.MAX_PLOT_POINTS)
 
         # グラフ更新
-        self.graph_power.set_data(disp_power)
-        self.graph_pressure.set_data(disp_pressure)
+        self.graph_power.update_plot(disp_power)
+        self.graph_pressure.update_plot(disp_pressure)
