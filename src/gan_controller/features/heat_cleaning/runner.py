@@ -8,7 +8,7 @@ import pyvisa.constants
 
 from gan_controller.common.application.runner import BaseRunner
 from gan_controller.common.domain.electricity import ElectricMeasurement
-from gan_controller.common.domain.quantity import Current, Quantity
+from gan_controller.common.domain.quantity import Current, Quantity, Temperature
 from gan_controller.common.hardware.adapters.logger_adapter import ILoggerAdapter
 from gan_controller.common.hardware.adapters.power_supply_adapter import IPowerSupplyAdapter
 from gan_controller.common.hardware.adapters.pyrometer_adapter import IPyrometerAdapter
@@ -243,7 +243,10 @@ class HCActivationRunner(BaseRunner):
         seq_name = current_seq.mode_name if current_seq else "Finish"
 
         # ケース温度
-        case_temperature = devices.pyrometer.read_temperature()
+        if self.protocol_config.log.record_pyrometer:
+            case_temperature = devices.pyrometer.read_temperature()
+        else:
+            case_temperature = Temperature(-1)
 
         # 圧力
         ext_pressure = sensor_reader.read_ext()
