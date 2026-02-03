@@ -250,9 +250,9 @@ class HCActivationRunner(BaseRunner):
         sip_pressure = sensor_reader.read_sip()
 
         # 電源の値取得
-        hc_i = devices.aps.measure_current()
-        hc_v = devices.aps.measure_voltage()
-        hc_w = devices.aps.measure_power()
+        hc_i = devices.hps.measure_current()
+        hc_v = devices.hps.measure_voltage()
+        hc_w = devices.hps.measure_power()
         hc_electricity = ElectricMeasurement(voltage=hc_v, current=hc_i, power=hc_w)
 
         amd_i = devices.aps.measure_current()
