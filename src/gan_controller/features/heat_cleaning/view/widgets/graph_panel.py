@@ -28,14 +28,14 @@ class HCGraphPanel(QWidget):
         self.graph_power = DualAxisGraph()
         self.graph_power.setMinimumSize(500, 300)
         self.graph_power.set_title("Power")
-        self.graph_power.set_labels(
+        self.graph_power.set_axis_labels(
             x_label="Time (h)", left_label="Temperature (°C)", right_label="Power (W)"
         )
 
         self.graph_pressure = DualAxisGraph()
         self.graph_pressure.setMinimumSize(500, 300)
         self.graph_pressure.set_title("Pressure")
-        self.graph_pressure.set_labels(
+        self.graph_pressure.set_axis_labels(
             x_label="Time (h)", left_label="Temperature (°C)", right_label="Pressure (Pa)"
         )
         self.graph_pressure.set_axis_scale("right", "log")

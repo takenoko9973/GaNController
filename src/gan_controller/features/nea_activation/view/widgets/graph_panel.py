@@ -44,7 +44,7 @@ class NEAGraphPanel(QWidget):
         self.graph_pc = DualAxisGraph()
         self.graph_pc.setMinimumSize(500, 300)
         self.graph_pc.set_title("Photocurrent")
-        self.graph_pc.set_labels(
+        self.graph_pc.set_axis_labels(
             x_label="Time (s)", left_label="Photocurrent (A)", right_label="Pressure (Pa)"
         )
         self.graph_pc.set_axis_scale("right", "log")
@@ -54,7 +54,7 @@ class NEAGraphPanel(QWidget):
         self.graph_qe = DualAxisGraph()
         self.graph_qe.setMinimumSize(500, 300)
         self.graph_qe.set_title("Quantum Efficiency")
-        self.graph_qe.set_labels(
+        self.graph_qe.set_axis_labels(
             x_label="Time (s)", left_label="Quantum Efficiency (%)", right_label="Pressure (Pa)"
         )
         self.graph_qe.set_axis_scale("right", "log")

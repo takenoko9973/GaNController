@@ -4,7 +4,6 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-from matplotlib.lines import Line2D
 from matplotlib.ticker import AutoMinorLocator, FuncFormatter, ScalarFormatter
 from PySide6.QtCore import QSize, QTimer
 from PySide6.QtGui import QResizeEvent
@@ -62,13 +61,11 @@ class DualAxisGraph(QWidget):
     ax_left: Axes
     ax_right: Axes
 
-    # ラインオブジェクト管理
-    lines_left: dict[str, Line2D]
-    lines_right: dict[str, Line2D]
-
-    legend_location: str
-
+    _series_map: dict[str, dict]
     _visible_x_span: float | None
+
+    _legend_loc: str
+    _current_data_source: GraphData | None
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -88,7 +85,7 @@ class DualAxisGraph(QWidget):
         # 内部状態管理
         # key: ラベル名, value: { 'line': Line2D, 'axis': 'left'|'right', ... }
         self._series_map: dict[str, dict] = {}
-        self._visible_x_span = None  # x軸の表示幅
+        self._visible_x_span: int | float | None = None  # x軸の表示幅
 
         self._legend_loc: str = "best"  # 凡例場所
         self._current_data_source: GraphData | None = None  # 現在表示しているデータ
@@ -106,22 +103,15 @@ class DualAxisGraph(QWidget):
 
     def _init_styles(self) -> None:
         """グラフ全体の基本スタイル適用"""
-        # タイトル
         self.set_title("Graph")
-        # ラベル名
-        self.set_labels(x_label="X Axis", left_label="Left Y Axis", right_label="Right Y Axis")
-
-        # 凡例
-        self.set_legend_location()
+        self.set_axis_labels(x_label="X Axis", left_label="Left Y Axis", right_label="Right Y Axis")
+        self.set_legend_location()  # 凡例初期化
 
         # 軸・グリッド描画
         for ax in [self.ax_left, self.ax_right]:
             ax.yaxis.set_minor_locator(AutoMinorLocator(5))
             ax.tick_params(which="both", labelsize="medium", direction="in", top=True)
         self.set_grid_target("left")  # 初期は左軸にグリッドを合わせる
-
-        # 各軸のz方向位置調整 (描画調整)
-        # self.ax_left.set_zorder(self.ax_right.get_zorder() + 1)
 
     # =========================================================================================
     # Data
@@ -220,24 +210,25 @@ class DualAxisGraph(QWidget):
     # Display Settings
     # =========================================================================================
 
-    def set_title(self, title: str = "") -> None:
+    def set_title(self, title: str = "", fontsize: str = "x-small") -> None:
         """グラフタイトル設定"""
-        self.ax_left.set_title(title, fontsize="x-small")
+        self.ax_left.set_title(title, fontsize=fontsize)
 
-    def set_labels(
+    def set_axis_labels(
         self,
         /,
         x_label: str | None = None,
         left_label: str | None = None,
         right_label: str | None = None,
+        axis_fontsize: str = "large",
     ) -> None:
         """軸ラベルの名前変更"""
         if x_label:
-            self.ax_left.set_xlabel(x_label, fontsize="large")
+            self.ax_left.set_xlabel(x_label, fontsize=axis_fontsize)
         if left_label:
-            self.ax_left.set_ylabel(left_label, fontsize="large")
+            self.ax_left.set_ylabel(left_label, fontsize=axis_fontsize)
         if right_label:
-            self.ax_right.set_ylabel(right_label, fontsize="large")
+            self.ax_right.set_ylabel(right_label, fontsize=axis_fontsize)
 
     def set_axis_scale(
         self, target: Literal["left", "right"], scale: Literal["linear", "log"]
@@ -246,14 +237,19 @@ class DualAxisGraph(QWidget):
         ax = self.ax_left if target == "left" else self.ax_right
         ax.set_yscale(scale)
 
-    def set_legend_location(self, loc: str | None = None) -> None:
+    def set_legend_location(self, loc: str | None = None, fontsize: str = "x-small") -> None:
         """凡例の場所指定 (matplotlibのloc準拠: 'upper right', 'upper left' etc)"""
         self._legend_loc = loc if loc is not None else self._legend_loc
 
         # 左右の軸のLine2Dをまとめて1つの凡例にする
         lines_l, labels_l = self.ax_left.get_legend_handles_labels()
         lines_r, labels_r = self.ax_right.get_legend_handles_labels()
-        self.ax_right.legend(lines_l + lines_r, labels_l + labels_r, loc=self._legend_loc)
+
+        # 上から 右軸グラフ -> 左軸グラフ の順に重なっているため、
+        # 凡例は右軸グラフから作成 (左軸からの場合、右軸のグラフが上に乗っかってしまう)
+        self.ax_right.legend(
+            lines_l + lines_r, labels_l + labels_r, loc=self._legend_loc, fontsize=fontsize
+        )
 
     def set_grid_target(self, target: Literal["left", "right"]) -> None:
         """グリッドをどちらの軸に合わせるか"""
