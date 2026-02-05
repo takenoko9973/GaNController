@@ -78,7 +78,7 @@ class DevicesConfig(BaseModel):
     aps: PFR100l50Config = Field(
         default_factory=lambda: PFR100l50Config(
             visa="TCPIP0::192.168.x.x::2268::SOCKET",  # AMD用デフォルト
-            ocp=Current(5),
+            ocp=Current(7),
         ),
         description="AMD Power Supply",
     )
