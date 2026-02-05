@@ -54,15 +54,15 @@ class PWUX:
     # ============================================================
     def _query_command(self, command: str, param: str | int) -> str:
         """Query用のラッパー (リトライ機能有り)"""
-        command = f"{command} {param}"
+        send_msg = f"{command} {param}"
         for attempt in range(self.retry_count):
             try:
-                response = self.inst.query(command)
+                response = self.inst.query(send_msg)
 
                 break
 
             except pyvisa.VisaIOError as e:
-                print(f"Query Error (Attempt {attempt + 1}/{self.retry_count}): {command} -> {e}")
+                print(f"Query Error (Attempt {attempt + 1}/{self.retry_count}): {send_msg} -> {e}")
                 self._recover_connection()
                 if attempt == self.retry_count - 1:
                     raise
