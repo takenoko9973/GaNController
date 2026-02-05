@@ -65,8 +65,7 @@ class HeatCleaningMainView(QWidget):
         self.execution_panel = HCExecutionPanel()
         self.measure_panel = HCMeasurePanel()
 
-        left_layout.addLayout(self.protocol_select_panel)
-        left_layout.addSpacing(10)
+        left_layout.addWidget(self.protocol_select_panel)
         left_layout.addWidget(self.condition_panel)
         left_layout.addSpacing(10)
         left_layout.addWidget(self.log_setting_panel)

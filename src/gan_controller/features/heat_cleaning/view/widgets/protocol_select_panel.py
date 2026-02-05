@@ -2,7 +2,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QPushButton, QWidget
 
 
-class HCProtocolSelectorPanel(QHBoxLayout):
+class HCProtocolSelectorPanel(QWidget):
     # === 要素
     protocol_combo: QComboBox
     save_button: QPushButton
@@ -17,13 +17,16 @@ class HCProtocolSelectorPanel(QHBoxLayout):
         else:
             super().__init__()
 
+        main_layout = QHBoxLayout(self)
+        self.setLayout(main_layout)
+
         self.protocol_combo = QComboBox()
         self.save_button = QPushButton("保存")
 
-        self.addWidget(QLabel("プロトコル"))
-        self.addWidget(self.protocol_combo)
-        self.addStretch()
-        self.addWidget(self.save_button)
+        main_layout.addWidget(QLabel("プロトコル"))
+        main_layout.addWidget(self.protocol_combo)
+        main_layout.addStretch()
+        main_layout.addWidget(self.save_button)
 
         self._connect_signals()
 
