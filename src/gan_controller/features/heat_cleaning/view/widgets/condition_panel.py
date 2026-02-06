@@ -47,16 +47,16 @@ class HCConditionPanel(QGroupBox):
         # 2列
         layout = QGridLayout()
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        layout.setColumnStretch(1, 1)
 
-        layout.addWidget(QLabel("時間 (hour)"), 0, 1)
+        layout.addWidget(QLabel("時間 (hour)"), 1, 0)
         for i, section_mode in enumerate(SequenceMode):
             col = 1 + i
             label = QLabel(section_mode.display_name)
-            double_spin_box = QDoubleSpinBox(minimum=0, decimals=3, singleStep=0.5)
+            label.setStyleSheet("font-size: 10.5px;")
+            double_spin_box = QDoubleSpinBox(minimum=0, decimals=2, singleStep=0.5)
 
-            layout.addWidget(label, col, 0)
-            layout.addWidget(double_spin_box, col, 1)
+            layout.addWidget(label, 0, col)
+            layout.addWidget(double_spin_box, 1, col)
 
             self.sequence_time_spins[section_mode] = double_spin_box
 
