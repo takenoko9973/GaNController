@@ -21,9 +21,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("GaN Controller")
 
         self._init_ui()
-        self._init_connect()
         self._setup_services()
         self._setup_features(features)
+        self._init_connect()
 
     def _init_ui(self) -> None:
         # ウィンドウ全体のメインウィジェット
@@ -63,6 +63,10 @@ class MainWindow(QMainWindow):
     def _init_connect(self) -> None:
         self._last_tab_index = 0
         self.tab_widget.currentChanged.connect(self._on_tab_changed)
+
+        for controller in self.controllers.values():
+            print(controller.status_message_requested)
+            controller.status_message_requested.connect(self.show_status_message)
 
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
         """アプリ終了時の処理"""

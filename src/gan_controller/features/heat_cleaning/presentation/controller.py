@@ -155,13 +155,7 @@ class HeatCleaningController(ITabController):
         else:
             # 上書き保存
             current_name = current_name.strip().upper()  # 大文字化
-
-            context = SaveContext(
-                current_name,
-                self._view.get_full_config(),
-                self._view.confirm_overwrite,
-            )
-            self._protocol_service.save_protocol(context)
+            self._save_protocol(current_name)
 
     @Slot()
     def _on_save_as(self) -> None:
@@ -176,8 +170,12 @@ class HeatCleaningController(ITabController):
             return
 
         # 保存処理
+        self._save_protocol(new_name)
+
+    def _save_protocol(self, name: str) -> None:
+        """保存処理を行い、通知する"""
         context = SaveContext(
-            new_name,
+            name,
             self._view.get_full_config(),
             self._view.confirm_overwrite,
         )
@@ -185,7 +183,8 @@ class HeatCleaningController(ITabController):
 
         if success:
             self._refresh_protocol_list()
-            self._view.protocol_select_panel.set_current_selected_protocol(new_name)
+            self._view.protocol_select_panel.set_current_selected_protocol(name)
+            self.status_message_requested.emit(f"プロトコル {name} を保存しました", 3000)
         elif "キャンセル" not in msg:
             self._view.show_error(msg)
 
