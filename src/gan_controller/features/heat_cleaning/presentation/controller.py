@@ -1,6 +1,5 @@
 from PySide6.QtCore import Slot
 
-from gan_controller.common.application.global_messenger import GlobalMessenger
 from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
 from gan_controller.common.io.log_manager import LogFile, LogManager
 from gan_controller.common.schemas.app_config import AppConfig
@@ -78,7 +77,7 @@ class HeatCleaningController(ITabController):
 
         # 待機中以外なら、タブをロック
         should_lock = state != HCActivationState.IDLE
-        GlobalMessenger().tab_lock_requested.emit(should_lock)
+        self.tab_lock_requested.emit(should_lock)
 
     def on_close(self) -> None:
         """アプリ終了時に設定を保存する"""
@@ -184,7 +183,7 @@ class HeatCleaningController(ITabController):
         if success:
             self._refresh_protocol_list()
             self._view.protocol_select_panel.set_current_selected_protocol(name)
-            self.status_message_requested.emit(f"プロトコル {name} を保存しました", 3000)
+            self.status_message_requested.emit(f"プロトコル {name} を保存しました", 5000)
         elif "キャンセル" not in msg:
             self._view.show_error(msg)
 

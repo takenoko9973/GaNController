@@ -3,7 +3,6 @@ from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QLayout, QMainWindow, QStatusBar, QTabWidget, QVBoxLayout, QWidget
 
 from gan_controller.application.app_feature import AppFeature
-from gan_controller.common.application.global_messenger import GlobalMessenger
 from gan_controller.common.ui.tab_controller import ITabController
 
 
@@ -21,7 +20,6 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("GaN Controller")
 
         self._init_ui()
-        self._setup_services()
         self._setup_features(features)
         self._init_connect()
 
@@ -42,13 +40,6 @@ class MainWindow(QMainWindow):
         self.main_layout.addWidget(self.tab_widget)
         self._last_tab_index = 0
 
-    def _setup_services(self) -> None:
-        """アプリ全体に関わるサービスの接続"""
-        # GlobalMessengerからの通知を表示
-        messenger = GlobalMessenger()
-        messenger.status_message_requested.connect(self.show_status_message)
-        messenger.tab_lock_requested.connect(self.set_tabs_locked)
-
     def _setup_features(self, features: list[AppFeature]) -> None:
         """機能リストを受け取り、タブに追加する"""
         self.controllers = {}
@@ -65,8 +56,8 @@ class MainWindow(QMainWindow):
         self.tab_widget.currentChanged.connect(self._on_tab_changed)
 
         for controller in self.controllers.values():
-            print(controller.status_message_requested)
             controller.status_message_requested.connect(self.show_status_message)
+            controller.tab_lock_requested.connect(self.set_tabs_locked)
 
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
         """アプリ終了時の処理"""
