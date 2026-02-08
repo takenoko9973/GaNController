@@ -10,9 +10,11 @@ from gan_controller.features.heat_cleaning.application.runner import HCActivatio
 from gan_controller.features.heat_cleaning.application.validator import ProtocolValidator
 from gan_controller.features.heat_cleaning.constants import NEW_PROTOCOL_TEXT
 from gan_controller.features.heat_cleaning.domain.state import HCActivationState
-from gan_controller.features.heat_cleaning.infrastructure.persistence import FileProtocolRepository
+from gan_controller.features.heat_cleaning.infrastructure.persistence import (
+    FileProtocolRepository,
+    HCLogRecorder,
+)
 from gan_controller.features.heat_cleaning.presentation.view import HeatCleaningMainView
-from gan_controller.features.heat_cleaning.recorder import HCLogRecorder
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
 
