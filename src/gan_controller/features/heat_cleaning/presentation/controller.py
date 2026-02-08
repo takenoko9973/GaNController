@@ -1,5 +1,3 @@
-import re
-
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QInputDialog, QMessageBox
 
@@ -8,11 +6,12 @@ from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
 from gan_controller.common.io.log_manager import LogFile, LogManager
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
+from gan_controller.features.heat_cleaning.application.runner import HCActivationRunner
+from gan_controller.features.heat_cleaning.application.validator import ProtocolValidator
 from gan_controller.features.heat_cleaning.constants import NEW_PROTOCOL_TEXT
 from gan_controller.features.heat_cleaning.infrastructure.persistence import FileProtocolRepository
 from gan_controller.features.heat_cleaning.presentation.view import HeatCleaningMainView
 from gan_controller.features.heat_cleaning.recorder import HCLogRecorder
-from gan_controller.features.heat_cleaning.runner import HCActivationRunner
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
 from gan_controller.features.heat_cleaning.state import HCActivationState
@@ -22,6 +21,7 @@ class HeatCleaningController(ITabController):
     _view: HeatCleaningMainView
 
     _repository: FileProtocolRepository
+    _validator: ProtocolValidator
 
     _state: HCActivationState
 
@@ -34,6 +34,7 @@ class HeatCleaningController(ITabController):
         self._view = view
 
         self._repository = FileProtocolRepository()
+        self._validator = ProtocolValidator()
 
         self._attach_view()
 
@@ -124,18 +125,6 @@ class HeatCleaningController(ITabController):
     # Protocol Save Helpers
     # =================================================
 
-    def _validate_protocol_name(self, name: str) -> bool:
-        """プロトコル名の形式を検証し、不正なら警告を表示する"""
-        if not re.fullmatch(r"[A-Z0-9]+", name):
-            QMessageBox.warning(
-                self._view,
-                "入力エラー",
-                "プロトコル名は英大文字(A-Z)と数字(0-9)のみ使用可能です。",
-            )
-            return False
-
-        return True
-
     def _should_overwrite(self, name: str) -> bool:
         """同名のプロトコルが存在するか確認し、存在する場合は上書きするか確認"""
         if self._repository.exists(name):
@@ -208,9 +197,10 @@ class HeatCleaningController(ITabController):
             new_name = new_name.strip().upper()  # 大文字化
 
             # 名前形式確認
-            if not self._validate_protocol_name(new_name):
+            is_valid, msg = self._validator.validate_name(new_name)
+            if not is_valid:
                 # 名前が不正なら再度入力
-                current_name = new_name
+                QMessageBox.warning(self._view, "エラー", msg)
                 continue
 
             # 上書き確認
