@@ -11,12 +11,12 @@ from gan_controller.common.io.log_manager import LogFile, LogManager
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
 from gan_controller.features.heat_cleaning.constants import NEW_PROTOCOL_TEXT
+from gan_controller.features.heat_cleaning.presentation.view import HeatCleaningMainView
 from gan_controller.features.heat_cleaning.recorder import HCLogRecorder
 from gan_controller.features.heat_cleaning.runner import HCActivationRunner
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
 from gan_controller.features.heat_cleaning.state import HCActivationState
-from gan_controller.features.heat_cleaning.view import HeatCleaningMainView
 
 
 class HeatCleaningController(ITabController):

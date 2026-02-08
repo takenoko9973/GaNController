@@ -6,12 +6,11 @@ from gan_controller.common.constants import NEA_CONFIG_PATH
 from gan_controller.common.io.log_manager import LogManager
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
+from gan_controller.features.nea_activation.presentation.view import NEAActivationMainView
+from gan_controller.features.nea_activation.runner import NEAActivationRunner
 from gan_controller.features.nea_activation.schemas import NEAConfig
-
-from .runner import NEAActivationRunner
-from .schemas.result import NEARunnerResult
-from .state import NEAActivationState
-from .view import NEAActivationMainView
+from gan_controller.features.nea_activation.schemas.result import NEARunnerResult
+from gan_controller.features.nea_activation.state import NEAActivationState
 
 
 class NEAActivationController(ITabController):

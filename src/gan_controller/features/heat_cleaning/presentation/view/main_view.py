@@ -5,7 +5,8 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
 from gan_controller.features.heat_cleaning.state import HCActivationState
-from gan_controller.features.heat_cleaning.view.widgets import (
+
+from .widgets import (
     HCConditionPanel,
     HCExecutionPanel,
     HCGraphPanel,
