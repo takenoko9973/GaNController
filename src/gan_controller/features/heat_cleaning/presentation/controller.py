@@ -1,16 +1,15 @@
 import re
-from pathlib import Path
 
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QInputDialog, QMessageBox
 
 from gan_controller.common.application.global_messenger import GlobalMessenger
 from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
-from gan_controller.common.constants import PROTOCOLS_DIR
 from gan_controller.common.io.log_manager import LogFile, LogManager
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
 from gan_controller.features.heat_cleaning.constants import NEW_PROTOCOL_TEXT
+from gan_controller.features.heat_cleaning.infrastructure.persistence import FileProtocolRepository
 from gan_controller.features.heat_cleaning.presentation.view import HeatCleaningMainView
 from gan_controller.features.heat_cleaning.recorder import HCLogRecorder
 from gan_controller.features.heat_cleaning.runner import HCActivationRunner
@@ -22,6 +21,8 @@ from gan_controller.features.heat_cleaning.state import HCActivationState
 class HeatCleaningController(ITabController):
     _view: HeatCleaningMainView
 
+    _repository: FileProtocolRepository
+
     _state: HCActivationState
 
     worker: ExperimentWorker | None
@@ -31,6 +32,8 @@ class HeatCleaningController(ITabController):
         super().__init__()
 
         self._view = view
+
+        self._repository = FileProtocolRepository()
 
         self._attach_view()
 
@@ -80,16 +83,9 @@ class HeatCleaningController(ITabController):
 
     # =================================================
 
-    def _fetch_protocol_names(self, protocols_dir: Path = PROTOCOLS_DIR) -> list[str]:
-        """プロトコル設定ファイルの名前一覧を取得"""
-        if not (protocols_dir.exists() and protocols_dir.is_dir()):
-            return []
-
-        return [p.stem for p in protocols_dir.glob("*.toml")]
-
     def _refresh_protocol_list(self) -> None:
         """プロトコルフォルダを走査してプルダウンを更新する"""
-        protocol_names = self._fetch_protocol_names()
+        protocol_names = self._repository.list_names()
 
         # 一番下に「新しいプロトコル...」を追加
         items = protocol_names
@@ -104,14 +100,6 @@ class HeatCleaningController(ITabController):
 
         # 初期選択状態の内容をロード
         self._on_protocol_changed(default_selection)
-
-    def _load_config_from_file(self, name: str) -> ProtocolConfig:
-        """ファイルから設定を読み込む"""
-        try:
-            return ProtocolConfig.load(f"{name}.toml")
-        except Exception as e:  # noqa: BLE001
-            print(f"Failed to load protocol {name}: {e}")  # 読み込みに失敗したら、初期値を返す
-            return ProtocolConfig()
 
     def _update_log_preview(self) -> None:
         """現在の設定に基づいてログファイル名をプレビュー更新"""
@@ -150,9 +138,7 @@ class HeatCleaningController(ITabController):
 
     def _should_overwrite(self, name: str) -> bool:
         """同名のプロトコルが存在するか確認し、存在する場合は上書きするか確認"""
-        existing_names = self._fetch_protocol_names()
-
-        if name in existing_names:
+        if self._repository.exists(name):
             ret = QMessageBox.question(
                 self._view,
                 "上書き確認",
@@ -175,11 +161,6 @@ class HeatCleaningController(ITabController):
 
         return text.strip() if response and text else None
 
-    def _save_protocol_config(self, name: str) -> None:
-        """プロトコル設定を保存"""
-        protocol_config = self._view.get_full_config()
-        protocol_config.save(f"{name}.toml")
-
     # =================================================
     # View Events
     # =================================================
@@ -191,7 +172,7 @@ class HeatCleaningController(ITabController):
             # 新規作成時はデフォルト設定
             config = ProtocolConfig()
         else:
-            config = self._load_config_from_file(protocol_name)
+            config = self._repository.load(protocol_name)
 
         self._view.set_full_config(config)
 
@@ -208,7 +189,7 @@ class HeatCleaningController(ITabController):
             if not self._should_overwrite(current_name):  # 確認
                 return
 
-            self._save_protocol_config(current_name)
+            self._repository.save(current_name, self._view.get_full_config())
 
     @Slot()
     def _on_save_as(self) -> None:
@@ -238,7 +219,7 @@ class HeatCleaningController(ITabController):
                 continue
 
             # 保存
-            self._save_protocol_config(new_name)
+            self._repository.save(new_name, self._view.get_full_config())
 
             # リストを更新、新しく名付けたものを選択
             self._refresh_protocol_list()
