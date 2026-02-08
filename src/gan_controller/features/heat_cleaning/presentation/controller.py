@@ -1,5 +1,4 @@
 from PySide6.QtCore import Slot
-from PySide6.QtWidgets import QInputDialog, QMessageBox
 
 from gan_controller.common.application.global_messenger import GlobalMessenger
 from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
@@ -130,27 +129,9 @@ class HeatCleaningController(ITabController):
     def _should_overwrite(self, name: str) -> bool:
         """同名のプロトコルが存在するか確認し、存在する場合は上書きするか確認"""
         if self._repository.exists(name):
-            ret = QMessageBox.question(
-                self._view,
-                "上書き確認",
-                f"プロトコル '{name}' は既に存在します。\n上書きしますか？",  # noqa: RUF001
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
-            )
-            return ret == QMessageBox.StandardButton.Yes
+            return self._view.confirm_overwrite(name)
 
         return True
-
-    def _ask_save_name(self, default_text: str = "") -> str | None:
-        """名前入力ダイアログを表示"""
-        text, response = QInputDialog.getText(
-            self._view,
-            "プロトコル新規保存",
-            "プロトコル名を入力してください\n(英大文字と数字のみ):",
-            text=default_text,
-        )
-
-        return text.strip() if response and text else None
 
     # =================================================
     # View Events
@@ -192,17 +173,15 @@ class HeatCleaningController(ITabController):
             current_name = ""
 
         while True:
-            new_name = self._ask_save_name(current_name)
+            new_name = self._view.ask_new_name(current_name).upper()
             if new_name is None:
                 break
-
-            new_name = new_name.strip().upper()  # 大文字化
 
             # 名前形式確認
             is_valid, msg = self._validator.validate_name(new_name)
             if not is_valid:
                 # 名前が不正なら再度入力
-                QMessageBox.warning(self._view, "エラー", msg)
+                self._view.show_warning(msg)
                 continue
 
             # 上書き確認
