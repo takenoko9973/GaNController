@@ -5,6 +5,10 @@ from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
 from gan_controller.common.io.log_manager import LogFile, LogManager
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
+from gan_controller.features.heat_cleaning.application.protocol_service import (
+    ProtocolService,
+    SaveContext,
+)
 from gan_controller.features.heat_cleaning.application.runner import HCActivationRunner
 from gan_controller.features.heat_cleaning.application.validator import ProtocolValidator
 from gan_controller.features.heat_cleaning.constants import NEW_PROTOCOL_TEXT
@@ -21,7 +25,7 @@ from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
 class HeatCleaningController(ITabController):
     _view: HeatCleaningMainView
 
-    _repository: FileProtocolRepository
+    _protocol_service: ProtocolService
     _validator: ProtocolValidator
 
     _state: HCActivationState
@@ -34,8 +38,9 @@ class HeatCleaningController(ITabController):
 
         self._view = view
 
-        self._repository = FileProtocolRepository()
-        self._validator = ProtocolValidator()
+        repository = FileProtocolRepository()
+        validator = ProtocolValidator()
+        self._protocol_service = ProtocolService(repository, validator)
 
         self._attach_view()
 
@@ -87,7 +92,7 @@ class HeatCleaningController(ITabController):
 
     def _refresh_protocol_list(self) -> None:
         """プロトコルフォルダを走査してプルダウンを更新する"""
-        protocol_names = self._repository.list_names()
+        protocol_names = self._protocol_service.get_protocol_names()
 
         # 一番下に「新しいプロトコル...」を追加
         items = protocol_names
@@ -123,17 +128,6 @@ class HeatCleaningController(ITabController):
             self._view.log_setting_panel.set_preview_text("Error")
 
     # =================================================
-    # Protocol Save Helpers
-    # =================================================
-
-    def _should_overwrite(self, name: str) -> bool:
-        """同名のプロトコルが存在するか確認し、存在する場合は上書きするか確認"""
-        if self._repository.exists(name):
-            return self._view.confirm_overwrite(name)
-
-        return True
-
-    # =================================================
     # View Events
     # =================================================
 
@@ -144,7 +138,10 @@ class HeatCleaningController(ITabController):
             # 新規作成時はデフォルト設定
             config = ProtocolConfig()
         else:
-            config = self._repository.load(protocol_name)
+            try:
+                config = self._protocol_service.load_protocol(protocol_name)
+            except Exception:  # noqa: BLE001
+                config = ProtocolConfig()
 
         self._view.set_full_config(config)
 
@@ -158,46 +155,39 @@ class HeatCleaningController(ITabController):
         else:
             # 上書き保存
             current_name = current_name.strip().upper()  # 大文字化
-            if not self._should_overwrite(current_name):  # 確認
-                return
 
-            self._repository.save(current_name, self._view.get_full_config())
+            context = SaveContext(
+                current_name,
+                self._view.get_full_config(),
+                self._view.confirm_overwrite,
+            )
+            self._protocol_service.save_protocol(context)
 
     @Slot()
     def _on_save_as(self) -> None:
         """名前をつけて保存"""
         current_name = self._view.protocol_select_panel.current_selected_protocol()
-
         # 新規作成の場合はデフォルトの入力欄は空白に
         if current_name == NEW_PROTOCOL_TEXT:
             current_name = ""
 
-        while True:
-            new_name = self._view.ask_new_name(current_name).upper()
-            if new_name is None:
-                break
+        new_name = self._view.ask_new_name(current_name).upper()
+        if new_name == "":
+            return
 
-            # 名前形式確認
-            is_valid, msg = self._validator.validate_name(new_name)
-            if not is_valid:
-                # 名前が不正なら再度入力
-                self._view.show_warning(msg)
-                continue
+        # 保存処理
+        context = SaveContext(
+            new_name,
+            self._view.get_full_config(),
+            self._view.confirm_overwrite,
+        )
+        success, msg = self._protocol_service.save_protocol(context)
 
-            # 上書き確認
-            if not self._should_overwrite(new_name):
-                current_name = new_name
-                continue
-
-            # 保存
-            self._repository.save(new_name, self._view.get_full_config())
-
-            # リストを更新、新しく名付けたものを選択
+        if success:
             self._refresh_protocol_list()
             self._view.protocol_select_panel.set_current_selected_protocol(new_name)
-
-            # 保存完了ループ脱出
-            break
+        elif "キャンセル" not in msg:
+            self._view.show_error(msg)
 
     # =================================================
     # View -> Runner

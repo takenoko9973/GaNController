@@ -168,7 +168,7 @@ class HeatCleaningMainView(QWidget):
 
         return text.strip() if response else ""
 
-    def show_warning(self, msg: str) -> None:
+    def show_error(self, msg: str) -> None:
         QMessageBox.warning(self, "エラー", msg)
 
     # =============================================================================
