@@ -7,7 +7,7 @@ from gan_controller.common.io.log_manager import LogManager
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
 from gan_controller.features.heat_cleaning.application.protocol_service import (
-    ProtocolService,
+    ProtocolManager,
     SaveContext,
 )
 from gan_controller.features.heat_cleaning.application.runner import HeatCleaningRunner
@@ -29,7 +29,7 @@ from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 class HeatCleaningController(ITabController):
     _view: HeatCleaningMainView
 
-    _protocol_service: ProtocolService
+    _protocol_service: ProtocolManager
     _validator: ProtocolValidator
 
     _state: HeatCleaningState
@@ -44,7 +44,7 @@ class HeatCleaningController(ITabController):
 
         repository = FileProtocolRepository()
         validator = ProtocolValidator()
-        self._protocol_service = ProtocolService(repository, validator)
+        self._protocol_service = ProtocolManager(repository, validator)
 
         self._attach_view()
 
