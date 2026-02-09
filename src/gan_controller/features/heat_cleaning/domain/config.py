@@ -15,7 +15,7 @@ from gan_controller.common.domain.quantity import (
     Value,
 )
 from gan_controller.common.io.toml_config_io import load_toml_config, save_toml_config
-from gan_controller.features.heat_cleaning.domain import Sequence, SequenceMode
+from gan_controller.features.heat_cleaning.domain.models import Sequence, SequenceMode
 
 
 class HCSequenceConfig(BaseModel):

@@ -1,4 +1,4 @@
-from .protocol_repo import FileProtocolRepository
 from .recorder import HCLogRecorder
+from .repository import ProtocolRepository
 
-__all__ = ["FileProtocolRepository", "HCLogRecorder"]
+__all__ = ["HCLogRecorder", "ProtocolRepository"]
