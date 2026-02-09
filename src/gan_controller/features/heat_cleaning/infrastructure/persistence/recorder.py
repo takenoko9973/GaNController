@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from gan_controller.common.io.log_manager import LogFile
-from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
-from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
+from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
+from gan_controller.features.heat_cleaning.domain.models import HCExperimentResult
 
 
 @dataclass
@@ -16,7 +16,7 @@ class LogColumn:
     fmt: str  # フォーマット文字列 (例: "{:.4E}")
 
     # 値取り出し形式 (引数: Result, Event文字列)
-    extractor: Callable[[HCRunnerResult, str], Any]
+    extractor: Callable[[HCExperimentResult], Any]
 
 
 class HCLogRecorder:
@@ -28,11 +28,11 @@ class HCLogRecorder:
 
         # ログデータ項目定義
         self.columns: list[LogColumn] = [
-            LogColumn("Time[s]", "{:.1f}", lambda r, _: r.total_timestamp.base_value),
-            LogColumn("Temp(TC)[deg.C]", "{:.1f}", lambda r, _: r.case_temperature.base_value),
+            LogColumn("Time[s]", "{:.1f}", lambda r: r.timestamp_total.base_value),
+            LogColumn("Temp(TC)[deg.C]", "{:.1f}", lambda r: r.temperature_case.base_value),
             # Pressure
-            LogColumn("Pressure(EXT)[Pa]", "{:.2E}", lambda r, _: r.ext_pressure.base_value),
-            LogColumn("Pressure(SIP)[Pa]", "{:.2E}", lambda r, _: r.sip_pressure.base_value),
+            LogColumn("Pressure(EXT)[Pa]", "{:.2E}", lambda r: r.pressure_ext.base_value),
+            LogColumn("Pressure(SIP)[Pa]", "{:.2E}", lambda r: r.pressure_sip.base_value),
         ]
         # HC
         if self.config.condition.hc_enabled:
@@ -41,17 +41,17 @@ class HCLogRecorder:
                     LogColumn(
                         "Volt[V]",
                         "{:.2f}",
-                        lambda r, _: r.hc_electricity.voltage.base_value,
+                        lambda r: r.electricity_hc.voltage.base_value,
                     ),
                     LogColumn(
                         "Current[A]",
                         "{:.2f}",
-                        lambda r, _: r.hc_electricity.current.base_value,
+                        lambda r: r.electricity_hc.current.base_value,
                     ),
                     LogColumn(
                         "Power[W]",
                         "{:.2f}",
-                        lambda r, _: r.hc_electricity.power.base_value,
+                        lambda r: r.electricity_hc.power.base_value,
                     ),
                 ]
             )
@@ -62,20 +62,22 @@ class HCLogRecorder:
                     LogColumn(
                         "Volt(AMD)[V]",
                         "{:.2f}",
-                        lambda r, _: r.amd_electricity.voltage.base_value,
+                        lambda r: r.electricity_amd.voltage.base_value,
                     ),
                     LogColumn(
                         "Current(AMD)[A]",
                         "{:.2f}",
-                        lambda r, _: r.amd_electricity.current.base_value,
+                        lambda r: r.electricity_amd.current.base_value,
                     ),
                     LogColumn(
                         "Power(AMD)[W]",
                         "{:.2f}",
-                        lambda r, _: r.amd_electricity.power.base_value,
+                        lambda r: r.electricity_amd.power.base_value,
                     ),
                 ]
             )
+
+        self.columns.append(LogColumn("Event", "{:}", lambda _: ""))
 
     def record_header(self, start_time: datetime.datetime) -> None:
         """ヘッダー情報を記録"""
@@ -120,14 +122,14 @@ class HCLogRecorder:
         header_row = "\t".join([c.header for c in self.columns])
         lf.write(header_row + "\n")
 
-    def record_data(self, result: HCRunnerResult, event: str = "") -> None:
+    def record_data(self, result: HCExperimentResult) -> None:
         """測定結果を1行記録"""
         row_data = []
 
         # 定義されたカラム順にデータを抽出・フォーマット
         for col in self.columns:
             # extractor関数を実行して値を取得
-            raw_val = col.extractor(result, event)
+            raw_val = col.extractor(result)
             # 指定された書式で文字列化
             formatted_val = col.fmt.format(raw_val)
             row_data.append(formatted_val)

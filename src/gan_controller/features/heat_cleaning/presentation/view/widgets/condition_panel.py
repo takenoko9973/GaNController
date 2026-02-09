@@ -12,8 +12,8 @@ from PySide6.QtWidgets import (
 
 from gan_controller.common.domain.quantity.factory import Current, Time, Value
 from gan_controller.common.ui.widgets import CheckableSpinBox
-from gan_controller.features.heat_cleaning.domain.sequence import SequenceMode
-from gan_controller.features.heat_cleaning.schemas.config import HCConditionConfig, HCSequenceConfig
+from gan_controller.features.heat_cleaning.domain.config import HCConditionConfig, HCSequenceConfig
+from gan_controller.features.heat_cleaning.domain.models import SequenceMode
 
 
 class HCConditionPanel(QGroupBox):

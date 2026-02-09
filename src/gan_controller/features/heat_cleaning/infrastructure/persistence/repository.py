@@ -1,11 +1,11 @@
 from pathlib import Path
 
 from gan_controller.common.constants import PROTOCOLS_DIR
-from gan_controller.features.heat_cleaning.domain.repository import IProtocolRepository
-from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
+from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
+from gan_controller.features.heat_cleaning.domain.interface import IProtocolRepository
 
 
-class FileProtocolRepository(IProtocolRepository):
+class ProtocolRepository(IProtocolRepository):
     def __init__(self, base_dir: Path = PROTOCOLS_DIR) -> None:
         self.base_dir = base_dir
 
