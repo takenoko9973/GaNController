@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from gan_controller.common.domain.quantity import Ampere, Quantity
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 
-from .models import HCHardwareMetrics
+from .models import HCExperimentResult
 
 
 class IHeatCleaningHardware(ABC):
@@ -22,7 +22,7 @@ class IHeatCleaningHardware(ABC):
         """
 
     @abstractmethod
-    def read_metrics(self) -> HCHardwareMetrics:
+    def read_metrics(self) -> HCExperimentResult:
         """現在のセンサー値や電源状態を読み取り、Resultオブジェクトとして返す"""
 
     @abstractmethod

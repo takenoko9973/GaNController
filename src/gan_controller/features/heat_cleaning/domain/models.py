@@ -119,27 +119,16 @@ class HCExperimentResult(ExperimentResult):
     sequence_name: str  # シーケンス名
 
     # 時間情報
-    step_timestamp: Quantity[Second]  # シーケンス内の経過時間
-    total_timestamp: Quantity[Second]  # 合計の経過時間
+    timestamp_step: Quantity[Second]  # シーケンス内の経過時間
+    timestamp_total: Quantity[Second]  # 合計の経過時間
 
     # 圧力
-    ext_pressure: Quantity[Pascal]
-    sip_pressure: Quantity[Pascal]
+    pressure_ext: Quantity[Pascal]
+    pressure_sip: Quantity[Pascal]
 
     # 温度
-    case_temperature: Quantity[Celsius]
+    temperature_case: Quantity[Celsius]
 
     # 電源出力値
-    electricity_hc: ElectricMeasurement
-    electricity_amd: ElectricMeasurement
-
-
-@dataclass
-class HCHardwareMetrics:
-    """装置からの測定情報"""
-
-    ext_pressure: Quantity[Pascal]
-    sip_pressure: Quantity[Pascal]
-    case_temperature: Quantity[Celsius]
     electricity_hc: ElectricMeasurement
     electricity_amd: ElectricMeasurement

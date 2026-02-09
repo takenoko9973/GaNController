@@ -73,13 +73,13 @@ class HCGraphPanel(QWidget):
         self._init_lines()  # ライン再設定
 
     def append_data(self, result: HCExperimentResult) -> None:
-        t = result.total_timestamp
+        t = result.timestamp_total
 
         # データ追加
         self._history_power.append_point(
             x_value=t.value_as("hour"),
             y_values={
-                "temp": result.case_temperature.base_value,
+                "temp": result.temperature_case.base_value,
                 "heater_power": result.electricity_hc.power.base_value,
                 "amd_power": result.electricity_amd.power.base_value,
             },
@@ -87,9 +87,9 @@ class HCGraphPanel(QWidget):
         self._history_pressure.append_point(
             x_value=t.value_as("hour"),
             y_values={
-                "temp": result.case_temperature.base_value,
-                "ext_pres": result.ext_pressure.base_value,
-                "sip_pres": result.sip_pressure.base_value,
+                "temp": result.temperature_case.base_value,
+                "ext_pres": result.pressure_ext.base_value,
+                "sip_pres": result.pressure_sip.base_value,
             },
         )
 

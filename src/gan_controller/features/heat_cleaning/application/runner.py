@@ -7,7 +7,7 @@ import pyvisa
 import pyvisa.constants
 
 from gan_controller.common.application.runner import BaseRunner
-from gan_controller.common.domain.quantity import Current, Quantity
+from gan_controller.common.domain.quantity import Current, Time
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.features.heat_cleaning.domain.interface import IHeatCleaningHardware
 from gan_controller.features.heat_cleaning.domain.models import HCExperimentResult, Sequence
@@ -145,25 +145,21 @@ class HeatCleaningRunner(BaseRunner):
             time.sleep(0.1)  # 安定化時間
 
             # 測定
-            metrics = self._hw.read_metrics()
+            result = self._hw.read_metrics()
 
             # Resultにコンテキスト情報 (時間やシーケンス名) を付与
-            return HCExperimentResult(
-                sequence_index=seq_index,
-                sequence_name=seq.mode_name,
-                step_timestamp=Quantity(seq_elapsed, "s"),
-                total_timestamp=Quantity(total_elapsed, "s"),
-                ext_pressure=metrics.ext_pressure,
-                sip_pressure=metrics.sip_pressure,
-                case_temperature=metrics.case_temperature,
-                electricity_hc=metrics.electricity_hc,
-                electricity_amd=metrics.electricity_amd,
-            )
+            result.sequence_index = seq_index
+            result.sequence_name = seq.mode_name
+            result.timestamp_step = Time(seq_elapsed)
+            result.timestamp_total = Time(total_elapsed)
 
         except pyvisa.errors.VisaIOError as e:
             # 装置に関するエラー
             self._handle_visa_error(e)
             return None
+
+        else:
+            return result
 
     def _handle_visa_error(self, e: pyvisa.errors.VisaIOError) -> None:
         """VISAエラーのハンドリング"""

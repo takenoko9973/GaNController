@@ -143,12 +143,12 @@ class HCMeasurePanel(QGroupBox):
         text = f"{result.sequence_index}: {result.sequence_name}"
         self.set_status(text, True)
 
-        self.step_time_label.setValue(result.step_timestamp.base_value)
-        self.total_time_label.setValue(result.total_timestamp.base_value)
+        self.step_time_label.setValue(result.timestamp_step.base_value)
+        self.total_time_label.setValue(result.timestamp_total.base_value)
 
-        self.temp_value_label.setValue(result.case_temperature)
-        self.ext_pres_value_label.setValue(result.ext_pressure)
-        self.sip_pres_value_label.setValue(result.sip_pressure)
+        self.temp_value_label.setValue(result.temperature_case)
+        self.ext_pres_value_label.setValue(result.pressure_ext)
+        self.sip_pres_value_label.setValue(result.pressure_sip)
 
         for electric_prop in ElectricProperties:
             self.hc_value_labels[electric_prop].setValue(
