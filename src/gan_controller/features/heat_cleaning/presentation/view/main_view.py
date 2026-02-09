@@ -2,9 +2,11 @@ from PySide6.QtCore import Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QInputDialog, QMessageBox, QVBoxLayout, QWidget
 
-from gan_controller.features.heat_cleaning.domain.models import HeatCleaningState
+from gan_controller.features.heat_cleaning.domain.models import (
+    HCExperimentResult,
+    HeatCleaningState,
+)
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
-from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
 
 from .widgets import (
     HCConditionPanel,
@@ -136,7 +138,7 @@ class HeatCleaningMainView(QWidget):
             self.execution_panel.stop_button.setEnabled(False)
             self.measure_panel.set_status("停止処理中", False)
 
-    def update_view(self, result: HCRunnerResult) -> None:
+    def update_view(self, result: HCExperimentResult) -> None:
         """結果をUIに反映"""
         self.measure_panel.update_measure_values(result)
         self.graph_panel.append_data(result)

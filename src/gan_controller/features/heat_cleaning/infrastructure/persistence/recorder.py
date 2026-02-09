@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from gan_controller.common.io.log_manager import LogFile
+from gan_controller.features.heat_cleaning.domain.models import HCExperimentResult
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
-from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
 
 
 @dataclass
@@ -16,7 +16,7 @@ class LogColumn:
     fmt: str  # フォーマット文字列 (例: "{:.4E}")
 
     # 値取り出し形式 (引数: Result, Event文字列)
-    extractor: Callable[[HCRunnerResult], Any]
+    extractor: Callable[[HCExperimentResult], Any]
 
 
 class HCLogRecorder:
@@ -122,7 +122,7 @@ class HCLogRecorder:
         header_row = "\t".join([c.header for c in self.columns])
         lf.write(header_row + "\n")
 
-    def record_data(self, result: HCRunnerResult) -> None:
+    def record_data(self, result: HCExperimentResult) -> None:
         """測定結果を1行記録"""
         row_data = []
 

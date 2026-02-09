@@ -1,5 +1,4 @@
 import datetime
-import queue
 import time
 import traceback
 from collections.abc import Callable
@@ -8,225 +7,163 @@ import pyvisa
 import pyvisa.constants
 
 from gan_controller.common.application.runner import BaseRunner
-from gan_controller.common.domain.quantity import Current, Quantity, Temperature
+from gan_controller.common.domain.quantity import Current, Quantity
 from gan_controller.common.schemas.app_config import AppConfig
-from gan_controller.features.heat_cleaning.application.hardware_controller import (
-    HCHardwareFacade,
-    HCHardwareMetrics,
-)
-from gan_controller.features.heat_cleaning.domain.models import Sequence
-from gan_controller.features.heat_cleaning.infrastructure.hardware import (
-    HCDeviceManager,
-    HCDevices,
-    RealHCDeviceFactory,
-    SimulationHCDeviceFactory,
-)
+from gan_controller.features.heat_cleaning.domain.interface import IHeatCleaningHardware
+from gan_controller.features.heat_cleaning.domain.models import HCExperimentResult, Sequence
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
-from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
 
 
 class HeatCleaningRunner(BaseRunner):
-    app_config: AppConfig  # 全体設定
-    protocol_config: ProtocolConfig  # 実験条件
+    _hw: IHeatCleaningHardware
+    _config: ProtocolConfig
 
-    _request_queue: queue.Queue
-
-    def __init__(self, app_config: AppConfig, protocol_config: ProtocolConfig) -> None:
+    def __init__(self, hardware: IHeatCleaningHardware, config: ProtocolConfig) -> None:
         super().__init__()
-        self.app_config = app_config  # VISAアドレスなど
-        self.protocol_config = protocol_config  # 実験条件
+        self._hw = hardware
+        self._config = config
 
-        # データが生成されたときに呼ぶ関数リスト
-        # 引数は HCRunnerResult, 戻り値は None
-        self._on_step_callbacks: list[Callable[[HCRunnerResult], None]] = []
+        # データ生成時のコールバック (引数: ExperimentResult)
+        self._on_step_callbacks: list[Callable[[HCExperimentResult], None]] = []
 
-        self._request_queue = queue.Queue()  # スレッド通信用キュー
-
-    def add_on_step_listener(self, callback: Callable[[HCRunnerResult], None]) -> None:
+    def add_on_step_listener(self, callback: Callable[[HCExperimentResult], None]) -> None:
         """リスナー (記録係や表示係) を登録する"""
         self._on_step_callbacks.append(callback)
 
     # =================================================================
+    # Main Execution Flow
+    # =================================================================
 
     def run(self) -> None:
         """実験開始"""
-        tz = self.app_config.common.get_tz()
-        try:
-            # 設定に基づいて適切なFactoryを選択する
-            is_simulation = getattr(self.app_config.common, "is_simulation_mode", False)
-            factory = SimulationHCDeviceFactory() if is_simulation else RealHCDeviceFactory()
-
-            start_time = datetime.datetime.now(tz)
-            print(f"\033[32m{start_time:%Y/%m/%d %H:%M:%S} Experiment start\033[0m")
-
-            with HCDeviceManager(factory, self.app_config.devices) as dev:
-                facade = HCHardwareFacade(dev, self.app_config.devices)
-                facade.setup_for_protocol(self.protocol_config)
-
-                self._measurement_loop(facade)
-
-        except Exception as e:
-            # エラー発生時はログ出力などを行う
-            print(f"Experiment Error: {e}")
-            raise  # Workerスレッド側でキャッチさせるために再送出
-
-        finally:
-            finish_time = datetime.datetime.now(tz)
-            print(f"\033[31m{finish_time:%Y/%m/%d %H:%M:%S} Finish\033[0m")
-
-    # =================================================================
-    # Measurement Logic
-    # =================================================================
-
-    def _measurement_loop(self, facade: HCHardwareFacade) -> None:
-        """計測ループ"""
-        sequences = self.protocol_config.get_sequences()
-        if not sequences:
-            print("No sequences found.")
-            return
-
-        print("Start Heat Cleaning measurement...")
-
-        # 制御・ログ書き込み間隔
-        interval = self.protocol_config.condition.logging_interval.base_value
-
-        start_perf = time.perf_counter()  # 開始時間 (高分解能)
-        next_target_perf = start_perf
+        app_config = AppConfig.load()
+        tz = app_config.common.get_tz()
+        print(f"Experiment started at {datetime.datetime.now(tz)}")
 
         try:
-            # メインループ
-            while not self._stop:
-                # タイミング調整
-                current_perf = time.perf_counter()
-                sleep_duration = next_target_perf - current_perf
-                if sleep_duration > 0:
-                    time.sleep(sleep_duration)
+            # シーケンスの取得
+            sequences = self._config.get_sequences()
+            if not sequences:
+                print("No sequences found.")
+                return
 
-                next_target_perf += interval  # 次の測定時間
+            # 実験開始
+            total_start_time = time.perf_counter()
 
-                # =======================================================
+            # 各シーケンスを順番に実行
+            for i, seq in enumerate(sequences):
+                # 停止フラグが立っていたらループを抜ける
+                if self._stop:
+                    print("Experiment stopped by user.")
+                    break
 
-                total_elapsed = time.perf_counter() - start_perf
-
-                result = self._process_step(facade, total_elapsed)
-
-                if result is not None:
-                    # 送信
-                    if self.emit_result is not None:
-                        self.emit_result(result)
-
-                    # Resultを送信
-                    for callback in self._on_step_callbacks:
-                        callback(result)
+                print(f"Starting Sequence {i + 1}: {seq.mode_name}")
+                self._run_single_sequence(i + 1, seq, total_start_time)
 
         except Exception as e:
-            print(f"\033[31m[ERROR] Measurement loop failed: {e}\033[0m")
+            print(f"\033[31mExperiment Error: {e}\033[0m")
             print(traceback.format_exc())
             raise
 
         finally:
-            facade.emergency_stop()
+            self._hw.emergency_stop()  # 装置の停止処理
+
+            finish_time = datetime.datetime.now(tz)
+            print(f"\033[31m{finish_time:%Y/%m/%d %H:%M:%S} Finish\033[0m")
+
+    def _run_single_sequence(self, seq_index: int, seq: Sequence, total_start_time: float) -> None:
+        """1つのシーケンスを実行するループ"""
+        # ログ設定からインターバルを取得 (なければデフォルト10s)
+        interval = self._config.condition.logging_interval.base_value
+        if interval <= 0:
+            interval = 10
+
+        # シーケンス開始時間
+        seq_start_time = time.perf_counter()
+        next_target_perf = seq_start_time
+
+        while not self._stop:
+            # --- タイミング調整 ---
+            now = time.perf_counter()
+            sleep_duration = next_target_perf - now  # 測定予定時間と現在時間との差分を計算
+            if sleep_duration > 0:
+                time.sleep(sleep_duration)  # 予定時間まで待機
+
+            # 次の時刻更新
+            next_target_perf += interval
+
+            # --- 時間計測 ---
+            now = time.perf_counter()  # sleep後の正確な時間
+            seq_elapsed = now - seq_start_time
+            total_elapsed = now - total_start_time
+
+            # シーケンス終了判定
+            # (最後に1回だけdurationを超えた状態で実行して、次のシーケンスへ行く)
+            is_seq_finished = seq_elapsed >= seq.duration_sec
+
+            # --- 処理実行 ---
+            result = self._process_step(
+                seq_index=seq_index, seq=seq, seq_elapsed=seq_elapsed, total_elapsed=total_elapsed
+            )
+
+            # --- 通知 ---
+            if result:
+                # 画面更新用シグナル (BaseRunnerの機能を使用する場合)
+                if self.emit_result is not None:
+                    self.emit_result(result)
+
+                # ログ記録用コールバック
+                for callback in self._on_step_callbacks:
+                    callback(result)
+
+            if is_seq_finished:
+                break
 
     def _process_step(
-        self, facade: HCHardwareFacade, total_elapsed: float
-    ) -> HCRunnerResult | None:
+        self, seq_index: int, seq: Sequence, seq_elapsed: float, total_elapsed: float
+    ) -> HCExperimentResult | None:
+        """1ステップ分の制御と測定を行う"""
         try:
-            current_seq, seq_index, seq_elapsed = self._get_current_sequence_state(total_elapsed)
-            if current_seq is not None:
-                # 電流値設定
-                self._control_devices(facade, current_seq, seq_elapsed)
-            else:
-                # 終了した場合
-                print("All sequences finished.")
-                self._stop = True
+            # 目標電流値の計算
+            # Conditionの設定値 (最大電流) をConfigから取得
+            max_hc = (
+                self._config.condition.hc_current.base_value
+                if self._config.condition.hc_enabled
+                else 0.0
+            )
+            max_amd = (
+                self._config.condition.amd_current.base_value
+                if self._config.condition.amd_enabled
+                else 0.0
+            )
 
-            time.sleep(0.1)  # 電流変化後の安定化用
+            target_hc = seq.calculate_current(max_hc, seq_elapsed)
+            target_amd = seq.calculate_current(max_amd, seq_elapsed)
+
+            # ハードウェア制御 (Interface経由)
+            self._hw.set_currents(Current(target_hc), Current(target_amd))
+            time.sleep(0.1)  # 安定化時間
 
             # 測定
-            metrics = facade.read_metrics()
-            return self._create_result(metrics, total_elapsed, seq_elapsed, current_seq, seq_index)
+            metrics = self._hw.read_metrics()
+
+            # Resultにコンテキスト情報 (時間やシーケンス名) を付与
+            return HCExperimentResult(
+                sequence_index=seq_index,
+                sequence_name=seq.mode_name,
+                step_timestamp=Quantity(seq_elapsed, "s"),
+                total_timestamp=Quantity(total_elapsed, "s"),
+                ext_pressure=metrics.ext_pressure,
+                sip_pressure=metrics.sip_pressure,
+                case_temperature=metrics.case_temperature,
+                electricity_hc=metrics.electricity_hc,
+                electricity_amd=metrics.electricity_amd,
+            )
 
         except pyvisa.errors.VisaIOError as e:
             # 装置に関するエラー
             self._handle_visa_error(e)
             return None
-
-    def _get_current_sequence_state(
-        self, total_elapsed: float
-    ) -> tuple[Sequence | None, int, float]:
-        """現在の経過時間から、該当するシーケンスとその中での経過時間を返す
-
-        Returns:
-            (Sequenceオブジェクト, シーケンス番号, シーケンス内経過時間[s])
-
-        """
-        sequences = self.protocol_config.get_sequences()
-        if not sequences:
-            return None, -1, 0.0
-
-        # シーケンスごとの累積時間
-        accumulated_time = 0.0
-
-        for i, seq in enumerate(sequences):
-            duration = seq.duration_sec
-
-            # まだこのシーケンスの範囲内か
-            if total_elapsed < (accumulated_time + duration):
-                seq_elapsed = total_elapsed - accumulated_time
-                return seq, i, seq_elapsed
-
-            accumulated_time += duration
-
-        # 全シーケンス時間を超えている場合
-        return None, -1, 0.0
-
-    def _control_devices(self, facade: HCHardwareFacade, seq: Sequence, seq_elapsed: float) -> None:
-        """シーケンス定義に従ってデバイス(電源)を制御"""
-        hc_target_current = None
-        amd_target_current = None
-
-        # HC電源の制御
-        if self.protocol_config.condition.hc_enabled:
-            # 現在の目標電流値を計算
-            hc_max_current = self.protocol_config.condition.hc_current
-            hc_target_current = Current(
-                seq.calculate_current(hc_max_current.base_value, seq_elapsed)
-            )
-
-        # AMD電源の制御
-        if self.protocol_config.condition.amd_enabled:
-            amd_max_current = self.protocol_config.condition.amd_current
-            amd_target_current = Current(
-                seq.calculate_current(amd_max_current.base_value, seq_elapsed)
-            )
-
-        facade.set_condition(hc_target_current, amd_target_current)
-
-    def _create_result(
-        self,
-        metrics: HCHardwareMetrics,
-        total_elapsed: float,
-        seq_elapsed: float,
-        current_seq: Sequence | None,
-        current_idx: int,
-    ) -> HCRunnerResult:
-        seq_name = current_seq.mode_name if current_seq else "Finish"
-
-        # ケース温度 (無効化の場合はnan)
-        if not self.protocol_config.log.record_pyrometer:
-            metrics.case_temperature = Temperature(float("nan"))
-
-        return HCRunnerResult(
-            current_sequence_index=current_idx + 1,
-            current_sequence_name=seq_name,
-            step_timestamp=Quantity(seq_elapsed, "s"),
-            total_timestamp=Quantity(total_elapsed, "s"),
-            ext_pressure=metrics.ext_pressure,
-            sip_pressure=metrics.sip_pressure,
-            case_temperature=metrics.case_temperature,
-            hc_electricity=metrics.hc_electricity,
-            amd_electricity=metrics.amd_electricity,
-        )
 
     def _handle_visa_error(self, e: pyvisa.errors.VisaIOError) -> None:
         """VISAエラーのハンドリング"""
@@ -236,17 +173,3 @@ class HeatCleaningRunner(BaseRunner):
         else:
             # それ以外は再送出
             raise e
-
-    def _finalize_safety(self, devices: HCDevices) -> None:
-        """終了処理"""
-        print("Executing safety cleanup...")
-
-        try:
-            devices.hps.set_output(False)
-        except Exception as cleanup_err:  # noqa: BLE001
-            print(f"Failed to stop HPS: {cleanup_err}")
-
-        try:
-            devices.aps.set_output(False)
-        except Exception as cleanup_err:  # noqa: BLE001
-            print(f"Failed to stop APS: {cleanup_err}")

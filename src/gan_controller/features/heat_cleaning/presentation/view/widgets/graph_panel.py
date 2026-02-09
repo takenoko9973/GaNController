@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from gan_controller.common.ui.widgets import DualAxisGraph, GraphData
-from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
+from gan_controller.features.heat_cleaning.domain.models import HCExperimentResult
 
 
 class HCGraphPanel(QWidget):
@@ -72,7 +72,7 @@ class HCGraphPanel(QWidget):
 
         self._init_lines()  # ライン再設定
 
-    def append_data(self, result: HCRunnerResult) -> None:
+    def append_data(self, result: HCExperimentResult) -> None:
         t = result.total_timestamp
 
         # データ追加
@@ -80,8 +80,8 @@ class HCGraphPanel(QWidget):
             x_value=t.value_as("hour"),
             y_values={
                 "temp": result.case_temperature.base_value,
-                "heater_power": result.hc_electricity.power.base_value,
-                "amd_power": result.amd_electricity.power.base_value,
+                "heater_power": result.electricity_hc.power.base_value,
+                "amd_power": result.electricity_amd.power.base_value,
             },
         )
         self._history_pressure.append_point(

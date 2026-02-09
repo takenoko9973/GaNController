@@ -2,5 +2,5 @@ from dataclasses import dataclass
 
 
 @dataclass
-class HCExperimentResult:
+class ExperimentResult:
     """Marker base class"""

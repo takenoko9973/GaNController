@@ -13,14 +13,17 @@ from gan_controller.features.heat_cleaning.application.protocol_service import (
 from gan_controller.features.heat_cleaning.application.runner import HeatCleaningRunner
 from gan_controller.features.heat_cleaning.application.validator import ProtocolValidator
 from gan_controller.features.heat_cleaning.constants import NEW_PROTOCOL_TEXT
-from gan_controller.features.heat_cleaning.domain.models import HeatCleaningState
+from gan_controller.features.heat_cleaning.domain.interface import IHeatCleaningHardware
+from gan_controller.features.heat_cleaning.domain.models import (
+    HCExperimentResult,
+    HeatCleaningState,
+)
 from gan_controller.features.heat_cleaning.infrastructure.persistence import (
     FileProtocolRepository,
     HCLogRecorder,
 )
 from gan_controller.features.heat_cleaning.presentation.view import HeatCleaningMainView
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
-from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
 
 
 class HeatCleaningController(ITabController):
@@ -233,7 +236,7 @@ class HeatCleaningController(ITabController):
         recorder = self._create_recorder(app_config, protocol_config)
 
         # 実験メインループ
-        self._runner = HeatCleaningRunner(app_config, protocol_config)
+        self._runner = HeatCleaningRunner(IHeatCleaningHardware(), protocol_config)
         # result作成の際に呼び出しする関数を追加
         self._runner.add_on_step_listener(recorder.record_data)
 
@@ -255,7 +258,7 @@ class HeatCleaningController(ITabController):
     # =================================================
 
     @Slot(object)
-    def on_result(self, result: HCRunnerResult) -> None:
+    def on_result(self, result: HCExperimentResult) -> None:
         """結果表示"""
         self._view.update_view(result)
 

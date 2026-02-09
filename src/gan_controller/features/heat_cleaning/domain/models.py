@@ -4,7 +4,7 @@ from enum import Enum, auto
 
 from gan_controller.common.domain.electricity import ElectricMeasurement
 from gan_controller.common.domain.quantity import Celsius, Pascal, Quantity, Second
-from gan_controller.common.schemas.result import HCExperimentResult
+from gan_controller.common.schemas.result import ExperimentResult
 
 
 # =============================================================================
@@ -111,7 +111,7 @@ class Wait(Sequence):
 # Result Data
 # =============================================================================
 @dataclass
-class HCExperimentResult(HCExperimentResult):
+class HCExperimentResult(ExperimentResult):
     """HeatCleaningの1ステップごとの結果データ"""
 
     # シーケンス情報
@@ -141,5 +141,5 @@ class HCHardwareMetrics:
     ext_pressure: Quantity[Pascal]
     sip_pressure: Quantity[Pascal]
     case_temperature: Quantity[Celsius]
-    hc_electricity: ElectricMeasurement
-    amd_electricity: ElectricMeasurement
+    electricity_hc: ElectricMeasurement
+    electricity_amd: ElectricMeasurement
