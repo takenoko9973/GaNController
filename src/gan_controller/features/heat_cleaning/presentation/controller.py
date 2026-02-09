@@ -220,28 +220,25 @@ class HeatCleaningController(ITabController):
         if self._state != HeatCleaningState.IDLE:  # 二重起動防止
             return
 
+        self.set_state(HeatCleaningState.RUNNING)
+
         # 前回のグラフ等をクリア
         self._view.clear_view()
 
-        # 設定読み込み (ファイルを用いる)
+        # 設定読み込み
         app_config = AppConfig.load()
-        # 実験条件はウィンドウから所得
         protocol_config = self._view.get_full_config()
 
-        # recorder生成
-        try:
-            recorder = self._create_recorder(app_config, protocol_config)
-        except Exception as e:  # noqa: BLE001
-            print(f"ログ作成失敗: {e}")
-            return
+        # ログRecorder作成
+        recorder = self._create_recorder(app_config, protocol_config)
 
-        self.set_state(HeatCleaningState.RUNNING)
-
+        # 実験メインループ
         self._runner = HeatCleaningRunner(app_config, protocol_config)
+        # result作成の際に呼び出しする関数を追加
         self._runner.add_on_step_listener(recorder.record_data)
+
         self._worker = ExperimentWorker(self._runner)
         self._attach_worker(self._worker)
-
         self._worker.start()
 
     @Slot()
