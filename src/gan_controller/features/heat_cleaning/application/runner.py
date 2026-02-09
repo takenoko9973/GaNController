@@ -9,9 +9,9 @@ import pyvisa.constants
 from gan_controller.common.application.runner import BaseRunner
 from gan_controller.common.domain.quantity import Current, Time
 from gan_controller.common.schemas.app_config import AppConfig
+from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.domain.interface import IHeatCleaningHardware
 from gan_controller.features.heat_cleaning.domain.models import HCExperimentResult, Sequence
-from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 
 
 class HeatCleaningRunner(BaseRunner):

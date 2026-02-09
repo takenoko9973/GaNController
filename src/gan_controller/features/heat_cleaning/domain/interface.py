@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from gan_controller.common.domain.quantity import Ampere, Quantity
-from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
+from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 
 from .models import HCExperimentResult
 

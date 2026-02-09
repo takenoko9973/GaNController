@@ -2,8 +2,8 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.domain.interface import IProtocolRepository
-from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 
 
 @dataclass

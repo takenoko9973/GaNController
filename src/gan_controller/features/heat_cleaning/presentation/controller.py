@@ -12,6 +12,7 @@ from gan_controller.features.heat_cleaning.application.protocol_manager import (
 )
 from gan_controller.features.heat_cleaning.application.runner import HeatCleaningRunner
 from gan_controller.features.heat_cleaning.constants import NEW_PROTOCOL_TEXT
+from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.domain.models import (
     HCExperimentResult,
     HeatCleaningState,
@@ -25,11 +26,10 @@ from gan_controller.features.heat_cleaning.infrastructure.hardware_facade import
     HeatCleaningHardwareFacade,
 )
 from gan_controller.features.heat_cleaning.infrastructure.persistence import (
-    FileProtocolRepository,
     HCLogRecorder,
+    ProtocolRepository,
 )
 from gan_controller.features.heat_cleaning.presentation.view import HeatCleaningMainView
-from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 
 
 class HeatCleaningController(ITabController):
@@ -44,7 +44,7 @@ class HeatCleaningController(ITabController):
         super().__init__()
         self._view = view
 
-        repository = FileProtocolRepository()
+        repository = ProtocolRepository()
         self._protocol_manager = ProtocolManager(repository)
 
         self._attach_view()

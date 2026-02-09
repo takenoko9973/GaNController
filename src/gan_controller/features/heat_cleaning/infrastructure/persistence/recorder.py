@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from gan_controller.common.io.log_manager import LogFile
+from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.domain.models import HCExperimentResult
-from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 
 
 @dataclass
@@ -28,11 +28,11 @@ class HCLogRecorder:
 
         # ログデータ項目定義
         self.columns: list[LogColumn] = [
-            LogColumn("Time[s]", "{:.1f}", lambda r: r.total_timestamp.base_value),
-            LogColumn("Temp(TC)[deg.C]", "{:.1f}", lambda r: r.case_temperature.base_value),
+            LogColumn("Time[s]", "{:.1f}", lambda r: r.timestamp_total.base_value),
+            LogColumn("Temp(TC)[deg.C]", "{:.1f}", lambda r: r.temperature_case.base_value),
             # Pressure
-            LogColumn("Pressure(EXT)[Pa]", "{:.2E}", lambda r: r.ext_pressure.base_value),
-            LogColumn("Pressure(SIP)[Pa]", "{:.2E}", lambda r: r.sip_pressure.base_value),
+            LogColumn("Pressure(EXT)[Pa]", "{:.2E}", lambda r: r.pressure_ext.base_value),
+            LogColumn("Pressure(SIP)[Pa]", "{:.2E}", lambda r: r.pressure_sip.base_value),
         ]
         # HC
         if self.config.condition.hc_enabled:
@@ -41,17 +41,17 @@ class HCLogRecorder:
                     LogColumn(
                         "Volt[V]",
                         "{:.2f}",
-                        lambda r: r.hc_electricity.voltage.base_value,
+                        lambda r: r.electricity_hc.voltage.base_value,
                     ),
                     LogColumn(
                         "Current[A]",
                         "{:.2f}",
-                        lambda r: r.hc_electricity.current.base_value,
+                        lambda r: r.electricity_hc.current.base_value,
                     ),
                     LogColumn(
                         "Power[W]",
                         "{:.2f}",
-                        lambda r: r.hc_electricity.power.base_value,
+                        lambda r: r.electricity_hc.power.base_value,
                     ),
                 ]
             )
@@ -62,17 +62,17 @@ class HCLogRecorder:
                     LogColumn(
                         "Volt(AMD)[V]",
                         "{:.2f}",
-                        lambda r: r.amd_electricity.voltage.base_value,
+                        lambda r: r.electricity_amd.voltage.base_value,
                     ),
                     LogColumn(
                         "Current(AMD)[A]",
                         "{:.2f}",
-                        lambda r: r.amd_electricity.current.base_value,
+                        lambda r: r.electricity_amd.current.base_value,
                     ),
                     LogColumn(
                         "Power(AMD)[W]",
                         "{:.2f}",
-                        lambda r: r.amd_electricity.power.base_value,
+                        lambda r: r.electricity_amd.power.base_value,
                     ),
                 ]
             )
