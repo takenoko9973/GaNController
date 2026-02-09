@@ -2,6 +2,7 @@ import datetime
 import queue
 import time
 import traceback
+from collections.abc import Callable
 
 import pyvisa
 import pyvisa.constants
@@ -20,7 +21,6 @@ from gan_controller.features.heat_cleaning.infrastructure.hardware import (
     RealHCDeviceFactory,
     SimulationHCDeviceFactory,
 )
-from gan_controller.features.heat_cleaning.infrastructure.persistence import HCLogRecorder
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
 
@@ -29,18 +29,22 @@ class HeatCleaningRunner(BaseRunner):
     app_config: AppConfig  # 全体設定
     protocol_config: ProtocolConfig  # 実験条件
 
-    _recorder: HCLogRecorder
     _request_queue: queue.Queue
 
-    def __init__(
-        self, app_config: AppConfig, protocol_config: ProtocolConfig, recorder: HCLogRecorder
-    ) -> None:
+    def __init__(self, app_config: AppConfig, protocol_config: ProtocolConfig) -> None:
         super().__init__()
         self.app_config = app_config  # VISAアドレスなど
         self.protocol_config = protocol_config  # 実験条件
-        self._recorder = recorder
+
+        # データが生成されたときに呼ぶ関数リスト
+        # 引数は HCRunnerResult, 戻り値は None
+        self._on_step_callbacks: list[Callable[[HCRunnerResult], None]] = []
 
         self._request_queue = queue.Queue()  # スレッド通信用キュー
+
+    def add_on_step_listener(self, callback: Callable[[HCRunnerResult], None]) -> None:
+        """リスナー (記録係や表示係) を登録する"""
+        self._on_step_callbacks.append(callback)
 
     # =================================================================
 
@@ -54,7 +58,6 @@ class HeatCleaningRunner(BaseRunner):
 
             start_time = datetime.datetime.now(tz)
             print(f"\033[32m{start_time:%Y/%m/%d %H:%M:%S} Experiment start\033[0m")
-            self._setup_recorder(start_time)
 
             with HCDeviceManager(factory, self.app_config.devices) as dev:
                 facade = HCHardwareFacade(dev, self.app_config.devices)
@@ -70,13 +73,6 @@ class HeatCleaningRunner(BaseRunner):
         finally:
             finish_time = datetime.datetime.now(tz)
             print(f"\033[31m{finish_time:%Y/%m/%d %H:%M:%S} Finish\033[0m")
-
-    # =================================================================
-
-    def _setup_recorder(self, start_time: datetime.datetime) -> None:
-        """記録用ファイルの準備とヘッダー書き込み"""
-        print(f"Recording to: {self._recorder.file.path}")
-        self._recorder.record_header(start_time=start_time)
 
     # =================================================================
     # Measurement Logic
@@ -119,8 +115,9 @@ class HeatCleaningRunner(BaseRunner):
                     if self.emit_result is not None:
                         self.emit_result(result)
 
-                    # ログ書き込み
-                    self._recorder.record_data(result)
+                    # Resultを送信
+                    for callback in self._on_step_callbacks:
+                        callback(result)
 
         except Exception as e:
             print(f"\033[31m[ERROR] Measurement loop failed: {e}\033[0m")

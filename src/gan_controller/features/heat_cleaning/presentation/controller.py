@@ -1,7 +1,9 @@
+import datetime
+
 from PySide6.QtCore import Slot
 
 from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
-from gan_controller.common.io.log_manager import LogFile, LogManager
+from gan_controller.common.io.log_manager import LogManager
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
 from gan_controller.features.heat_cleaning.application.protocol_service import (
@@ -29,8 +31,8 @@ class HeatCleaningController(ITabController):
 
     _state: HeatCleaningState
 
-    worker: ExperimentWorker | None
-    runner: HeatCleaningRunner | None
+    _worker: ExperimentWorker | None
+    _runner: HeatCleaningRunner | None
 
     def __init__(self, view: HeatCleaningMainView) -> None:
         super().__init__()
@@ -67,8 +69,8 @@ class HeatCleaningController(ITabController):
         worker.finished.connect(self.on_finished)
 
     def _cleanup(self) -> None:
-        self.worker = None
-        self.runner = None
+        self._worker = None
+        self._runner = None
 
     def set_state(self, state: HeatCleaningState) -> None:
         """状態変更"""
@@ -191,7 +193,9 @@ class HeatCleaningController(ITabController):
     # View -> Runner
     # =================================================
 
-    def _create_recorder(self, app_config: AppConfig, protocol_config: ProtocolConfig) -> LogFile:
+    def _create_recorder(
+        self, app_config: AppConfig, protocol_config: ProtocolConfig
+    ) -> HCLogRecorder:
         manager = LogManager(app_config.common.get_tz(), app_config.common.encode)
 
         # ログファイル準備
@@ -199,10 +203,16 @@ class HeatCleaningController(ITabController):
         major_update = protocol_config.log.update_major_number
 
         log_dir = manager.get_date_directory(update_date)
-        return log_dir.create_logfile(
+        log_file = log_dir.create_logfile(
             protocol_name=self._view.protocol_select_panel.current_selected_protocol(),
             major_update=major_update,
         )
+
+        recorder = HCLogRecorder(log_file, protocol_config)
+        recorder.record_header(datetime.datetime.now(app_config.common.get_tz()))
+
+        print(f"Log file created: {log_file.path}")
+        return recorder
 
     @Slot()
     def experiment_start(self) -> None:
@@ -216,27 +226,32 @@ class HeatCleaningController(ITabController):
         # 設定読み込み (ファイルを用いる)
         app_config = AppConfig.load()
         # 実験条件はウィンドウから所得
-        config = self._view.get_full_config()
+        protocol_config = self._view.get_full_config()
 
-        log_file = self._create_recorder(app_config, config)
-        recorder = HCLogRecorder(log_file, config)
+        # recorder生成
+        try:
+            recorder = self._create_recorder(app_config, protocol_config)
+        except Exception as e:  # noqa: BLE001
+            print(f"ログ作成失敗: {e}")
+            return
 
         self.set_state(HeatCleaningState.RUNNING)
 
-        self.runner = HeatCleaningRunner(app_config, config, recorder)
-        self.worker = ExperimentWorker(self.runner)
-        self._attach_worker(self.worker)
+        self._runner = HeatCleaningRunner(app_config, protocol_config)
+        self._runner.add_on_step_listener(recorder.record_data)
+        self._worker = ExperimentWorker(self._runner)
+        self._attach_worker(self._worker)
 
-        self.worker.start()
+        self._worker.start()
 
     @Slot()
     def experiment_stop(self) -> None:
         """実験中断処理"""
-        if self._state != HeatCleaningState.RUNNING or self.runner is None:
+        if self._state != HeatCleaningState.RUNNING or self._runner is None:
             return
 
         self.set_state(HeatCleaningState.STOPPING)
-        self.runner.stop()
+        self._runner.stop()
 
     # =================================================
     # Runner -> View
