@@ -4,10 +4,10 @@ from PySide6.QtWidgets import QWidget
 
 # 共通基底クラス (PageControllerなど)
 from gan_controller.common.ui.tab_controller import ITabController
-from gan_controller.features.heat_cleaning.controller import HeatCleaningController
-from gan_controller.features.heat_cleaning.view import HeatCleaningMainView
-from gan_controller.features.nea_activation.controller import NEAActivationController
-from gan_controller.features.nea_activation.view import NEAActivationMainView
+from gan_controller.features.heat_cleaning.presentation.controller import HeatCleaningController
+from gan_controller.features.heat_cleaning.presentation.view import HeatCleaningMainView
+from gan_controller.features.nea_activation.presentation.controller import NEAActivationController
+from gan_controller.features.nea_activation.presentation.view import NEAActivationMainView
 
 # 各機能のViewとControllerをインポート
 from gan_controller.features.setting.controller import SettingsController

@@ -1,11 +1,12 @@
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QInputDialog, QMessageBox, QVBoxLayout, QWidget
 
+from gan_controller.features.heat_cleaning.domain.state import HCActivationState
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
-from gan_controller.features.heat_cleaning.state import HCActivationState
-from gan_controller.features.heat_cleaning.view.widgets import (
+
+from .widgets import (
     HCConditionPanel,
     HCExecutionPanel,
     HCGraphPanel,
@@ -143,6 +144,32 @@ class HeatCleaningMainView(QWidget):
     def clear_view(self) -> None:
         """グラフや表示を初期化"""
         self.graph_panel.clear_graph()
+
+    # =============================================================================
+
+    def confirm_overwrite(self, name: str) -> bool:
+        """ユーザーに上書きするか確認"""
+        ret = QMessageBox.question(
+            self,
+            "上書き確認",
+            f"プロトコル '{name}' は既に存在します。\n上書きしますか？",  # noqa: RUF001
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        return ret == QMessageBox.StandardButton.Yes
+
+    def ask_new_name(self, default_text: str = "") -> str:
+        text, response = QInputDialog.getText(
+            self,
+            "プロトコル新規保存",
+            "プロトコル名を入力してください\n(英大文字と数字のみ):",
+            text=default_text,
+        )
+
+        return text.strip() if response else ""
+
+    def show_error(self, msg: str) -> None:
+        QMessageBox.warning(self, "エラー", msg)
 
     # =============================================================================
 

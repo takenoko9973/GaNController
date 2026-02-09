@@ -1,7 +1,6 @@
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QMessageBox
 
-from gan_controller.common.application.global_messenger import GlobalMessenger
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
 from gan_controller.features.setting.view.main_view import SettingMainView
@@ -54,7 +53,7 @@ class SettingsController(ITabController):
 
         else:
             if show_notify:
-                GlobalMessenger().show_status("設定を読み込みました")
+                self.status_message_requested.emit("設定を読み込みました", 5000)
 
             return True
 
@@ -77,7 +76,7 @@ class SettingsController(ITabController):
         else:
             self._config = new_config
             if show_notify:
-                GlobalMessenger().show_status("設定を保存しました")
+                self.status_message_requested.emit("設定を保存しました", 5000)
 
             return True
 

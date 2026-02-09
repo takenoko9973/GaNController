@@ -3,7 +3,8 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 from gan_controller.common.domain.electricity import ElectricProperties
 from gan_controller.features.nea_activation.schemas import NEAConfig, NEARunnerResult
 from gan_controller.features.nea_activation.state import NEAActivationState
-from gan_controller.features.nea_activation.view.widgets import (
+
+from .widgets import (
     NEAConditionSettingsPanel,
     NEAExecutionPanel,
     NEAGraphPanel,

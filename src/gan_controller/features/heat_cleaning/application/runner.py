@@ -13,17 +13,17 @@ from gan_controller.common.hardware.adapters.logger_adapter import ILoggerAdapte
 from gan_controller.common.hardware.adapters.power_supply_adapter import IPowerSupplyAdapter
 from gan_controller.common.hardware.adapters.pyrometer_adapter import IPyrometerAdapter
 from gan_controller.common.schemas.app_config import AppConfig, PFR100l50Config
-from gan_controller.features.heat_cleaning.devices import (
+from gan_controller.features.heat_cleaning.domain import Sequence
+from gan_controller.features.heat_cleaning.infrastructure.hardware import (
     HCDeviceManager,
     HCDevices,
+    HCSensorReader,
     RealHCDeviceFactory,
     SimulationHCDeviceFactory,
 )
-from gan_controller.features.heat_cleaning.domain import Sequence
-from gan_controller.features.heat_cleaning.recorder import HCLogRecorder
+from gan_controller.features.heat_cleaning.infrastructure.persistence import HCLogRecorder
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
-from gan_controller.features.heat_cleaning.sensor_reader import HCSensorReader
 
 
 class HCActivationRunner(BaseRunner):

@@ -1,26 +1,31 @@
-import re
-from pathlib import Path
-
 from PySide6.QtCore import Slot
-from PySide6.QtWidgets import QInputDialog, QMessageBox
 
-from gan_controller.common.application.global_messenger import GlobalMessenger
 from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
-from gan_controller.common.constants import PROTOCOLS_DIR
 from gan_controller.common.io.log_manager import LogFile, LogManager
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
+from gan_controller.features.heat_cleaning.application.protocol_service import (
+    ProtocolService,
+    SaveContext,
+)
+from gan_controller.features.heat_cleaning.application.runner import HCActivationRunner
+from gan_controller.features.heat_cleaning.application.validator import ProtocolValidator
 from gan_controller.features.heat_cleaning.constants import NEW_PROTOCOL_TEXT
-from gan_controller.features.heat_cleaning.recorder import HCLogRecorder
-from gan_controller.features.heat_cleaning.runner import HCActivationRunner
+from gan_controller.features.heat_cleaning.domain.state import HCActivationState
+from gan_controller.features.heat_cleaning.infrastructure.persistence import (
+    FileProtocolRepository,
+    HCLogRecorder,
+)
+from gan_controller.features.heat_cleaning.presentation.view import HeatCleaningMainView
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
-from gan_controller.features.heat_cleaning.state import HCActivationState
-from gan_controller.features.heat_cleaning.view import HeatCleaningMainView
 
 
 class HeatCleaningController(ITabController):
     _view: HeatCleaningMainView
+
+    _protocol_service: ProtocolService
+    _validator: ProtocolValidator
 
     _state: HCActivationState
 
@@ -31,6 +36,10 @@ class HeatCleaningController(ITabController):
         super().__init__()
 
         self._view = view
+
+        repository = FileProtocolRepository()
+        validator = ProtocolValidator()
+        self._protocol_service = ProtocolService(repository, validator)
 
         self._attach_view()
 
@@ -68,7 +77,7 @@ class HeatCleaningController(ITabController):
 
         # 待機中以外なら、タブをロック
         should_lock = state != HCActivationState.IDLE
-        GlobalMessenger().tab_lock_requested.emit(should_lock)
+        self.tab_lock_requested.emit(should_lock)
 
     def on_close(self) -> None:
         """アプリ終了時に設定を保存する"""
@@ -80,16 +89,9 @@ class HeatCleaningController(ITabController):
 
     # =================================================
 
-    def _fetch_protocol_names(self, protocols_dir: Path = PROTOCOLS_DIR) -> list[str]:
-        """プロトコル設定ファイルの名前一覧を取得"""
-        if not (protocols_dir.exists() and protocols_dir.is_dir()):
-            return []
-
-        return [p.stem for p in protocols_dir.glob("*.toml")]
-
     def _refresh_protocol_list(self) -> None:
         """プロトコルフォルダを走査してプルダウンを更新する"""
-        protocol_names = self._fetch_protocol_names()
+        protocol_names = self._protocol_service.get_protocol_names()
 
         # 一番下に「新しいプロトコル...」を追加
         items = protocol_names
@@ -104,14 +106,6 @@ class HeatCleaningController(ITabController):
 
         # 初期選択状態の内容をロード
         self._on_protocol_changed(default_selection)
-
-    def _load_config_from_file(self, name: str) -> ProtocolConfig:
-        """ファイルから設定を読み込む"""
-        try:
-            return ProtocolConfig.load(f"{name}.toml")
-        except Exception as e:  # noqa: BLE001
-            print(f"Failed to load protocol {name}: {e}")  # 読み込みに失敗したら、初期値を返す
-            return ProtocolConfig()
 
     def _update_log_preview(self) -> None:
         """現在の設定に基づいてログファイル名をプレビュー更新"""
@@ -133,54 +127,6 @@ class HeatCleaningController(ITabController):
             self._view.log_setting_panel.set_preview_text("Error")
 
     # =================================================
-    # Protocol Save Helpers
-    # =================================================
-
-    def _validate_protocol_name(self, name: str) -> bool:
-        """プロトコル名の形式を検証し、不正なら警告を表示する"""
-        if not re.fullmatch(r"[A-Z0-9]+", name):
-            QMessageBox.warning(
-                self._view,
-                "入力エラー",
-                "プロトコル名は英大文字(A-Z)と数字(0-9)のみ使用可能です。",
-            )
-            return False
-
-        return True
-
-    def _should_overwrite(self, name: str) -> bool:
-        """同名のプロトコルが存在するか確認し、存在する場合は上書きするか確認"""
-        existing_names = self._fetch_protocol_names()
-
-        if name in existing_names:
-            ret = QMessageBox.question(
-                self._view,
-                "上書き確認",
-                f"プロトコル '{name}' は既に存在します。\n上書きしますか？",  # noqa: RUF001
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
-            )
-            return ret == QMessageBox.StandardButton.Yes
-
-        return True
-
-    def _ask_save_name(self, default_text: str = "") -> str | None:
-        """名前入力ダイアログを表示"""
-        text, response = QInputDialog.getText(
-            self._view,
-            "プロトコル新規保存",
-            "プロトコル名を入力してください\n(英大文字と数字のみ):",
-            text=default_text,
-        )
-
-        return text.strip() if response and text else None
-
-    def _save_protocol_config(self, name: str) -> None:
-        """プロトコル設定を保存"""
-        protocol_config = self._view.get_full_config()
-        protocol_config.save(f"{name}.toml")
-
-    # =================================================
     # View Events
     # =================================================
 
@@ -191,7 +137,10 @@ class HeatCleaningController(ITabController):
             # 新規作成時はデフォルト設定
             config = ProtocolConfig()
         else:
-            config = self._load_config_from_file(protocol_name)
+            try:
+                config = self._protocol_service.load_protocol(protocol_name)
+            except Exception:  # noqa: BLE001
+                config = ProtocolConfig()
 
         self._view.set_full_config(config)
 
@@ -205,47 +154,38 @@ class HeatCleaningController(ITabController):
         else:
             # 上書き保存
             current_name = current_name.strip().upper()  # 大文字化
-            if not self._should_overwrite(current_name):  # 確認
-                return
-
-            self._save_protocol_config(current_name)
+            self._save_protocol(current_name)
 
     @Slot()
     def _on_save_as(self) -> None:
         """名前をつけて保存"""
         current_name = self._view.protocol_select_panel.current_selected_protocol()
-
         # 新規作成の場合はデフォルトの入力欄は空白に
         if current_name == NEW_PROTOCOL_TEXT:
             current_name = ""
 
-        while True:
-            new_name = self._ask_save_name(current_name)
-            if new_name is None:
-                break
+        new_name = self._view.ask_new_name(current_name).upper()
+        if new_name == "":
+            return
 
-            new_name = new_name.strip().upper()  # 大文字化
+        # 保存処理
+        self._save_protocol(new_name)
 
-            # 名前形式確認
-            if not self._validate_protocol_name(new_name):
-                # 名前が不正なら再度入力
-                current_name = new_name
-                continue
+    def _save_protocol(self, name: str) -> None:
+        """保存処理を行い、通知する"""
+        context = SaveContext(
+            name,
+            self._view.get_full_config(),
+            self._view.confirm_overwrite,
+        )
+        success, msg = self._protocol_service.save_protocol(context)
 
-            # 上書き確認
-            if not self._should_overwrite(new_name):
-                current_name = new_name
-                continue
-
-            # 保存
-            self._save_protocol_config(new_name)
-
-            # リストを更新、新しく名付けたものを選択
+        if success:
             self._refresh_protocol_list()
-            self._view.protocol_select_panel.set_current_selected_protocol(new_name)
-
-            # 保存完了ループ脱出
-            break
+            self._view.protocol_select_panel.set_current_selected_protocol(name)
+            self.status_message_requested.emit(f"プロトコル {name} を保存しました", 5000)
+        elif "キャンセル" not in msg:
+            self._view.show_error(msg)
 
     # =================================================
     # View -> Runner
