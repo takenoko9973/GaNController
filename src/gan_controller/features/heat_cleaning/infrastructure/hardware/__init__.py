@@ -4,12 +4,10 @@ from .devices_factory import (
     RealHCDeviceFactory,
     SimulationHCDeviceFactory,
 )
-from .sensor_reader import HCSensorReader
 
 __all__ = [
     "HCDeviceManager",
     "HCDevices",
-    "HCSensorReader",
     "RealHCDeviceFactory",
     "SimulationHCDeviceFactory",
 ]
