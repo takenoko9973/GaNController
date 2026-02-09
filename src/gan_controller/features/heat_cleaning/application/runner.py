@@ -195,7 +195,7 @@ class HeatCleaningRunner(BaseRunner):
             hc_target_current = Current(seq.current(hc_max_current.base_value, seq_elapsed))
 
         # AMD電源の制御
-        if self.protocol_config.condition.hc_enabled:
+        if self.protocol_config.condition.amd_enabled:
             amd_max_current = self.protocol_config.condition.amd_current
             amd_target_current = Current(seq.current(amd_max_current.base_value, seq_elapsed))
 
