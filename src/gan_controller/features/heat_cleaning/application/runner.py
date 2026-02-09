@@ -14,7 +14,7 @@ from gan_controller.features.heat_cleaning.application.hardware_controller impor
     HCHardwareFacade,
     HCHardwareMetrics,
 )
-from gan_controller.features.heat_cleaning.domain import Sequence
+from gan_controller.features.heat_cleaning.domain.models import Sequence
 from gan_controller.features.heat_cleaning.infrastructure.hardware import (
     HCDeviceManager,
     HCDevices,
@@ -189,12 +189,16 @@ class HeatCleaningRunner(BaseRunner):
         if self.protocol_config.condition.hc_enabled:
             # 現在の目標電流値を計算
             hc_max_current = self.protocol_config.condition.hc_current
-            hc_target_current = Current(seq.current(hc_max_current.base_value, seq_elapsed))
+            hc_target_current = Current(
+                seq.calculate_current(hc_max_current.base_value, seq_elapsed)
+            )
 
         # AMD電源の制御
         if self.protocol_config.condition.amd_enabled:
             amd_max_current = self.protocol_config.condition.amd_current
-            amd_target_current = Current(seq.current(amd_max_current.base_value, seq_elapsed))
+            amd_target_current = Current(
+                seq.calculate_current(amd_max_current.base_value, seq_elapsed)
+            )
 
         facade.set_condition(hc_target_current, amd_target_current)
 

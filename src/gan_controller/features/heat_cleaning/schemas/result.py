@@ -2,11 +2,11 @@ from dataclasses import dataclass
 
 from gan_controller.common.domain.electricity import ElectricMeasurement
 from gan_controller.common.domain.quantity import Celsius, Pascal, Quantity, Second
-from gan_controller.common.schemas.result import ExperimentResult
+from gan_controller.common.schemas.result import HCExperimentResult
 
 
 @dataclass
-class HCRunnerResult(ExperimentResult):
+class HCRunnerResult(HCExperimentResult):
     """NEA活性化の測定結果 (必要そうな設定値や観測値は全て入れとく)"""
 
     current_sequence_index: int  # 現在のシーケンス番号 (1開始)

@@ -13,7 +13,7 @@ from gan_controller.features.heat_cleaning.application.protocol_service import (
 from gan_controller.features.heat_cleaning.application.runner import HeatCleaningRunner
 from gan_controller.features.heat_cleaning.application.validator import ProtocolValidator
 from gan_controller.features.heat_cleaning.constants import NEW_PROTOCOL_TEXT
-from gan_controller.features.heat_cleaning.domain.state import HeatCleaningState
+from gan_controller.features.heat_cleaning.domain.models import HeatCleaningState
 from gan_controller.features.heat_cleaning.infrastructure.persistence import (
     FileProtocolRepository,
     HCLogRecorder,

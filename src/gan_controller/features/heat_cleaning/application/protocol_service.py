@@ -2,7 +2,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from gan_controller.features.heat_cleaning.application.validator import ProtocolValidator
-from gan_controller.features.heat_cleaning.domain.repository import IProtocolRepository
+from gan_controller.features.heat_cleaning.domain.interface import IProtocolRepository
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 
 

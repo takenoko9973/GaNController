@@ -10,11 +10,11 @@ from gan_controller.common.domain.quantity.unit_types import (
     Volt,
     Watt,
 )
-from gan_controller.common.schemas.result import ExperimentResult
+from gan_controller.common.schemas.result import HCExperimentResult
 
 
 @dataclass
-class NEARunnerResult(ExperimentResult):
+class NEARunnerResult(HCExperimentResult):
     """NEA活性化の測定結果 (必要そうな設定値や観測値は全て入れとく)"""
 
     timestamp: Quantity[Second]

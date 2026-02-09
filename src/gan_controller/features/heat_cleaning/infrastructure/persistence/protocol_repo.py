@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from gan_controller.common.constants import PROTOCOLS_DIR
-from gan_controller.features.heat_cleaning.domain.repository import IProtocolRepository
+from gan_controller.features.heat_cleaning.domain.interface import IProtocolRepository
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 
 

@@ -1,7 +1,7 @@
 from PySide6.QtCore import QThread, Signal
 
 from gan_controller.common.application.runner import BaseRunner
-from gan_controller.common.schemas.result import ExperimentResult
+from gan_controller.common.schemas.result import HCExperimentResult
 
 
 class ExperimentWorker(QThread):
@@ -13,7 +13,7 @@ class ExperimentWorker(QThread):
         self.runner = runner
         self.runner.emit_result = self._on_result
 
-    def _on_result(self, result: ExperimentResult) -> None:
+    def _on_result(self, result: HCExperimentResult) -> None:
         self.result_emitted.emit(result)
 
     def run(self) -> None:
