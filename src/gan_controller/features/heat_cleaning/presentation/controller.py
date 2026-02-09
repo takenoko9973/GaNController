@@ -6,17 +6,23 @@ from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
 from gan_controller.common.io.log_manager import LogManager
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
-from gan_controller.features.heat_cleaning.application.protocol_service import (
+from gan_controller.features.heat_cleaning.application.protocol_manager import (
     ProtocolManager,
     SaveContext,
 )
 from gan_controller.features.heat_cleaning.application.runner import HeatCleaningRunner
-from gan_controller.features.heat_cleaning.application.validator import ProtocolValidator
 from gan_controller.features.heat_cleaning.constants import NEW_PROTOCOL_TEXT
-from gan_controller.features.heat_cleaning.domain.interface import IHeatCleaningHardware
 from gan_controller.features.heat_cleaning.domain.models import (
     HCExperimentResult,
     HeatCleaningState,
+)
+from gan_controller.features.heat_cleaning.infrastructure.hardware import (
+    HCDeviceManager,
+    RealHCDeviceFactory,
+    SimulationHCDeviceFactory,
+)
+from gan_controller.features.heat_cleaning.infrastructure.hardware_facade import (
+    HeatCleaningHardwareFacade,
 )
 from gan_controller.features.heat_cleaning.infrastructure.persistence import (
     FileProtocolRepository,
@@ -28,10 +34,7 @@ from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 
 class HeatCleaningController(ITabController):
     _view: HeatCleaningMainView
-
-    _protocol_service: ProtocolManager
-    _validator: ProtocolValidator
-
+    _protocol_manager: ProtocolManager
     _state: HeatCleaningState
 
     _worker: ExperimentWorker | None
@@ -39,21 +42,17 @@ class HeatCleaningController(ITabController):
 
     def __init__(self, view: HeatCleaningMainView) -> None:
         super().__init__()
-
         self._view = view
 
         repository = FileProtocolRepository()
-        validator = ProtocolValidator()
-        self._protocol_service = ProtocolManager(repository, validator)
+        self._protocol_manager = ProtocolManager(repository)
 
         self._attach_view()
-
-        self._state = HeatCleaningState.IDLE
-        self._cleanup()
-
+        self.set_state(HeatCleaningState.IDLE)
         self._refresh_protocol_list()
 
     def _attach_view(self) -> None:
+        """Viewからのシグナル接続"""
         self._view.protocol_select_panel.protocol_changed.connect(self._on_protocol_changed)
         self._view.protocol_select_panel.protocol_saved.connect(self._on_save_action)
 
@@ -71,7 +70,8 @@ class HeatCleaningController(ITabController):
         worker.error_occurred.connect(self.on_error)
         worker.finished.connect(self.on_finished)
 
-    def _cleanup(self) -> None:
+    def _cleanup_experiment(self) -> None:
+        """実験終了時のリソース解放"""
         self._worker = None
         self._runner = None
 
@@ -93,47 +93,20 @@ class HeatCleaningController(ITabController):
         # current_config.save(HC_CONFIG_PATH)
 
     # =================================================
+    # Protocol Management
+    # =================================================
 
     def _refresh_protocol_list(self) -> None:
         """プロトコルフォルダを走査してプルダウンを更新する"""
-        protocol_names = self._protocol_service.get_protocol_names()
+        names = self._protocol_manager.get_protocol_names()
+        items = [*names, NEW_PROTOCOL_TEXT]  # 一番下に「新しいプロトコル...」を追加
 
-        # 一番下に「新しいプロトコル...」を追加
-        items = protocol_names
-        items.append(NEW_PROTOCOL_TEXT)
         self._view.protocol_select_panel.set_protocol_items(items)
 
         # デフォルト選択
-        self._view.protocol_select_panel.protocol_combo.blockSignals(True)  # 無駄なシグナル停止
-        default_selection = items[0] if protocol_names else NEW_PROTOCOL_TEXT
-        self._view.protocol_select_panel.set_current_selected_protocol(default_selection)
-        self._view.protocol_select_panel.protocol_combo.blockSignals(False)
-
-        # 初期選択状態の内容をロード
-        self._on_protocol_changed(default_selection)
-
-    def _update_log_preview(self) -> None:
-        """現在の設定に基づいてログファイル名をプレビュー更新"""
-        try:
-            # マネージャー呼び出し
-            app_config = AppConfig.load()
-            manager = LogManager(app_config.common.get_tz(), app_config.common.encode)
-
-            # 番号取得
-            log_config = self._view.log_setting_panel.get_config()
-            date_dir = manager.get_date_directory(log_config.update_date_folder)
-            next_numbers = date_dir.get_next_number(major_update=log_config.update_major_number)
-
-            number_text = f"{next_numbers[0]}.{next_numbers[1]}"
-            self._view.log_setting_panel.set_preview_text(number_text)
-
-        except Exception as e:  # noqa: BLE001
-            print(f"Preview update failed: {e}")
-            self._view.log_setting_panel.set_preview_text("Error")
-
-    # =================================================
-    # View Events
-    # =================================================
+        default = items[0] if names else NEW_PROTOCOL_TEXT
+        self._view.protocol_select_panel.set_current_selected_protocol(default)
+        self._on_protocol_changed(default)
 
     @Slot(str)
     def _on_protocol_changed(self, protocol_name: str) -> None:
@@ -143,11 +116,13 @@ class HeatCleaningController(ITabController):
             config = ProtocolConfig()
         else:
             try:
-                config = self._protocol_service.load_protocol(protocol_name)
-            except Exception:  # noqa: BLE001
+                config = self._protocol_manager.load_protocol(protocol_name)
+            except Exception as e:  # noqa: BLE001
+                print(f"Load failed: {e}")
                 config = ProtocolConfig()
 
         self._view.set_full_config(config)
+        self._update_log_preview()
 
     @Slot()
     def _on_save_action(self) -> None:
@@ -169,12 +144,10 @@ class HeatCleaningController(ITabController):
         if current_name == NEW_PROTOCOL_TEXT:
             current_name = ""
 
-        new_name = self._view.ask_new_name(current_name).upper()
-        if new_name == "":
-            return
-
-        # 保存処理
-        self._save_protocol(new_name)
+        new_name = self._view.ask_new_name(current_name).strip().upper()
+        if new_name != "":
+            # 保存処理
+            self._save_protocol(new_name)
 
     def _save_protocol(self, name: str) -> None:
         """保存処理を行い、通知する"""
@@ -183,7 +156,7 @@ class HeatCleaningController(ITabController):
             self._view.get_full_config(),
             self._view.confirm_overwrite,
         )
-        success, msg = self._protocol_service.save_protocol(context)
+        success, msg = self._protocol_manager.save_protocol(context)
 
         if success:
             self._refresh_protocol_list()
@@ -193,7 +166,80 @@ class HeatCleaningController(ITabController):
             self._view.show_error(msg)
 
     # =================================================
-    # View -> Runner
+    # Experiment Execution
+    # =================================================
+
+    @Slot()
+    def experiment_start(self) -> None:
+        """実験開始処理"""
+        if self._state != HeatCleaningState.IDLE:  # 二重起動防止
+            return
+
+        self.set_state(HeatCleaningState.RUNNING)
+        self._view.clear_view()
+
+        # 設定読み込み
+        app_config = AppConfig.load()
+        protocol_config = self._view.get_full_config()
+
+        # 2. ハードウェアの接続 (Context Managerの手動制御)
+        try:
+            is_sim = getattr(app_config.common, "is_simulation_mode", False)
+            factory = SimulationHCDeviceFactory() if is_sim else RealHCDeviceFactory()
+
+            with HCDeviceManager(factory, app_config.devices) as device:
+                facade = HeatCleaningHardwareFacade(device, app_config.devices)
+                facade.setup_for_protocol(protocol_config)
+                self._runner = HeatCleaningRunner(facade, protocol_config)
+
+                recorder = self._create_recorder(app_config, protocol_config)
+                self._runner.add_on_step_listener(recorder.record_data)
+
+                # Worker起動
+                self._worker = ExperimentWorker(self._runner)
+                self._worker.result_emitted.connect(self.on_result)
+                self._worker.error_occurred.connect(self.on_error)
+                self._worker.finished.connect(self.on_finished)
+                self._worker.start()
+
+        except Exception as e:  # noqa: BLE001
+            self._view.show_error(f"実験開始準備エラー: {e}")
+            self.set_state(HeatCleaningState.IDLE)
+            self._cleanup_experiment()
+
+    @Slot()
+    def experiment_stop(self) -> None:
+        """実験中断処理"""
+        if self._state != HeatCleaningState.RUNNING or self._runner is None:
+            return
+
+        self.set_state(HeatCleaningState.STOPPING)
+        self._runner.stop()
+
+    # =================================================
+    # Runner -> View
+    # =================================================
+
+    @Slot(object)
+    def on_result(self, result: HCExperimentResult) -> None:
+        """結果表示"""
+        self._view.update_view(result)
+
+    @Slot(str)
+    def on_error(self, message: str) -> None:
+        """エラーメッセージ表示とログ出力処理"""
+        print(f"Error occurred: {message}")
+
+    @Slot()
+    def on_finished(self) -> None:
+        """実験終了処理"""
+        print("Experiment worker finished.")
+
+        self.set_state(HeatCleaningState.IDLE)
+        self._cleanup_experiment()
+
+    # =================================================
+    # Log Helpers
     # =================================================
 
     def _create_recorder(
@@ -217,59 +263,21 @@ class HeatCleaningController(ITabController):
         print(f"Log file created: {log_file.path}")
         return recorder
 
-    @Slot()
-    def experiment_start(self) -> None:
-        """実験開始処理"""
-        if self._state != HeatCleaningState.IDLE:  # 二重起動防止
-            return
+    def _update_log_preview(self) -> None:
+        """現在の設定に基づいてログファイル名をプレビュー更新"""
+        try:
+            # マネージャー呼び出し
+            app_config = AppConfig.load()
+            manager = LogManager(app_config.common.get_tz(), app_config.common.encode)
+            log_config = self._view.log_setting_panel.get_config()
 
-        self.set_state(HeatCleaningState.RUNNING)
+            # 番号取得
+            date_dir = manager.get_date_directory(log_config.update_date_folder)
+            next_numbers = date_dir.get_next_number(major_update=log_config.update_major_number)
 
-        # 前回のグラフ等をクリア
-        self._view.clear_view()
+            number_text = f"{next_numbers[0]}.{next_numbers[1]}"
+            self._view.log_setting_panel.set_preview_text(number_text)
 
-        # 設定読み込み
-        app_config = AppConfig.load()
-        protocol_config = self._view.get_full_config()
-
-        # ログRecorder作成
-        recorder = self._create_recorder(app_config, protocol_config)
-
-        # 実験メインループ
-        self._runner = HeatCleaningRunner(IHeatCleaningHardware(), protocol_config)
-        # result作成の際に呼び出しする関数を追加
-        self._runner.add_on_step_listener(recorder.record_data)
-
-        self._worker = ExperimentWorker(self._runner)
-        self._attach_worker(self._worker)
-        self._worker.start()
-
-    @Slot()
-    def experiment_stop(self) -> None:
-        """実験中断処理"""
-        if self._state != HeatCleaningState.RUNNING or self._runner is None:
-            return
-
-        self.set_state(HeatCleaningState.STOPPING)
-        self._runner.stop()
-
-    # =================================================
-    # Runner -> View
-    # =================================================
-
-    @Slot(object)
-    def on_result(self, result: HCExperimentResult) -> None:
-        """結果表示"""
-        self._view.update_view(result)
-
-    @Slot(str)
-    def on_error(self, message: str) -> None:
-        """エラーメッセージ表示とログ出力処理"""
-
-    @Slot()
-    def on_finished(self) -> None:
-        """実験終了処理"""
-        print("ex finished")
-
-        self._cleanup()
-        self.set_state(HeatCleaningState.IDLE)
+        except Exception as e:  # noqa: BLE001
+            print(f"Preview update failed: {e}")
+            self._view.log_setting_panel.set_preview_text("Error")
