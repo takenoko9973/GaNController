@@ -63,7 +63,7 @@ class NEAExecutionPanel(QGroupBox):
         laser_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         self.laser_sv_spin = QDoubleSpinBox(value=10, suffix=" mW", decimals=1, maximum=120)
-        self.laser_pv_spin = QDoubleSpinBox(value=3.01, suffix=" mW", decimals=2, maximum=120)
+        self.laser_pv_spin = QDoubleSpinBox(value=3.01, suffix=" mW", decimals=4, maximum=120)
         laser_layout.addWidget(QLabel("レーザー出力 :"), 0, 0)
         laser_layout.addWidget(self.laser_sv_spin, 0, 1)
         laser_layout.addWidget(QLabel("レーザー実出力 :"), 1, 0)
