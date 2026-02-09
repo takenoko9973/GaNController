@@ -22,7 +22,7 @@ from gan_controller.common.hardware.adapters.pyrometer_adapter import (
     PWUXAdapter,
 )
 from gan_controller.common.hardware.drivers import GM10, PFR100L50, PWUX
-from gan_controller.common.schemas.app_config import AppConfig
+from gan_controller.common.schemas.app_config import DevicesConfig
 
 
 @dataclass
@@ -45,7 +45,7 @@ class AbstractHCDeviceFactory(ABC):
 
     @abstractmethod
     def create_devices(
-        self, config: AppConfig, use_pyrometer: bool = True
+        self, config: DevicesConfig, use_pyrometer: bool = True
     ) -> tuple[HCDevices, Any]:
         """デバイス群を生成して返す。
 
@@ -62,7 +62,7 @@ class SimulationHCDeviceFactory(AbstractHCDeviceFactory):
 
     def create_devices(
         self,
-        config: AppConfig,  # noqa: ARG002
+        config: DevicesConfig,  # noqa: ARG002
         use_pyrometer: bool = True,  # noqa: ARG002
     ) -> tuple[HCDevices, Any]:
         print("--- SIMULATION MODE ---")
@@ -80,7 +80,7 @@ class RealHCDeviceFactory(AbstractHCDeviceFactory):
     """実機用デバイスファクトリー"""
 
     def create_devices(
-        self, config: AppConfig, use_pyrometer: bool = True
+        self, config: DevicesConfig, use_pyrometer: bool = True
     ) -> tuple[HCDevices, Any]:
         # 実機接続用のResourceManagerを作成
         rm = pyvisa.ResourceManager()
@@ -91,23 +91,31 @@ class RealHCDeviceFactory(AbstractHCDeviceFactory):
 
             try:
                 # Logger (GM10)
-                gm10 = GM10(rm, config.devices.gm10.visa)
+                gm10 = GM10(rm, config.gm10.visa)
                 logger_adapter = GM10Adapter(gm10)
                 stack.callback(logger_adapter.close)
 
                 # Power Supply (HC/PFR100L50)
-                hps = PFR100L50(rm, config.devices.hps.visa)
+                hps = PFR100L50(rm, config.hps.visa)
                 hps_adapter = PFR100L50Adapter(hps)
                 stack.callback(hps_adapter.close)
+                hps_adapter.set_voltage(config.hps.v_limit)
+                hps_adapter.set_ovp(config.hps.ovp)
+                hps_adapter.set_ocp(config.hps.ocp)
+                hps_adapter.set_output(False)  # 安全のため、強制OFF
 
                 # Power Supply (AMD/PFR100L50)
-                aps = PFR100L50(rm, config.devices.aps.visa)
+                aps = PFR100L50(rm, config.aps.visa)
                 aps_adapter = PFR100L50Adapter(aps)
                 stack.callback(aps_adapter.close)
+                aps_adapter.set_voltage(config.aps.v_limit)
+                aps_adapter.set_ovp(config.aps.ovp)
+                aps_adapter.set_ocp(config.aps.ocp)
+                aps_adapter.set_output(False)  # 安全のため、強制OFF
 
                 # Pyrometer (PWUX)
-                if use_pyrometer and config.devices.pwux.com_port > 0:
-                    pyrometer = PWUX(rm, f"COM{config.devices.pwux.com_port}")
+                if use_pyrometer and config.pwux.com_port > 0:
+                    pyrometer = PWUX(rm, f"COM{config.pwux.com_port}")
                     pyrometer_adapter = PWUXAdapter(pyrometer)
                     stack.callback(pyrometer_adapter.close)
                 else:
@@ -142,16 +150,19 @@ class RealHCDeviceFactory(AbstractHCDeviceFactory):
 class HCDeviceManager:
     """デバイスの接続と終了を管理するコンテキストマネージャ"""
 
-    def __init__(self, config: AppConfig, factory: AbstractHCDeviceFactory) -> None:
-        self.config = config
+    _factory: AbstractHCDeviceFactory
+    _config: DevicesConfig
+
+    def __init__(self, factory: AbstractHCDeviceFactory, config: DevicesConfig) -> None:
         self._factory = factory
+        self._config = config
 
         self._devices: HCDevices | None = None
         self._resource_manager: pyvisa.ResourceManager | None = None
 
     def __enter__(self) -> HCDevices:
         """実験開始時の処理: Factoryを使用してデバイスを生成"""
-        self._devices, self._resource_manager = self._factory.create_devices(self.config)
+        self._devices, self._resource_manager = self._factory.create_devices(self._config)
         return self._devices
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:  # noqa: ANN001, C901

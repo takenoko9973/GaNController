@@ -8,13 +8,15 @@ from gan_controller.common.domain.electricity import ElectricMeasurement
 from gan_controller.common.domain.quantity import (
     Ampere,
     Celsius,
+    Current,
     Pascal,
     Pressure,
     Quantity,
     Temperature,
 )
-from gan_controller.common.schemas.app_config import AppConfig
+from gan_controller.common.schemas.app_config import DevicesConfig
 from gan_controller.features.heat_cleaning.infrastructure.hardware import HCDevices
+from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 
 
 @dataclass
@@ -28,11 +30,27 @@ class HCHardwareMetrics:
 
 class HCHardwareFacade:
     _dev: HCDevices
-    _config: AppConfig
+    _config: DevicesConfig
 
-    def __init__(self, devices: HCDevices, config: AppConfig) -> None:
+    def __init__(self, devices: HCDevices, config: DevicesConfig) -> None:
         self._dev = devices
         self._config = config
+
+    def setup_for_protocol(self, protocol: ProtocolConfig) -> None:
+        print("Setting up hardware for protocol...")
+
+        # プロトコルで利用するデバイスの初期化
+        if protocol.condition.hc_enabled:
+            self._dev.hps.set_current(Current(0.0))
+            self._dev.hps.set_output(True)
+        else:
+            self._dev.hps.set_output(False)
+
+        if protocol.condition.amd_enabled:
+            self._dev.aps.set_current(Current(0.0))
+            self._dev.aps.set_output(True)
+        else:
+            self._dev.aps.set_output(False)
 
     def set_condition(
         self,
@@ -47,13 +65,13 @@ class HCHardwareFacade:
 
     def read_metrics(self) -> HCHardwareMetrics:
         """測定値をdtoにまとめて返す"""
-        ext_val = self._dev.logger.read_voltage(self._config.devices.gm10.ext_ch)
+        ext_val = self._dev.logger.read_voltage(self._config.gm10.ext_ch)
         ext_pressure = Pressure(calc_ext_pressure_from_voltage(ext_val.base_value))
 
-        sip_val = self._dev.logger.read_voltage(self._config.devices.gm10.sip_ch)
+        sip_val = self._dev.logger.read_voltage(self._config.gm10.sip_ch)
         sip_pressure = Pressure(calc_sip_pressure_from_voltage(sip_val.base_value))
 
-        if self._config.devices.pwux.com_port >= 1:
+        if self._config.pwux.com_port >= 1:
             case_temp = self._dev.pyrometer.read_temperature()
         else:
             case_temp = Temperature(float("nan"))

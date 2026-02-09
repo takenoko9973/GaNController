@@ -7,17 +7,16 @@ import pyvisa
 import pyvisa.constants
 
 from gan_controller.common.application.runner import BaseRunner
-from gan_controller.common.domain.electricity import ElectricMeasurement
 from gan_controller.common.domain.quantity import Current, Quantity, Temperature
-from gan_controller.common.hardware.adapters.logger_adapter import ILoggerAdapter
-from gan_controller.common.hardware.adapters.power_supply_adapter import IPowerSupplyAdapter
-from gan_controller.common.hardware.adapters.pyrometer_adapter import IPyrometerAdapter
-from gan_controller.common.schemas.app_config import AppConfig, PFR100l50Config
+from gan_controller.common.schemas.app_config import AppConfig
+from gan_controller.features.heat_cleaning.application.hardware_controller import (
+    HCHardwareFacade,
+    HCHardwareMetrics,
+)
 from gan_controller.features.heat_cleaning.domain import Sequence
 from gan_controller.features.heat_cleaning.infrastructure.hardware import (
     HCDeviceManager,
     HCDevices,
-    HCSensorReader,
     RealHCDeviceFactory,
     SimulationHCDeviceFactory,
 )
@@ -51,17 +50,17 @@ class HCActivationRunner(BaseRunner):
         try:
             # 設定に基づいて適切なFactoryを選択する
             is_simulation = getattr(self.app_config.common, "is_simulation_mode", False)
-            device_factory = SimulationHCDeviceFactory() if is_simulation else RealHCDeviceFactory()
+            factory = SimulationHCDeviceFactory() if is_simulation else RealHCDeviceFactory()
 
             start_time = datetime.datetime.now(tz)
             print(f"\033[32m{start_time:%Y/%m/%d %H:%M:%S} Experiment start\033[0m")
             self._setup_recorder(start_time)
 
-            with HCDeviceManager(self.app_config, factory=device_factory) as dev:
-                self._setup_devices(dev)
+            with HCDeviceManager(factory, self.app_config.devices) as dev:
+                facade = HCHardwareFacade(dev, self.app_config.devices)
+                facade.setup_for_protocol(self.protocol_config)
 
-                sensor_reader = HCSensorReader(dev.logger, self.app_config)
-                self._measurement_loop(dev, sensor_reader)
+                self._measurement_loop(facade)
 
         except Exception as e:
             # エラー発生時はログ出力などを行う
@@ -79,41 +78,11 @@ class HCActivationRunner(BaseRunner):
         print(f"Recording to: {self._recorder.file.path}")
         self._recorder.record_header(start_time=start_time)
 
-    def _setup_devices(self, devices: HCDevices) -> None:
-        """実験前の初期設定"""
-        print("Setting up devices...")
-
-        self._init_pyrometer_static(devices.pyrometer)
-        self._init_power_supply_static(
-            devices.hps, self.app_config.devices.hps, self.protocol_config.condition.hc_enabled
-        )
-        self._init_power_supply_static(
-            devices.aps, self.app_config.devices.aps, self.protocol_config.condition.amd_enabled
-        )
-        self._init_gm10_static(devices.logger)
-
-    def _init_pyrometer_static(self, pyrometer: IPyrometerAdapter) -> None:
-        """温度計(PWUX)の静的設定"""
-
-    def _init_power_supply_static(
-        self, power_supply: IPowerSupplyAdapter, config: PFR100l50Config, enable: bool
-    ) -> None:
-        """電源の静的設定"""
-        power_supply.set_voltage(config.v_limit)
-        power_supply.set_ovp(config.ovp)
-        power_supply.set_ocp(config.ocp)
-        power_supply.set_output(enable)
-
-    def _init_gm10_static(self, gm10: ILoggerAdapter) -> None:
-        """ロガー(GM10)の静的設定"""
-        # 現状は読み込みのみなら特になくても良いが、
-        # レンジ設定やフィルタ設定が必要ならここに記述する
-
     # =================================================================
     # Measurement Logic
     # =================================================================
 
-    def _measurement_loop(self, devices: HCDevices, sensor_reader: HCSensorReader) -> None:
+    def _measurement_loop(self, facade: HCHardwareFacade) -> None:
         """計測ループ"""
         sequences = self.protocol_config.get_sequences()
         if not sequences:
@@ -142,7 +111,8 @@ class HCActivationRunner(BaseRunner):
                 # =======================================================
 
                 total_elapsed = time.perf_counter() - start_perf
-                result = self._process_step(devices, sensor_reader, total_elapsed)
+
+                result = self._process_step(facade, total_elapsed)
 
                 if result is not None:
                     # 送信
@@ -158,16 +128,16 @@ class HCActivationRunner(BaseRunner):
             raise
 
         finally:
-            self._finalize_safety(devices)
+            facade.emergency_stop()
 
     def _process_step(
-        self, devices: HCDevices, sensor_reader: HCSensorReader, total_elapsed: float
+        self, facade: HCHardwareFacade, total_elapsed: float
     ) -> HCRunnerResult | None:
         try:
             current_seq, seq_index, seq_elapsed = self._get_current_sequence_state(total_elapsed)
             if current_seq is not None:
                 # 電流値設定
-                self._control_devices(devices, current_seq, seq_elapsed)
+                self._control_devices(facade, current_seq, seq_elapsed)
             else:
                 # 終了した場合
                 print("All sequences finished.")
@@ -176,9 +146,8 @@ class HCActivationRunner(BaseRunner):
             time.sleep(0.1)  # 電流変化後の安定化用
 
             # 測定
-            return self._measure_and_create_result(
-                devices, sensor_reader, total_elapsed, seq_elapsed, current_seq, seq_index
-            )
+            metrics = facade.read_metrics()
+            return self._create_result(metrics, total_elapsed, seq_elapsed, current_seq, seq_index)
 
         except pyvisa.errors.VisaIOError as e:
             # 装置に関するエラー
@@ -214,27 +183,27 @@ class HCActivationRunner(BaseRunner):
         # 全シーケンス時間を超えている場合
         return None, -1, 0.0
 
-    def _control_devices(self, devices: HCDevices, seq: Sequence, seq_elapsed: float) -> None:
+    def _control_devices(self, facade: HCHardwareFacade, seq: Sequence, seq_elapsed: float) -> None:
         """シーケンス定義に従ってデバイス(電源)を制御"""
+        hc_target_current = None
+        amd_target_current = None
+
         # HC電源の制御
         if self.protocol_config.condition.hc_enabled:
             # 現在の目標電流値を計算
             hc_max_current = self.protocol_config.condition.hc_current
-            target_current = seq.current(hc_max_current.base_value, seq_elapsed)
-
-            devices.hps.set_current(Current(target_current))
+            hc_target_current = Current(seq.current(hc_max_current.base_value, seq_elapsed))
 
         # AMD電源の制御
         if self.protocol_config.condition.hc_enabled:
             amd_max_current = self.protocol_config.condition.amd_current
-            target_current = seq.current(amd_max_current.base_value, seq_elapsed)
+            amd_target_current = Current(seq.current(amd_max_current.base_value, seq_elapsed))
 
-            devices.aps.set_current(Current(target_current))
+        facade.set_condition(hc_target_current, amd_target_current)
 
-    def _measure_and_create_result(
+    def _create_result(
         self,
-        devices: HCDevices,
-        sensor_reader: HCSensorReader,
+        metrics: HCHardwareMetrics,
         total_elapsed: float,
         seq_elapsed: float,
         current_seq: Sequence | None,
@@ -242,37 +211,20 @@ class HCActivationRunner(BaseRunner):
     ) -> HCRunnerResult:
         seq_name = current_seq.mode_name if current_seq else "Finish"
 
-        # ケース温度
-        if self.protocol_config.log.record_pyrometer:
-            case_temperature = devices.pyrometer.read_temperature()
-        else:
-            case_temperature = Temperature(-1)
-
-        # 圧力
-        ext_pressure = sensor_reader.read_ext()
-        sip_pressure = sensor_reader.read_sip()
-
-        # 電源の値取得
-        hc_i = devices.hps.measure_current()
-        hc_v = devices.hps.measure_voltage()
-        hc_w = devices.hps.measure_power()
-        hc_electricity = ElectricMeasurement(voltage=hc_v, current=hc_i, power=hc_w)
-
-        amd_i = devices.aps.measure_current()
-        amd_v = devices.aps.measure_voltage()
-        amd_w = devices.aps.measure_power()
-        amd_electricity = ElectricMeasurement(voltage=amd_v, current=amd_i, power=amd_w)
+        # ケース温度 (無効化の場合はnan)
+        if not self.protocol_config.log.record_pyrometer:
+            metrics.case_temperature = Temperature(float("nan"))
 
         return HCRunnerResult(
             current_sequence_index=current_idx + 1,
             current_sequence_name=seq_name,
             step_timestamp=Quantity(seq_elapsed, "s"),
             total_timestamp=Quantity(total_elapsed, "s"),
-            ext_pressure=ext_pressure,
-            sip_pressure=sip_pressure,
-            case_temperature=case_temperature,
-            hc_electricity=hc_electricity,
-            amd_electricity=amd_electricity,
+            ext_pressure=metrics.ext_pressure,
+            sip_pressure=metrics.sip_pressure,
+            case_temperature=metrics.case_temperature,
+            hc_electricity=metrics.hc_electricity,
+            amd_electricity=metrics.amd_electricity,
         )
 
     def _handle_visa_error(self, e: pyvisa.errors.VisaIOError) -> None:
