@@ -25,7 +25,7 @@ from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
 
 
-class HCActivationRunner(BaseRunner):
+class HeatCleaningRunner(BaseRunner):
     app_config: AppConfig  # 全体設定
     protocol_config: ProtocolConfig  # 実験条件
 

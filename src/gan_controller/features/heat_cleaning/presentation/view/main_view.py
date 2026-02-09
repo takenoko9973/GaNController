@@ -2,7 +2,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QInputDialog, QMessageBox, QVBoxLayout, QWidget
 
-from gan_controller.features.heat_cleaning.domain.state import HCActivationState
+from gan_controller.features.heat_cleaning.domain.state import HeatCleaningState
 from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.schemas.result import HCRunnerResult
 
@@ -43,7 +43,7 @@ class HeatCleaningMainView(QWidget):
         self._init_ui()
         self._init_shortcuts()
 
-        self.set_running(HCActivationState.IDLE)
+        self.set_running(HeatCleaningState.IDLE)
 
     def _init_ui(self) -> None:
         self._main_layout = QHBoxLayout(self)
@@ -104,9 +104,9 @@ class HeatCleaningMainView(QWidget):
 
     # =============================================================================
 
-    def set_running(self, state: HCActivationState) -> None:
+    def set_running(self, state: HeatCleaningState) -> None:
         """実験表示 (ボタン) 切り替え"""
-        if state == HCActivationState.IDLE:
+        if state == HeatCleaningState.IDLE:
             # 設定パネルの有効化
             self.protocol_select_panel.setEnabled(True)
             self.condition_panel.setEnabled(True)
@@ -115,7 +115,7 @@ class HeatCleaningMainView(QWidget):
             self.execution_panel.start_button.setEnabled(True)  # 実行ボタン
             self.execution_panel.stop_button.setEnabled(False)  # 停止ボタン
             self.measure_panel.set_status("待機中", False)
-        elif state == HCActivationState.RUNNING:
+        elif state == HeatCleaningState.RUNNING:
             # 設定パネルの無効化
             self.protocol_select_panel.setEnabled(False)
             self.condition_panel.setEnabled(False)
@@ -125,7 +125,7 @@ class HeatCleaningMainView(QWidget):
             self.execution_panel.stop_button.setEnabled(True)
             print(self.execution_panel.stop_button.isEnabled())
             self.measure_panel.set_status("実行中", True)
-        elif state == HCActivationState.STOPPING:
+        elif state == HeatCleaningState.STOPPING:
             # 停止中もパネル操作不可
             self.protocol_select_panel.setEnabled(False)
             self.condition_panel.setEnabled(False)

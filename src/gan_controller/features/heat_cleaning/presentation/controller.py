@@ -8,10 +8,10 @@ from gan_controller.features.heat_cleaning.application.protocol_service import (
     ProtocolService,
     SaveContext,
 )
-from gan_controller.features.heat_cleaning.application.runner import HCActivationRunner
+from gan_controller.features.heat_cleaning.application.runner import HeatCleaningRunner
 from gan_controller.features.heat_cleaning.application.validator import ProtocolValidator
 from gan_controller.features.heat_cleaning.constants import NEW_PROTOCOL_TEXT
-from gan_controller.features.heat_cleaning.domain.state import HCActivationState
+from gan_controller.features.heat_cleaning.domain.state import HeatCleaningState
 from gan_controller.features.heat_cleaning.infrastructure.persistence import (
     FileProtocolRepository,
     HCLogRecorder,
@@ -27,10 +27,10 @@ class HeatCleaningController(ITabController):
     _protocol_service: ProtocolService
     _validator: ProtocolValidator
 
-    _state: HCActivationState
+    _state: HeatCleaningState
 
     worker: ExperimentWorker | None
-    runner: HCActivationRunner | None
+    runner: HeatCleaningRunner | None
 
     def __init__(self, view: HeatCleaningMainView) -> None:
         super().__init__()
@@ -43,7 +43,7 @@ class HeatCleaningController(ITabController):
 
         self._attach_view()
 
-        self._state = HCActivationState.IDLE
+        self._state = HeatCleaningState.IDLE
         self._cleanup()
 
         self._refresh_protocol_list()
@@ -70,13 +70,13 @@ class HeatCleaningController(ITabController):
         self.worker = None
         self.runner = None
 
-    def set_state(self, state: HCActivationState) -> None:
+    def set_state(self, state: HeatCleaningState) -> None:
         """状態変更"""
         self._state = state
         self._view.set_running(self._state)
 
         # 待機中以外なら、タブをロック
-        should_lock = state != HCActivationState.IDLE
+        should_lock = state != HeatCleaningState.IDLE
         self.tab_lock_requested.emit(should_lock)
 
     def on_close(self) -> None:
@@ -207,7 +207,7 @@ class HeatCleaningController(ITabController):
     @Slot()
     def experiment_start(self) -> None:
         """実験開始処理"""
-        if self._state != HCActivationState.IDLE:  # 二重起動防止
+        if self._state != HeatCleaningState.IDLE:  # 二重起動防止
             return
 
         # 前回のグラフ等をクリア
@@ -221,9 +221,9 @@ class HeatCleaningController(ITabController):
         log_file = self._create_recorder(app_config, config)
         recorder = HCLogRecorder(log_file, config)
 
-        self.set_state(HCActivationState.RUNNING)
+        self.set_state(HeatCleaningState.RUNNING)
 
-        self.runner = HCActivationRunner(app_config, config, recorder)
+        self.runner = HeatCleaningRunner(app_config, config, recorder)
         self.worker = ExperimentWorker(self.runner)
         self._attach_worker(self.worker)
 
@@ -232,10 +232,10 @@ class HeatCleaningController(ITabController):
     @Slot()
     def experiment_stop(self) -> None:
         """実験中断処理"""
-        if self._state != HCActivationState.RUNNING or self.runner is None:
+        if self._state != HeatCleaningState.RUNNING or self.runner is None:
             return
 
-        self.set_state(HCActivationState.STOPPING)
+        self.set_state(HeatCleaningState.STOPPING)
         self.runner.stop()
 
     # =================================================
@@ -257,4 +257,4 @@ class HeatCleaningController(ITabController):
         print("ex finished")
 
         self._cleanup()
-        self.set_state(HCActivationState.IDLE)
+        self.set_state(HeatCleaningState.IDLE)
