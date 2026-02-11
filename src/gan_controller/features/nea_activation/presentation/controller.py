@@ -1,15 +1,13 @@
 from PySide6.QtCore import Slot
 
-from gan_controller.common.application.runner import ExperimentRunner
 from gan_controller.common.constants import NEA_CONFIG_PATH
 from gan_controller.common.io.log_manager import LogManager
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
+from gan_controller.features.nea_activation.application.runner import NEAActivationRunner
+from gan_controller.features.nea_activation.domain.config import NEAConfig
+from gan_controller.features.nea_activation.domain.models import NEAActivationState, NEARunnerResult
 from gan_controller.features.nea_activation.presentation.view import NEAActivationMainView
-from gan_controller.features.nea_activation.runner import NEAActivationRunner
-from gan_controller.features.nea_activation.schemas import NEAConfig
-from gan_controller.features.nea_activation.schemas.result import NEARunnerResult
-from gan_controller.features.nea_activation.state import NEAActivationState
 
 
 class NEAActivationController(ITabController):
@@ -42,11 +40,6 @@ class NEAActivationController(ITabController):
 
         # ログ設定変更時のプレビュー更新
         self._view.log_setting_panel.config_changed.connect(self._update_log_preview)
-
-    def _attach_worker(self, runner: ExperimentRunner) -> None:
-        runner.step_result_observed.connect(self.on_result)
-        runner.error_occurred.connect(self.on_error)
-        runner.finished.connect(self.on_finished)
 
     def _cleanup(self) -> None:
         self.worker = None
@@ -109,6 +102,9 @@ class NEAActivationController(ITabController):
         self.set_state(NEAActivationState.RUNNING)
 
         self._runner = NEAActivationRunner(app_config, config)
+        self._runner.step_result_observed.connect(self.on_result)
+        self._runner.error_occurred.connect(self.on_error)
+        self._runner.finished.connect(self.on_finished)
         self._runner.start()
 
     @Slot()

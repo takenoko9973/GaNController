@@ -2,7 +2,7 @@ from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget
 
 from gan_controller.common.ui.widgets import DualAxisGraph, GraphData
-from gan_controller.features.nea_activation.schemas import NEARunnerResult
+from gan_controller.features.nea_activation.domain.models import NEARunnerResult
 
 
 class NEAGraphPanel(QWidget):

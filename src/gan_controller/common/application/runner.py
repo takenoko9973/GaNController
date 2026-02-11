@@ -4,5 +4,5 @@ from gan_controller.common.schemas.result import ExperimentResult
 
 
 class ExperimentRunner(QThread):
-    step_result_observed = Signal(ExperimentResult)
-    error_occurred = Signal(str)
+    step_result_observed: Signal = Signal(ExperimentResult)
+    error_occurred: Signal = Signal(str)

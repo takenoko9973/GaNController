@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum, auto
 
 from gan_controller.common.domain.electricity import ElectricMeasurement
 from gan_controller.common.domain.quantity.quantity import Quantity
@@ -10,9 +11,36 @@ from gan_controller.common.domain.quantity.unit_types import (
     Volt,
     Watt,
 )
+from gan_controller.common.hardware.adapters.laser_adapter import ILaserAdapter
+from gan_controller.common.hardware.adapters.logger_adapter import ILoggerAdapter
+from gan_controller.common.hardware.adapters.power_supply_adapter import IPowerSupplyAdapter
 from gan_controller.common.schemas.result import ExperimentResult
 
 
+# =============================================================================
+# Devices
+# =============================================================================
+@dataclass
+class NEADevices:
+    """NEA実験で使用するデバイス群を保持するコンテナ"""
+
+    logger: ILoggerAdapter
+    aps: IPowerSupplyAdapter
+    laser: ILaserAdapter
+
+
+# =============================================================================
+# States
+# =============================================================================
+class NEAActivationState(Enum):
+    IDLE = auto()
+    RUNNING = auto()
+    STOPPING = auto()
+
+
+# =============================================================================
+# Result Data
+# =============================================================================
 @dataclass
 class NEARunnerResult(ExperimentResult):
     """NEA活性化の測定結果 (必要そうな設定値や観測値は全て入れとく)"""

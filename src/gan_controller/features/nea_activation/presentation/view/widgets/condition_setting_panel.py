@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 from gan_controller.common.domain.quantity.factory import Length, Resistance, Time, Value
-from gan_controller.features.nea_activation.schemas import NEAConditionConfig
+from gan_controller.features.nea_activation.domain.config import NEAConditionConfig
 
 
 class NEAConditionSettingsPanel(QGroupBox):
