@@ -1,8 +1,5 @@
-import datetime
-
 from PySide6.QtCore import Slot
 
-from gan_controller.common.constants import JST
 from gan_controller.common.io.log_manager import LogManager
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
@@ -18,12 +15,8 @@ from gan_controller.features.heat_cleaning.domain.models import (
     HeatCleaningState,
 )
 from gan_controller.features.heat_cleaning.infrastructure.hardware import (
-    HCDeviceManager,
-    RealHCDeviceFactory,
-    SimulationHCDeviceFactory,
-)
-from gan_controller.features.heat_cleaning.infrastructure.hardware_facade import (
-    HeatCleaningHardwareFacade,
+    RealHCHardwareBackend,
+    SimulationHCHardwareBackend,
 )
 from gan_controller.features.heat_cleaning.infrastructure.persistence import (
     HCLogRecorder,
@@ -179,21 +172,19 @@ class HeatCleaningController(ITabController):
         # 2. ハードウェアの接続 (Context Managerの手動制御)
         try:
             is_sim = getattr(app_config.common, "is_simulation_mode", False)
-            factory = SimulationHCDeviceFactory() if is_sim else RealHCDeviceFactory()
+            if is_sim:
+                backend = SimulationHCHardwareBackend(app_config.devices)
+            else:
+                backend = RealHCHardwareBackend(app_config.devices)
 
-            with HCDeviceManager(factory, app_config.devices) as device:
-                facade = HeatCleaningHardwareFacade(device, app_config.devices)
-                facade.setup_for_protocol(protocol_config)
-                self._runner = HeatCleaningRunner(facade, protocol_config)
+            recorder = self._create_recorder(app_config, protocol_config)
 
-                recorder = self._create_recorder(app_config, protocol_config)
-                self._runner.add_on_step_listener(recorder.record_data)
-
-                # connect
-                self._runner.step_result_observed.connect(self.on_result)
-                self._runner.error_occurred.connect(self.on_error)
-                self._runner.finished.connect(self.on_finished)
-                self._runner.start()
+            # Runner作成
+            self._runner = HeatCleaningRunner(backend, recorder, protocol_config)
+            self._runner.step_result_observed.connect(self.on_result)
+            self._runner.error_occurred.connect(self.on_error)
+            self._runner.finished.connect(self.on_finished)
+            self._runner.start()
 
         except Exception as e:  # noqa: BLE001
             self._view.show_error(f"実験開始準備エラー: {e}")
@@ -250,11 +241,8 @@ class HeatCleaningController(ITabController):
             major_update=major_update,
         )
 
-        recorder = HCLogRecorder(log_file, protocol_config)
-        recorder.record_header(datetime.datetime.now(JST))
-
         print(f"Log file created: {log_file.path}")
-        return recorder
+        return HCLogRecorder(log_file, protocol_config)
 
     def _update_log_preview(self) -> None:
         """現在の設定に基づいてログファイル名をプレビュー更新"""
