@@ -2,7 +2,7 @@ import datetime
 import re
 from pathlib import Path
 
-from gan_controller.common.constants import LOG_DIR
+from gan_controller.common.constants import JST, LOG_DIR
 
 # ログファイル名の正規表現パターン: [Number]Protocol-yyyymmddHHMMSS.ext
 LOGFILE_PATTERN = re.compile(r"^\[(\d+\.\d+)\]([A-Z0-9]+)\-(\d{14})\.dat$")
@@ -39,10 +39,9 @@ class LogFile:
 class DateLogDirectory:
     """日付ごとのディレクトリとファイル連番を管理するクラス"""
 
-    def __init__(self, path: Path, tz: datetime.timezone, encoding: str) -> None:
+    def __init__(self, path: Path, encoding: str) -> None:
         self.path: Path = path
 
-        self.tz: datetime.timezone = tz
         self.encoding: str = encoding
 
     def __str__(self) -> str:
@@ -117,7 +116,7 @@ class DateLogDirectory:
             protocol_formatted = "DEFAULT"
 
         # タイムスタンプ
-        timestamp = datetime.datetime.now(self.tz).strftime("%Y%m%d%H%M%S")
+        timestamp = datetime.datetime.now(JST).strftime("%Y%m%d%H%M%S")
 
         return f"[{new_major}.{new_minor}]{protocol_formatted}-{timestamp}.dat"
 
@@ -137,11 +136,10 @@ class LogManager:
 
     DATE_DIR_PATTERN = re.compile(r"^\d{6}$")  # YYMMDD
 
-    def __init__(self, tz: datetime.timezone, encoding: str) -> None:
+    def __init__(self, encoding: str) -> None:
         self.base_path = Path(LOG_DIR)
         self.base_path.mkdir(parents=True, exist_ok=True)
 
-        self.tz = tz
         self.encoding = encoding
 
         self.base_path.mkdir(parents=True, exist_ok=True)
@@ -161,7 +159,7 @@ class LogManager:
                 try:
                     # ディレクトリ名を日付オブジェクトに変換
                     current_date = (
-                        datetime.datetime.strptime(entry.name, "%y%m%d").astimezone(self.tz).date()
+                        datetime.datetime.strptime(entry.name, "%y%m%d").astimezone(JST).date()
                     )
 
                     # latest_date が未設定、または見つかった日付の方が新しい場合
@@ -184,15 +182,15 @@ class LogManager:
 
         if update_date:
             # 更新する場合は今日の日付
-            target_date = datetime.datetime.now(self.tz).date()
+            target_date = datetime.datetime.now(JST).date()
         else:
             latest_date = self._find_latest_date()
             # 最新が見つかればそれを使い、なければ (logsが空なら) 今日の日付を使う
             target_date = (
-                latest_date if latest_date is not None else datetime.datetime.now(self.tz).date()
+                latest_date if latest_date is not None else datetime.datetime.now(JST).date()
             )
 
         dir_name = target_date.strftime("%y%m%d")
         dir_path = self.base_path / dir_name
 
-        return DateLogDirectory(dir_path, self.tz, self.encoding)
+        return DateLogDirectory(dir_path, self.encoding)

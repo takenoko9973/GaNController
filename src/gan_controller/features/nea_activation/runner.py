@@ -6,7 +6,7 @@ import traceback
 import pyvisa
 import pyvisa.constants
 
-from gan_controller.common.application.runner import BaseRunner
+from gan_controller.common.application.runner import ExperimentRunner
 from gan_controller.common.calculations.physics import calculate_quantum_efficiency
 from gan_controller.common.domain.electricity import ElectricMeasurement
 from gan_controller.common.domain.quantity import Ampere, Current, Quantity, Time, Value
@@ -25,7 +25,7 @@ from .devices import NEADeviceManager, NEADevices, RealDeviceFactory, Simulation
 from .schemas.result import NEARunnerResult
 
 
-class NEAActivationRunner(BaseRunner):
+class NEAActivationRunner(ExperimentRunner):
     app_config: AppConfig  # 全体設定
     nea_config: NEAConfig  # 実験条件
 
@@ -301,8 +301,8 @@ class NEAActivationRunner(BaseRunner):
         if self._recorder:
             self._recorder.record_data(result, event)
 
-        if self.emit_result:
-            self.emit_result(result)
+        if self.step_result_observed:
+            self.step_result_observed(result)
 
     def _handle_visa_error(self, e: pyvisa.errors.VisaIOError) -> None:
         """VISAエラーのハンドリング"""

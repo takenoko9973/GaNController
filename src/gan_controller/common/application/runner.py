@@ -1,19 +1,8 @@
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from PySide6.QtCore import QThread, Signal
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
-    from gan_controller.common.schemas.result import ExperimentResult
+from gan_controller.common.schemas.result import ExperimentResult
 
 
-class BaseRunner(ABC):
-    def __init__(self) -> None:
-        self.emit_result: Callable[[ExperimentResult], None] | None = None
-        self._stop = False
-
-    def stop(self) -> None:
-        self._stop = True
-
-    @abstractmethod
-    def run(self) -> None: ...
+class ExperimentRunner(QThread):
+    step_result_observed = Signal(ExperimentResult)
+    error_occurred = Signal(str)

@@ -1,6 +1,6 @@
 from PySide6.QtCore import Slot
 
-from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
+from gan_controller.common.application.runner import ExperimentRunner
 from gan_controller.common.constants import NEA_CONFIG_PATH
 from gan_controller.common.io.log_manager import LogManager
 from gan_controller.common.schemas.app_config import AppConfig
@@ -17,8 +17,7 @@ class NEAActivationController(ITabController):
 
     _state: NEAActivationState
 
-    runner: NEAActivationRunner | None
-    worker: ExperimentWorker | None
+    _runner: NEAActivationRunner | None
 
     def __init__(self, view: NEAActivationMainView) -> None:
         super().__init__()
@@ -44,14 +43,14 @@ class NEAActivationController(ITabController):
         # ログ設定変更時のプレビュー更新
         self._view.log_setting_panel.config_changed.connect(self._update_log_preview)
 
-    def _attach_worker(self, worker: ExperimentWorker) -> None:
-        worker.result_emitted.connect(self.on_result)
-        worker.error_occurred.connect(self.on_error)
-        worker.finished.connect(self.on_finished)
+    def _attach_worker(self, runner: ExperimentRunner) -> None:
+        runner.step_result_observed.connect(self.on_result)
+        runner.error_occurred.connect(self.on_error)
+        runner.finished.connect(self.on_finished)
 
     def _cleanup(self) -> None:
         self.worker = None
-        self.runner = None
+        self._runner = None
 
     def set_state(self, state: NEAActivationState) -> None:
         """状態変更"""
@@ -75,7 +74,7 @@ class NEAActivationController(ITabController):
         try:
             # マネージャー呼び出し
             app_config = AppConfig.load()
-            manager = LogManager(app_config.common.get_tz(), app_config.common.encode)
+            manager = LogManager(app_config.common.encode)
 
             # 番号取得
             log_config = self._view.log_setting_panel.get_config()
@@ -109,28 +108,25 @@ class NEAActivationController(ITabController):
 
         self.set_state(NEAActivationState.RUNNING)
 
-        self.runner = NEAActivationRunner(app_config, config)
-        self.worker = ExperimentWorker(self.runner)
-        self._attach_worker(self.worker)
-
-        self.worker.start()
+        self._runner = NEAActivationRunner(app_config, config)
+        self._runner.start()
 
     @Slot()
     def experiment_stop(self) -> None:
         """実験中断処理"""
-        if self._state != NEAActivationState.RUNNING or self.runner is None:
+        if self._state != NEAActivationState.RUNNING or self._runner is None:
             return
 
         self.set_state(NEAActivationState.STOPPING)
-        self.runner.stop()
+        self._runner.requestInterruption()
 
     @Slot()
     def setting_apply(self) -> None:
         """実験途中での値更新"""
         config = self._view.execution_panel.get_config()
 
-        if self._state == NEAActivationState.RUNNING and self.runner is not None:
-            self.runner.update_control_params(config)
+        if self._state == NEAActivationState.RUNNING and self._runner is not None:
+            self._runner.update_control_params(config)
 
     # =================================================
     # Runner -> View

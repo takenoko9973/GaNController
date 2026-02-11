@@ -1,4 +1,3 @@
-import datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -56,13 +55,9 @@ class PWUXConfig(BaseModel):
 # [common] セクション
 class CommonConfig(BaseModel):
     encode: str = Field(default="utf-8", description="ログファイルエンコード")
-    tz_offset_hours: int = Field(default=9, description="タイムゾーン (JST)")
     is_simulation_mode: bool = Field(
         default=False, description="デバック用 (シミュレーションモード)"
     )
-
-    def get_tz(self) -> datetime.timezone:
-        return datetime.timezone(datetime.timedelta(hours=self.tz_offset_hours))
 
 
 # [devices] セクション

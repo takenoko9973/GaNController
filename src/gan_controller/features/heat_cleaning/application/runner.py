@@ -6,15 +6,15 @@ from collections.abc import Callable
 import pyvisa
 import pyvisa.constants
 
-from gan_controller.common.application.runner import BaseRunner
+from gan_controller.common.application.runner import ExperimentRunner
+from gan_controller.common.constants import JST
 from gan_controller.common.domain.quantity import Current, Time
-from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.domain.interface import IHeatCleaningHardware
 from gan_controller.features.heat_cleaning.domain.models import HCExperimentResult, Sequence
 
 
-class HeatCleaningRunner(BaseRunner):
+class HeatCleaningRunner(ExperimentRunner):
     _hw: IHeatCleaningHardware
     _config: ProtocolConfig
 
@@ -36,10 +36,10 @@ class HeatCleaningRunner(BaseRunner):
 
     def run(self) -> None:
         """実験開始"""
-        app_config = AppConfig.load()
-        tz = app_config.common.get_tz()
-        print(f"Experiment started at {datetime.datetime.now(tz)}")
+        print(f"Experiment started at {datetime.datetime.now(JST)}")
+        self._experiment_loop()
 
+    def _experiment_loop(self) -> None:
         try:
             # シーケンスの取得
             sequences = self._config.get_sequences()
@@ -53,7 +53,7 @@ class HeatCleaningRunner(BaseRunner):
             # 各シーケンスを順番に実行
             for i, seq in enumerate(sequences):
                 # 停止フラグが立っていたらループを抜ける
-                if self._stop:
+                if self.isInterruptionRequested():
                     print("Experiment stopped by user.")
                     break
 
@@ -68,7 +68,7 @@ class HeatCleaningRunner(BaseRunner):
         finally:
             self._hw.emergency_stop()  # 装置の停止処理
 
-            finish_time = datetime.datetime.now(tz)
+            finish_time = datetime.datetime.now(JST)
             print(f"\033[31m{finish_time:%Y/%m/%d %H:%M:%S} Finish\033[0m")
 
     def _run_single_sequence(self, seq_index: int, seq: Sequence, total_start_time: float) -> None:
@@ -82,7 +82,7 @@ class HeatCleaningRunner(BaseRunner):
         seq_start_time = time.perf_counter()
         next_target_perf = seq_start_time
 
-        while not self._stop:
+        while not self.isInterruptionRequested():
             # --- タイミング調整 ---
             now = time.perf_counter()
             sleep_duration = next_target_perf - now  # 測定予定時間と現在時間との差分を計算
@@ -108,9 +108,8 @@ class HeatCleaningRunner(BaseRunner):
 
             # --- 通知 ---
             if result:
-                # 画面更新用シグナル (BaseRunnerの機能を使用する場合)
-                if self.emit_result is not None:
-                    self.emit_result(result)
+                # 画面更新用シグナル
+                self.step_result_observed.emit(result)
 
                 # ログ記録用コールバック
                 for callback in self._on_step_callbacks:
