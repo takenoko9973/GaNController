@@ -3,9 +3,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from gan_controller.common.io.log_manager import LogFile
 from gan_controller.features.nea_activation.domain.config import NEAConfig
 from gan_controller.features.nea_activation.domain.models import NEARunnerResult
+from gan_controller.infrastructure.persistence.log_manager import LogFile
 
 
 @dataclass

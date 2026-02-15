@@ -1,15 +1,13 @@
 from PySide6.QtCore import Slot
 
-from gan_controller.common.io.log_manager import LogManager
-from gan_controller.common.schemas.app_config import AppConfig
-from gan_controller.common.ui.tab_controller import ITabController
+from gan_controller.core.models.app_config import AppConfig
 from gan_controller.features.heat_cleaning.application.protocol_manager import (
     ProtocolManager,
     SaveContext,
 )
 from gan_controller.features.heat_cleaning.application.runner import HeatCleaningRunner
-from gan_controller.features.heat_cleaning.constants import NEW_PROTOCOL_TEXT
 from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
+from gan_controller.features.heat_cleaning.domain.constants import NEW_PROTOCOL_TEXT
 from gan_controller.features.heat_cleaning.domain.models import (
     HCExperimentResult,
     HeatCleaningState,
@@ -23,6 +21,8 @@ from gan_controller.features.heat_cleaning.infrastructure.persistence import (
     ProtocolRepository,
 )
 from gan_controller.features.heat_cleaning.presentation.view import HeatCleaningMainView
+from gan_controller.infrastructure.persistence.log_manager import LogManager
+from gan_controller.presentation.components.tab_controller import ITabController
 
 
 class HeatCleaningController(ITabController):
@@ -217,8 +217,6 @@ class HeatCleaningController(ITabController):
     @Slot()
     def on_finished(self) -> None:
         """実験終了処理"""
-        print("Experiment worker finished.")
-
         self.set_state(HeatCleaningState.IDLE)
         self._cleanup_experiment()
 

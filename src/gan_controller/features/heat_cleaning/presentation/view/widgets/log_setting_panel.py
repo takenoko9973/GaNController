@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QCheckBox, QWidget
 
-from gan_controller.common.ui.widgets.log_setting_panel import CommonLogSettingPanel
 from gan_controller.features.heat_cleaning.domain.config import HCLogConfig
+from gan_controller.presentation.components.widgets.log_setting_panel import CommonLogSettingPanel
 
 
 class HCLogSettingPanel(CommonLogSettingPanel):

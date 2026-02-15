@@ -5,14 +5,14 @@ import traceback
 import pyvisa
 import pyvisa.constants
 
-from gan_controller.common.application.runner import ExperimentRunner
-from gan_controller.common.constants import JST
-from gan_controller.common.domain.quantity import Current, Time
+from gan_controller.core.constants import JST
+from gan_controller.core.models.quantity import Current, Time
 from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.domain.interface import IHCHardwareFacade
 from gan_controller.features.heat_cleaning.domain.models import HCExperimentResult, Sequence
 from gan_controller.features.heat_cleaning.infrastructure.hardware import HCHardwareBackend
 from gan_controller.features.heat_cleaning.infrastructure.persistence import HCLogRecorder
+from gan_controller.presentation.async_runners.runner import ExperimentRunner
 
 
 class HeatCleaningRunner(ExperimentRunner):

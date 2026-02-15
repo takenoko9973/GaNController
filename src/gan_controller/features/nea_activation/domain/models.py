@@ -1,20 +1,22 @@
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from gan_controller.common.domain.electricity import ElectricMeasurement
-from gan_controller.common.domain.quantity.quantity import Quantity
-from gan_controller.common.domain.quantity.unit_types import (
+from gan_controller.core.models.electricity import ElectricMeasurement
+from gan_controller.core.models.quantity import (
     Ampere,
     Dimensionless,
     Pascal,
+    Quantity,
     Second,
     Volt,
     Watt,
 )
-from gan_controller.common.hardware.adapters.laser_adapter import ILaserAdapter
-from gan_controller.common.hardware.adapters.logger_adapter import ILoggerAdapter
-from gan_controller.common.hardware.adapters.power_supply_adapter import IPowerSupplyAdapter
-from gan_controller.common.schemas.result import ExperimentResult
+from gan_controller.core.models.result import ExperimentResult
+from gan_controller.infrastructure.hardware.adapters.laser_adapter import ILaserAdapter
+from gan_controller.infrastructure.hardware.adapters.logger_adapter import ILoggerAdapter
+from gan_controller.infrastructure.hardware.adapters.power_supply_adapter import (
+    IPowerSupplyAdapter,
+)
 
 
 # =============================================================================

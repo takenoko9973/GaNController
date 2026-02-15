@@ -3,7 +3,7 @@ from typing import Annotated
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from gan_controller.common.domain.quantity import PydanticUnit, Quantity, Second
+from gan_controller.core.models.quantity import PydanticUnit, Quantity, Second
 
 
 # テスト用のPydanticモデル定義
@@ -29,18 +29,18 @@ class TestQuantityPydantic:
         model = ConfigModel(**data)
 
         # process_time (mins)
-        assert model.process_time.value == 5.0  # noqa: PLR2004
-        assert model.process_time.base_value == 300.0  # 5 * 60  # noqa: PLR2004
+        assert model.process_time.value == 5.0
+        assert model.process_time.base_value == 300.0  # 5 * 60
         assert str(model.process_time) == "5.0 min"  # 単位 s は隠蔽される
 
         # wait_time (hours)
-        assert model.wait_time.value == 1.5  # noqa: PLR2004
-        assert model.wait_time.base_value == 5400.0  # 1.5 * 3600  # noqa: PLR2004
+        assert model.wait_time.value == 1.5
+        assert model.wait_time.base_value == 5400.0  # 1.5 * 3600
         assert str(model.wait_time) == "1.5 hour"
 
         # pulse_width (ms)
-        assert model.pulse_width.value == 100.0  # noqa: PLR2004
-        assert model.pulse_width.base_value == 0.1  # noqa: PLR2004
+        assert model.pulse_width.value == 100.0
+        assert model.pulse_width.base_value == 0.1
         assert str(model.pulse_width) == "100.0 ms"
 
     def test_serialize_to_numbers(self) -> None:
@@ -54,9 +54,9 @@ class TestQuantityPydantic:
         # model_dump (dict) したときに、指定された単位の数値に戻ること
         dumped = model.model_dump()
 
-        assert dumped["process_time"] == 10.0  # noqa: PLR2004
-        assert dumped["wait_time"] == 2.0  # noqa: PLR2004
-        assert dumped["pulse_width"] == 50.0  # noqa: PLR2004
+        assert dumped["process_time"] == 10.0
+        assert dumped["wait_time"] == 2.0
+        assert dumped["pulse_width"] == 50.0
 
     def test_validation_error(self) -> None:
         """不正な型が渡された場合のエラーテスト"""

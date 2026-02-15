@@ -4,8 +4,8 @@ from typing import Annotated
 from pydantic import BaseModel, Field
 from pydantic.functional_validators import field_validator
 
-from gan_controller.common.constants import NEA_CONFIG_PATH
-from gan_controller.common.domain.quantity import (
+from gan_controller.core.constants import NEA_CONFIG_PATH
+from gan_controller.core.models.quantity import (
     Ampere,
     Current,
     Dimensionless,
@@ -21,7 +21,10 @@ from gan_controller.common.domain.quantity import (
     Value,
     Watt,
 )
-from gan_controller.common.io.toml_config_io import load_toml_config, save_toml_config
+from gan_controller.infrastructure.persistence.toml_config_io import (
+    load_toml_config,
+    save_toml_config,
+)
 
 
 class NEAConditionConfig(BaseModel):
@@ -93,7 +96,8 @@ class NEALogConfig(BaseModel):
 
 
 class NEAControlConfig(BaseModel):
-    """実行制御パラメータ (Runtime State)
+    """
+    実行制御パラメータ (Runtime State)
 
     実験中のデバイス制御値や状態を保持する
     """

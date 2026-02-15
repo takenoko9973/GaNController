@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QWidget
 
-from gan_controller.common.ui.widgets.log_setting_panel import CommonLogSettingPanel
 from gan_controller.features.nea_activation.domain.config import NEALogConfig
+from gan_controller.presentation.components.widgets.log_setting_panel import CommonLogSettingPanel
 
 
 class NEALogSettingPanel(CommonLogSettingPanel):

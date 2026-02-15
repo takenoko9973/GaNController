@@ -29,7 +29,8 @@ class ProtocolManager:
         return self._repo.load(name)
 
     def save_protocol(self, context: SaveContext) -> tuple[bool, str]:
-        """保存処理実行
+        """
+        保存処理実行
 
         Returns: (成功したか, メッセージ)
         """

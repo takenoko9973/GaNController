@@ -1,11 +1,21 @@
-from gan_controller.common.calculations.physics import calculate_quantum_efficiency
-from gan_controller.common.domain.electricity import ElectricMeasurement
-from gan_controller.common.domain.quantity import Current, Time, Value
-from gan_controller.common.domain.quantity.factory import Voltage
-from gan_controller.common.domain.quantity.quantity import Quantity
-from gan_controller.common.domain.quantity.unit_types import Ampere, Ohm, Volt
-from gan_controller.common.hardware.processing.vacuum_reader import VacuumSensorReader
-from gan_controller.common.schemas.app_config import DevicesConfig
+from gan_controller.core.models.app_config import DevicesConfig
+from gan_controller.core.models.electricity import ElectricMeasurement
+from gan_controller.core.models.quantity import (
+    Ampere,
+    Current,
+    Ohm,
+    Pressure,
+    Quantity,
+    Time,
+    Value,
+    Volt,
+    Voltage,
+)
+from gan_controller.core.services.physics import calculate_quantum_efficiency
+from gan_controller.core.services.vacuum import (
+    calc_ext_pressure_from_voltage,
+    calc_sip_pressure_from_voltage,
+)
 from gan_controller.features.nea_activation.domain.config import (
     NEAConditionConfig,
     NEAControlConfig,
@@ -20,7 +30,6 @@ class NEAHardwareFacade(INEAHardwareFacade):
     def __init__(self, devices: NEADevices, config: DevicesConfig) -> None:
         self._dev = devices
         self._config = config
-        self._vacuum_reader = VacuumSensorReader(self._dev.logger, self._config.gm10)
 
     def setup_devices(self) -> None:
         """初期設定"""
@@ -82,8 +91,11 @@ class NEAHardwareFacade(INEAHardwareFacade):
         )
 
         # --- センサー読み取り ---
-        ext_pressure = self._vacuum_reader.read_ext_pressure()
-        sip_pressure = self._vacuum_reader.read_sip_pressure()
+        ext_val = self._dev.logger.read_voltage(self._config.gm10.ext_ch)
+        ext_pressure = Pressure(calc_ext_pressure_from_voltage(ext_val.base_value))
+
+        sip_val = self._dev.logger.read_voltage(self._config.gm10.sip_ch)
+        sip_pressure = Pressure(calc_sip_pressure_from_voltage(sip_val.base_value))
 
         # HV読み取り (補正含む)
         hv_raw = self._dev.logger.read_voltage(self._config.gm10.hv_ch)

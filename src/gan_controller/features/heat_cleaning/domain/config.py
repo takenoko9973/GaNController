@@ -3,8 +3,8 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field
 
-from gan_controller.common.constants import PROTOCOLS_DIR
-from gan_controller.common.domain.quantity import (
+from gan_controller.core.constants import PROTOCOLS_DIR
+from gan_controller.core.models.quantity import (
     Ampere,
     Current,
     Dimensionless,
@@ -14,8 +14,11 @@ from gan_controller.common.domain.quantity import (
     Time,
     Value,
 )
-from gan_controller.common.io.toml_config_io import load_toml_config, save_toml_config
 from gan_controller.features.heat_cleaning.domain.models import Sequence, SequenceMode
+from gan_controller.infrastructure.persistence.toml_config_io import (
+    load_toml_config,
+    save_toml_config,
+)
 
 
 class HCSequenceConfig(BaseModel):

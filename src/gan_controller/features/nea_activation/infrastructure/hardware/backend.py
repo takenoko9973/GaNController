@@ -4,17 +4,21 @@ from types import TracebackType
 
 import pyvisa
 
-from gan_controller.common.hardware.adapters.laser_adapter import IBeamAdapter, MockLaserAdapter
-from gan_controller.common.hardware.adapters.logger_adapter import GM10Adapter, MockLoggerAdapter
-from gan_controller.common.hardware.adapters.power_supply_adapter import (
+from gan_controller.core.models.app_config import DevicesConfig
+from gan_controller.features.nea_activation.domain.models import NEADevices
+from gan_controller.infrastructure.hardware.adapters.laser_adapter import (
+    IBeamAdapter,
+    MockLaserAdapter,
+)
+from gan_controller.infrastructure.hardware.adapters.logger_adapter import (
+    GM10Adapter,
+    MockLoggerAdapter,
+)
+from gan_controller.infrastructure.hardware.adapters.power_supply_adapter import (
     MockPowerSupplyAdapter,
     PFR100L50Adapter,
 )
-from gan_controller.common.hardware.drivers.gm10 import GM10
-from gan_controller.common.hardware.drivers.ibeam import IBeam
-from gan_controller.common.hardware.drivers.pfr_100l50 import PFR100L50
-from gan_controller.common.schemas.app_config import DevicesConfig
-from gan_controller.features.nea_activation.domain.models import NEADevices
+from gan_controller.infrastructure.hardware.drivers import GM10, PFR100L50, IBeam
 
 from .facade import NEAHardwareFacade
 

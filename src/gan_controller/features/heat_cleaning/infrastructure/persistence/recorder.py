@@ -3,9 +3,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from gan_controller.common.io.log_manager import LogFile
 from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.domain.models import HCExperimentResult
+from gan_controller.infrastructure.persistence.log_manager import LogFile
 
 
 @dataclass

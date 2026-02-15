@@ -1,10 +1,16 @@
-from gan_controller.common.calculations.vacuum import (
+from gan_controller.core.models.app_config import DevicesConfig
+from gan_controller.core.models.electricity import ElectricMeasurement
+from gan_controller.core.models.quantity import (
+    Ampere,
+    Current,
+    Pressure,
+    Quantity,
+    Temperature,
+)
+from gan_controller.core.services.vacuum import (
     calc_ext_pressure_from_voltage,
     calc_sip_pressure_from_voltage,
 )
-from gan_controller.common.domain.electricity import ElectricMeasurement
-from gan_controller.common.domain.quantity import Ampere, Current, Pressure, Quantity, Temperature
-from gan_controller.common.schemas.app_config import DevicesConfig
 from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.domain.interface import IHCHardwareFacade
 from gan_controller.features.heat_cleaning.domain.models import HCDevices, HCExperimentResult

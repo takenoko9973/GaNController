@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from gan_controller.common.domain.quantity import Ampere, Quantity
+from gan_controller.core.models.quantity import Ampere, Quantity
 from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 
 from .models import HCExperimentResult
@@ -17,7 +17,8 @@ class IHCHardwareFacade(ABC):
     def set_currents(
         self, hc_current: Quantity[Ampere] | None, amd_current: Quantity[Ampere] | None
     ) -> None:
-        """電源の電流値を設定する
+        """
+        電源の電流値を設定する
 
         Args:
             hc_current (Quantity[Ampere]): HC電源への指令値

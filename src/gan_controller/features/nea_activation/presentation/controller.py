@@ -1,9 +1,7 @@
 from PySide6.QtCore import Slot
 
-from gan_controller.common.constants import NEA_CONFIG_PATH
-from gan_controller.common.io.log_manager import LogManager
-from gan_controller.common.schemas.app_config import AppConfig
-from gan_controller.common.ui.tab_controller import ITabController
+from gan_controller.core.constants import NEA_CONFIG_PATH
+from gan_controller.core.models.app_config import AppConfig
 from gan_controller.features.nea_activation.application.runner import NEAActivationRunner
 from gan_controller.features.nea_activation.domain.config import NEAConfig
 from gan_controller.features.nea_activation.domain.models import NEAActivationState, NEARunnerResult
@@ -15,6 +13,8 @@ from gan_controller.features.nea_activation.infrastructure.persistence.recorder 
     NEALogRecorder,
 )
 from gan_controller.features.nea_activation.presentation.view import NEAActivationMainView
+from gan_controller.infrastructure.persistence.log_manager import LogManager
+from gan_controller.presentation.components.tab_controller import ITabController
 
 
 class NEAActivationController(ITabController):

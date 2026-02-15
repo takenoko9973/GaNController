@@ -1,9 +1,9 @@
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QMessageBox
 
-from gan_controller.common.schemas.app_config import AppConfig
-from gan_controller.common.ui.tab_controller import ITabController
+from gan_controller.core.models.app_config import AppConfig
 from gan_controller.features.setting.view.main_view import SettingMainView
+from gan_controller.presentation.components.tab_controller import ITabController
 
 
 class SettingsController(ITabController):
@@ -31,7 +31,8 @@ class SettingsController(ITabController):
     # ==========================================================
 
     def load_config(self, show_notify: bool = True) -> bool:
-        """設定をファイルから読み込んでViewに反映する。
+        """
+        設定をファイルから読み込んでViewに反映する。
 
         Args:
             show_notify: 完了時にステータス通知を出すかどうか
@@ -58,7 +59,8 @@ class SettingsController(ITabController):
             return True
 
     def save_config(self, show_notify: bool = True) -> bool:
-        """現在のViewの内容をファイルに保存する。
+        """
+        現在のViewの内容をファイルに保存する。
 
         Returns:
             bool: 保存に成功したらTrue

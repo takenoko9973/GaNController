@@ -11,9 +11,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from gan_controller.common.domain.electricity import ElectricProperties
-from gan_controller.common.domain.quantity import Current, Pressure, Time, Value
-from gan_controller.common.ui.widgets import ValueLabel
+from gan_controller.core.models.electricity import ElectricProperties
+from gan_controller.core.models.quantity import Current, Pressure, Time, Value
+from gan_controller.presentation.components.widgets import ValueLabel
 
 
 class NEAMeasurePanel(QGroupBox):

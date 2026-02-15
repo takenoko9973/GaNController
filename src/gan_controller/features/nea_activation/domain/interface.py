@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 
-from gan_controller.common.domain.quantity.quantity import Quantity
-from gan_controller.common.domain.quantity.unit_types import Ampere, Ohm, Volt
+from gan_controller.core.models.quantity import Ampere, Ohm, Quantity, Volt
 from gan_controller.features.nea_activation.domain.config import (
     NEAConditionConfig,
     NEAControlConfig,

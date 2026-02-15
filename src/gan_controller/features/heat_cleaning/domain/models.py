@@ -2,12 +2,16 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from gan_controller.common.domain.electricity import ElectricMeasurement
-from gan_controller.common.domain.quantity import Celsius, Pascal, Quantity, Second
-from gan_controller.common.hardware.adapters.logger_adapter import ILoggerAdapter
-from gan_controller.common.hardware.adapters.power_supply_adapter import IPowerSupplyAdapter
-from gan_controller.common.hardware.adapters.pyrometer_adapter import IPyrometerAdapter
-from gan_controller.common.schemas.result import ExperimentResult
+from gan_controller.core.models.electricity import ElectricMeasurement
+from gan_controller.core.models.quantity import Celsius, Pascal, Quantity, Second
+from gan_controller.core.models.result import ExperimentResult
+from gan_controller.infrastructure.hardware.adapters.logger_adapter import ILoggerAdapter
+from gan_controller.infrastructure.hardware.adapters.power_supply_adapter import (
+    IPowerSupplyAdapter,
+)
+from gan_controller.infrastructure.hardware.adapters.pyrometer_adapter import (
+    IPyrometerAdapter,
+)
 
 
 # =============================================================================

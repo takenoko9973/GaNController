@@ -11,10 +11,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from gan_controller.common.domain.electricity import ElectricProperties
-from gan_controller.common.domain.quantity import Pressure, Temperature
-from gan_controller.common.ui.widgets import ValueLabel
+from gan_controller.core.models.electricity import ElectricProperties
+from gan_controller.core.models.quantity import Pressure, Temperature
 from gan_controller.features.heat_cleaning.domain.models import HCExperimentResult
+from gan_controller.presentation.components.widgets import ValueLabel
 
 
 class HCMeasurePanel(QGroupBox):

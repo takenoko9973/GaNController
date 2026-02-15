@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
-from gan_controller.common.ui.widgets import DualAxisGraph, GraphData
 from gan_controller.features.heat_cleaning.domain.models import HCExperimentResult
+from gan_controller.presentation.components.widgets import DualAxisGraph, GraphData
 
 
 class HCGraphPanel(QWidget):

@@ -1,4 +1,4 @@
-from gan_controller.common.domain.quantity import Quantity
+from gan_controller.core.models.quantity import Quantity
 
 
 class TestQuantityConversion:
@@ -9,16 +9,16 @@ class TestQuantityConversion:
 
         # hour -> min
         val_min = q_hour.value_as("min")
-        assert val_min == 60.0  # noqa: PLR2004
+        assert val_min == 60.0
 
         # hour -> s
         val_sec = q_hour.value_as("")  # prefix="" (SI単位)
-        assert val_sec == 3600.0  # noqa: PLR2004
+        assert val_sec == 3600.0
 
         # min -> hour
         q_min = Quantity(90, "mins")
         val_hour = q_min.value_as("hour")
-        assert val_hour == 1.5  # noqa: PLR2004
+        assert val_hour == 1.5
 
 
 class TestQuantityParserEdgeCases:
@@ -49,19 +49,19 @@ class TestQuantityParserEdgeCases:
         q_ms = Quantity(1, "ms")
         assert q_ms.unit == "s"
         assert q_ms.display_prefix == "m"
-        assert q_ms.base_value == 0.001  # noqa: PLR2004
+        assert q_ms.base_value == 0.001
 
         # "mm" -> ミリメートル (prefix="m", unit="m")
         q_mm = Quantity(1, "mm")
         assert q_mm.unit == "m"
         assert q_mm.display_prefix == "m"
-        assert q_mm.base_value == 0.001  # noqa: PLR2004
+        assert q_mm.base_value == 0.001
 
     def test_dimensionless_units(self) -> None:
         """無次元量や特殊単位のテスト"""
         # "%"
         q_pct = Quantity(50, "%")
-        assert q_pct.base_value == 0.5  # noqa: PLR2004
+        assert q_pct.base_value == 0.5
         assert str(q_pct) == "50.0 %"
 
         # "ppm"

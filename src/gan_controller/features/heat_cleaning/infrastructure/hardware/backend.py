@@ -3,21 +3,21 @@ from contextlib import ExitStack
 
 import pyvisa
 
-from gan_controller.common.hardware.adapters.logger_adapter import (
+from gan_controller.core.models.app_config import DevicesConfig
+from gan_controller.features.heat_cleaning.domain.models import HCDevices
+from gan_controller.infrastructure.hardware.adapters.logger_adapter import (
     GM10Adapter,
     MockLoggerAdapter,
 )
-from gan_controller.common.hardware.adapters.power_supply_adapter import (
+from gan_controller.infrastructure.hardware.adapters.power_supply_adapter import (
     MockPowerSupplyAdapter,
     PFR100L50Adapter,
 )
-from gan_controller.common.hardware.adapters.pyrometer_adapter import (
+from gan_controller.infrastructure.hardware.adapters.pyrometer_adapter import (
     MockPyrometerAdapter,
     PWUXAdapter,
 )
-from gan_controller.common.hardware.drivers import GM10, PFR100L50, PWUX
-from gan_controller.common.schemas.app_config import DevicesConfig
-from gan_controller.features.heat_cleaning.domain.models import HCDevices
+from gan_controller.infrastructure.hardware.drivers import GM10, PFR100L50, PWUX
 
 from .facade import (
     HCHardwareFacade,

@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QFormLayout, QGroupBox, QLineEdit, QVBoxLayout, QWidget
 
-from gan_controller.common.schemas.app_config import GM10Config
-from gan_controller.common.ui.widgets import NoScrollSpinBox
+from gan_controller.core.models.app_config import GM10Config
+from gan_controller.presentation.components.widgets import NoScrollSpinBox
 
 
 class GM10ConfigPage(QWidget):

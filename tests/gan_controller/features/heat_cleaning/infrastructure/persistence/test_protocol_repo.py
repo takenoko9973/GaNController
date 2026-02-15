@@ -2,18 +2,18 @@ from pathlib import Path
 
 import pytest
 
-from gan_controller.features.heat_cleaning.domain.repository import IProtocolRepository
-from gan_controller.features.heat_cleaning.infrastructure.persistence.protocol_repo import (
-    FileProtocolRepository,
+from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
+from gan_controller.features.heat_cleaning.domain.interface import IProtocolRepository
+from gan_controller.features.heat_cleaning.infrastructure.persistence.repository import (
+    ProtocolRepository,
 )
-from gan_controller.features.heat_cleaning.schemas.config import ProtocolConfig
 
 
 class TestFileProtocolRepository:
     @pytest.fixture
     def repo(self, tmp_path: Path) -> IProtocolRepository:
         # tmp_path は pytest が提供する一時ディレクトリ。テスト終了後に自動で削除される。
-        return FileProtocolRepository(base_dir=tmp_path)
+        return ProtocolRepository(base_dir=tmp_path)
 
     def test_save_and_load(self, repo: IProtocolRepository) -> None:
         # 1. 保存のテスト
@@ -38,6 +38,6 @@ class TestFileProtocolRepository:
         repo.save("B_PROTOCOL", ProtocolConfig())
 
         names = repo.list_names()
-        assert len(names) == 2  # noqa: PLR2004
+        assert len(names) == 2
         assert "A_PROTOCOL" in names
         assert "B_PROTOCOL" in names

@@ -7,8 +7,7 @@ import pyvisa
 import pyvisa.constants
 from PySide6.QtCore import Signal
 
-from gan_controller.common.application.runner import ExperimentRunner
-from gan_controller.common.constants import JST
+from gan_controller.core.constants import JST
 from gan_controller.features.nea_activation.domain.config import NEAConfig, NEAControlConfig
 from gan_controller.features.nea_activation.domain.interface import INEAHardwareFacade
 from gan_controller.features.nea_activation.domain.models import NEADevices
@@ -19,6 +18,7 @@ from gan_controller.features.nea_activation.infrastructure.hardware.facade impor
 from gan_controller.features.nea_activation.infrastructure.persistence.recorder import (
     NEALogRecorder,
 )
+from gan_controller.presentation.async_runners.runner import ExperimentRunner
 
 
 class NEAActivationRunner(ExperimentRunner):
