@@ -7,6 +7,13 @@ from gan_controller.common.ui.tab_controller import ITabController
 from gan_controller.features.nea_activation.application.runner import NEAActivationRunner
 from gan_controller.features.nea_activation.domain.config import NEAConfig
 from gan_controller.features.nea_activation.domain.models import NEAActivationState, NEARunnerResult
+from gan_controller.features.nea_activation.infrastructure.hardware.backend import (
+    RealNEAHardwareBackend,
+    SimulationNEAHardwareBackend,
+)
+from gan_controller.features.nea_activation.infrastructure.persistence.recorder import (
+    NEALogRecorder,
+)
 from gan_controller.features.nea_activation.presentation.view import NEAActivationMainView
 
 
@@ -24,7 +31,7 @@ class NEAActivationController(ITabController):
         self._attach_view()
 
         self._state = NEAActivationState.IDLE
-        self._cleanup()
+        self._cleanup_experiment()
 
         self._load_initial_config()
 
@@ -41,8 +48,7 @@ class NEAActivationController(ITabController):
         # ログ設定変更時のプレビュー更新
         self._view.log_setting_panel.config_changed.connect(self._update_log_preview)
 
-    def _cleanup(self) -> None:
-        self.worker = None
+    def _cleanup_experiment(self) -> None:
         self._runner = None
 
     def set_state(self, state: NEAActivationState) -> None:
@@ -62,25 +68,6 @@ class NEAActivationController(ITabController):
         # ファイルに保存
         current_config.save(NEA_CONFIG_PATH)
 
-    def _update_log_preview(self) -> None:
-        """現在の設定に基づいてログファイル名をプレビュー更新"""
-        try:
-            # マネージャー呼び出し
-            app_config = AppConfig.load()
-            manager = LogManager(app_config.common.encode)
-
-            # 番号取得
-            log_config = self._view.log_setting_panel.get_config()
-            date_dir = manager.get_date_directory(log_config.update_date_folder)
-            next_numbers = date_dir.get_next_number(major_update=log_config.update_major_number)
-
-            number_text = f"{next_numbers[0]}.{next_numbers[1]}"
-            self._view.log_setting_panel.set_preview_text(number_text)
-
-        except Exception as e:  # noqa: BLE001
-            print(f"Preview update failed: {e}")
-            self._view.log_setting_panel.set_preview_text("Error")
-
     # =================================================
     # View -> Runner
     # =================================================
@@ -91,21 +78,34 @@ class NEAActivationController(ITabController):
         if self._state != NEAActivationState.IDLE:  # 二重起動防止
             return
 
-        # 前回のグラフ等をクリア
-        self._view.clear_view()
-
-        # 設定読み込み (ファイルを用いる)
-        app_config = AppConfig.load()
-        # 実験条件はウィンドウから所得
-        config = self._view.get_full_config()
-
         self.set_state(NEAActivationState.RUNNING)
+        self._view.clear_view()  # 前回のグラフ等をクリア
 
-        self._runner = NEAActivationRunner(app_config, config)
-        self._runner.step_result_observed.connect(self.on_result)
-        self._runner.error_occurred.connect(self.on_error)
-        self._runner.finished.connect(self.on_finished)
-        self._runner.start()
+        # 設定読み込み
+        app_config = AppConfig.load()
+        nea_config = self._view.get_full_config()
+
+        try:
+            is_sim = getattr(app_config.common, "is_simulation_mode", False)
+            if is_sim:
+                backend = SimulationNEAHardwareBackend(app_config.devices)
+            else:
+                backend = RealNEAHardwareBackend(app_config.devices)
+
+            recorder = self._create_recorder(app_config, nea_config)
+
+            # Runner作成
+            self._runner = NEAActivationRunner(backend, recorder, nea_config)
+            self._runner.step_result_observed.connect(self.on_result)
+            self._runner.error_occurred.connect(self.on_error)
+            self._runner.finished.connect(self.on_finished)
+            self._runner.params_updated.connect(self.on_params_updated)
+            self._runner.start()
+
+        except Exception as e:  # noqa: BLE001, F841
+            # self._view.show_error(f"実験開始準備エラー: {e}")
+            self.set_state(NEAActivationState.IDLE)
+            self._cleanup_experiment()
 
     @Slot()
     def experiment_stop(self) -> None:
@@ -132,7 +132,6 @@ class NEAActivationController(ITabController):
     def on_result(self, result: NEARunnerResult) -> None:
         """結果表示とログ出力処理"""
         self._view.update_view(result)
-        # self.logger.log(result)
 
     @Slot(str)
     def on_error(self, message: str) -> None:
@@ -141,7 +140,49 @@ class NEAActivationController(ITabController):
     @Slot()
     def on_finished(self) -> None:
         """実験終了処理"""
-        print("ex finished")
-
-        self._cleanup()
+        self._cleanup_experiment()
         self.set_state(NEAActivationState.IDLE)
+
+    @Slot(str)
+    def on_params_updated(self, message: str) -> None:
+        """パラメータが更新された際にステータスバーに表示する"""
+        self.status_message_requested.emit(message, 10000)
+
+    # =================================================
+    # Log Helpers
+    # =================================================
+
+    def _create_recorder(self, app_config: AppConfig, nea_config: NEAConfig) -> NEALogRecorder:
+        manager = LogManager(app_config.common.encode)
+
+        # ログファイル準備
+        update_date = nea_config.log.update_date_folder
+        major_update = nea_config.log.update_major_number
+
+        log_dir = manager.get_date_directory(update_date)
+        log_file = log_dir.create_logfile(
+            protocol_name="NEA",
+            major_update=major_update,
+        )
+
+        print(f"Log file created: {log_file.path}")
+        return NEALogRecorder(log_file, nea_config)
+
+    def _update_log_preview(self) -> None:
+        """現在の設定に基づいてログファイル名をプレビュー更新"""
+        try:
+            # マネージャー呼び出し
+            app_config = AppConfig.load()
+            manager = LogManager(app_config.common.encode)
+
+            # 番号取得
+            log_config = self._view.log_setting_panel.get_config()
+            date_dir = manager.get_date_directory(log_config.update_date_folder)
+            next_numbers = date_dir.get_next_number(major_update=log_config.update_major_number)
+
+            number_text = f"{next_numbers[0]}.{next_numbers[1]}"
+            self._view.log_setting_panel.set_preview_text(number_text)
+
+        except Exception as e:  # noqa: BLE001
+            print(f"Preview update failed: {e}")
+            self._view.log_setting_panel.set_preview_text("Error")

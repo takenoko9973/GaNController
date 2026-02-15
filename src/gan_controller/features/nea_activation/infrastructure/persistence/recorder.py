@@ -22,8 +22,9 @@ class LogColumn:
 class NEALogRecorder:
     """NEA実験データの記録を担当するクラス (Recorder)"""
 
-    def __init__(self, log_file: LogFile) -> None:
+    def __init__(self, log_file: LogFile, config: NEAConfig) -> None:
         self.file = log_file
+        self.config = config
 
         # ログデータ項目定義
         self.columns: list[LogColumn] = [
@@ -54,18 +55,18 @@ class NEALogRecorder:
             LogColumn("Event", "{}", lambda _, e: e),
         ]
 
-    def record_header(self, start_time: datetime.datetime, init_nea_config: NEAConfig) -> None:
+    def record_header(self, start_time: datetime.datetime) -> None:
         """ヘッダー情報を記録"""
         lf = self.file
 
         # パラメータの取得 (Quantity -> float/int)
-        wavelength = int(init_nea_config.condition.laser_wavelength.value_as("n"))
-        laser_power_sv = int(init_nea_config.control.laser_power_sv.value_as("m"))
-        stabilization_time = init_nea_config.condition.stabilization_time.base_value
-        integrated_count = int(init_nea_config.condition.integration_count.base_value)
-        interval = init_nea_config.condition.integration_interval.base_value
+        wavelength = int(self.config.condition.laser_wavelength.value_as("n"))
+        laser_power_sv = int(self.config.control.laser_power_sv.value_as("m"))
+        stabilization_time = self.config.condition.stabilization_time.base_value
+        integrated_count = int(self.config.condition.integration_count.base_value)
+        interval = self.config.condition.integration_interval.base_value
 
-        comment = init_nea_config.log.comment
+        comment = self.config.log.comment
 
         # === Header Writing (Identical to reference) ===
         lf.write("#NEA activation monitor\n")
