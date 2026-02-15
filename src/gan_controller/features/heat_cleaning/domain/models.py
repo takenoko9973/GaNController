@@ -4,7 +4,23 @@ from enum import Enum, auto
 
 from gan_controller.common.domain.electricity import ElectricMeasurement
 from gan_controller.common.domain.quantity import Celsius, Pascal, Quantity, Second
+from gan_controller.common.hardware.adapters.logger_adapter import ILoggerAdapter
+from gan_controller.common.hardware.adapters.power_supply_adapter import IPowerSupplyAdapter
+from gan_controller.common.hardware.adapters.pyrometer_adapter import IPyrometerAdapter
 from gan_controller.common.schemas.result import ExperimentResult
+
+
+# =============================================================================
+# Devices
+# =============================================================================
+@dataclass
+class HCDevices:
+    """HeatCleaningで使用するデバイス群を保持するコンテナ"""
+
+    logger: ILoggerAdapter
+    hps: IPowerSupplyAdapter
+    aps: IPowerSupplyAdapter
+    pyrometer: IPyrometerAdapter
 
 
 # =============================================================================

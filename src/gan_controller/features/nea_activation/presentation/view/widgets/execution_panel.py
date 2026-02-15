@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 
 from gan_controller.common.domain.quantity.factory import Current, Power
 from gan_controller.common.ui.widgets import CheckableSpinBox
-from gan_controller.features.nea_activation.schemas import NEAControlConfig
+from gan_controller.features.nea_activation.domain.config import NEAControlConfig
 
 
 class NEAExecutionPanel(QGroupBox):

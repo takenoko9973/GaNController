@@ -6,8 +6,12 @@ from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 from .models import HCExperimentResult
 
 
-class IHeatCleaningHardware(ABC):
+class IHCHardwareFacade(ABC):
     """HeatCleaningRunnerがハードウェアを操作するためのインターフェース"""
+
+    @abstractmethod
+    def setup_for_protocol(self, protocol: ProtocolConfig) -> None:
+        """プロトコルに応じた初期設定 (出力ON/OFFなど) を行う"""
 
     @abstractmethod
     def set_currents(

@@ -6,8 +6,9 @@ import traceback
 import pyvisa
 import pyvisa.constants
 
-from gan_controller.common.application.runner import BaseRunner
+from gan_controller.common.application.runner import ExperimentRunner
 from gan_controller.common.calculations.physics import calculate_quantum_efficiency
+from gan_controller.common.constants import JST
 from gan_controller.common.domain.electricity import ElectricMeasurement
 from gan_controller.common.domain.quantity import Ampere, Current, Quantity, Time, Value
 from gan_controller.common.domain.quantity.factory import Voltage
@@ -17,15 +18,20 @@ from gan_controller.common.hardware.adapters.logger_adapter import ILoggerAdapte
 from gan_controller.common.hardware.adapters.power_supply_adapter import IPowerSupplyAdapter
 from gan_controller.common.io.log_manager import LogManager
 from gan_controller.common.schemas.app_config import AppConfig
-from gan_controller.features.nea_activation.recorder import NEALogRecorder
-from gan_controller.features.nea_activation.schemas import NEAConfig, NEAControlConfig
+from gan_controller.features.nea_activation.domain.config import NEAConfig, NEAControlConfig
+from gan_controller.features.nea_activation.domain.models import NEADevices, NEARunnerResult
+from gan_controller.features.nea_activation.infrastructure.hardware.factory import (
+    NEADeviceManager,
+    RealDeviceFactory,
+    SimulationDeviceFactory,
+)
+from gan_controller.features.nea_activation.infrastructure.persistence.recorder import (
+    NEALogRecorder,
+)
 from gan_controller.features.nea_activation.sensor_reader import NEASensorReader
 
-from .devices import NEADeviceManager, NEADevices, RealDeviceFactory, SimulationDeviceFactory
-from .schemas.result import NEARunnerResult
 
-
-class NEAActivationRunner(BaseRunner):
+class NEAActivationRunner(ExperimentRunner):
     app_config: AppConfig  # 全体設定
     nea_config: NEAConfig  # 実験条件
 
@@ -47,9 +53,8 @@ class NEAActivationRunner(BaseRunner):
 
     def run(self) -> None:
         """実験開始"""
-        tz = self.app_config.common.get_tz()
         try:
-            start_time = datetime.datetime.now(tz)
+            start_time = datetime.datetime.now(JST)
             print(f"\033[32m{start_time:%Y/%m/%d %H:%M:%S} Experiment start\033[0m")
 
             self._setup_recorder(start_time)
@@ -68,14 +73,14 @@ class NEAActivationRunner(BaseRunner):
             raise  # Workerスレッド側でキャッチさせるために再送出
 
         finally:
-            finish_time = datetime.datetime.now(tz)
+            finish_time = datetime.datetime.now(JST)
             print(f"\033[31m{finish_time:%Y/%m/%d %H:%M:%S} Finish\033[0m")
 
     # =================================================================
 
     def _setup_recorder(self, start_time: datetime.datetime) -> None:
         """記録用ファイルの準備とヘッダー書き込み"""
-        manager = LogManager(self.app_config.common.get_tz(), self.app_config.common.encode)
+        manager = LogManager(self.app_config.common.encode)
 
         log_dir = manager.get_date_directory(update_date=self.nea_config.log.update_date_folder)
 
@@ -148,7 +153,7 @@ class NEAActivationRunner(BaseRunner):
                 return True  # 待機完了
 
             # 中断フラグチェック
-            if self._stop:
+            if self.isInterruptionRequested():
                 return False  # 中断された
 
             # 次のチェックまでのスリープ (残り時間とインターバルの短い方)
@@ -164,7 +169,7 @@ class NEAActivationRunner(BaseRunner):
 
         try:
             # メインループ
-            while not self._stop:
+            while not self.isInterruptionRequested():
                 try:
                     # 1ステップ分実行
                     if not self._execute_single_measurement(devices, sensor_reader, start_perf):
@@ -301,8 +306,8 @@ class NEAActivationRunner(BaseRunner):
         if self._recorder:
             self._recorder.record_data(result, event)
 
-        if self.emit_result:
-            self.emit_result(result)
+        if self.step_result_observed:
+            self.step_result_observed.emit(result)
 
     def _handle_visa_error(self, e: pyvisa.errors.VisaIOError) -> None:
         """VISAエラーのハンドリング"""

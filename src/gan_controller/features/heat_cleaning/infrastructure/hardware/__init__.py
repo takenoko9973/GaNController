@@ -1,9 +1,15 @@
-from .factory import HCDevices, RealHCDeviceFactory, SimulationHCDeviceFactory
-from .manager import HCDeviceManager
+from .backend import (
+    HCDevices,
+    HCHardwareBackend,
+    RealHCHardwareBackend,
+    SimulationHCHardwareBackend,
+)
+from .facade import HCHardwareFacade
 
 __all__ = [
-    "HCDeviceManager",
     "HCDevices",
-    "RealHCDeviceFactory",
-    "SimulationHCDeviceFactory",
+    "HCHardwareBackend",
+    "HCHardwareFacade",
+    "RealHCHardwareBackend",
+    "SimulationHCHardwareBackend",
 ]

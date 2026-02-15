@@ -1,8 +1,5 @@
-import datetime
-
 from PySide6.QtCore import Slot
 
-from gan_controller.common.concurrency.experiment_worker import ExperimentWorker
 from gan_controller.common.io.log_manager import LogManager
 from gan_controller.common.schemas.app_config import AppConfig
 from gan_controller.common.ui.tab_controller import ITabController
@@ -18,12 +15,8 @@ from gan_controller.features.heat_cleaning.domain.models import (
     HeatCleaningState,
 )
 from gan_controller.features.heat_cleaning.infrastructure.hardware import (
-    HCDeviceManager,
-    RealHCDeviceFactory,
-    SimulationHCDeviceFactory,
-)
-from gan_controller.features.heat_cleaning.infrastructure.hardware_facade import (
-    HeatCleaningHardwareFacade,
+    RealHCHardwareBackend,
+    SimulationHCHardwareBackend,
 )
 from gan_controller.features.heat_cleaning.infrastructure.persistence import (
     HCLogRecorder,
@@ -37,7 +30,6 @@ class HeatCleaningController(ITabController):
     _protocol_manager: ProtocolManager
     _state: HeatCleaningState
 
-    _worker: ExperimentWorker | None
     _runner: HeatCleaningRunner | None
 
     def __init__(self, view: HeatCleaningMainView) -> None:
@@ -64,11 +56,6 @@ class HeatCleaningController(ITabController):
 
         # ログ設定変更時のプレビュー更新
         self._view.log_setting_panel.config_changed.connect(self._update_log_preview)
-
-    def _attach_worker(self, worker: ExperimentWorker) -> None:
-        worker.result_emitted.connect(self.on_result)
-        worker.error_occurred.connect(self.on_error)
-        worker.finished.connect(self.on_finished)
 
     def _cleanup_experiment(self) -> None:
         """実験終了時のリソース解放"""
@@ -185,22 +172,19 @@ class HeatCleaningController(ITabController):
         # 2. ハードウェアの接続 (Context Managerの手動制御)
         try:
             is_sim = getattr(app_config.common, "is_simulation_mode", False)
-            factory = SimulationHCDeviceFactory() if is_sim else RealHCDeviceFactory()
+            if is_sim:
+                backend = SimulationHCHardwareBackend(app_config.devices)
+            else:
+                backend = RealHCHardwareBackend(app_config.devices)
 
-            with HCDeviceManager(factory, app_config.devices) as device:
-                facade = HeatCleaningHardwareFacade(device, app_config.devices)
-                facade.setup_for_protocol(protocol_config)
-                self._runner = HeatCleaningRunner(facade, protocol_config)
+            recorder = self._create_recorder(app_config, protocol_config)
 
-                recorder = self._create_recorder(app_config, protocol_config)
-                self._runner.add_on_step_listener(recorder.record_data)
-
-                # Worker起動
-                self._worker = ExperimentWorker(self._runner)
-                self._worker.result_emitted.connect(self.on_result)
-                self._worker.error_occurred.connect(self.on_error)
-                self._worker.finished.connect(self.on_finished)
-                self._worker.start()
+            # Runner作成
+            self._runner = HeatCleaningRunner(backend, recorder, protocol_config)
+            self._runner.step_result_observed.connect(self.on_result)
+            self._runner.error_occurred.connect(self.on_error)
+            self._runner.finished.connect(self.on_finished)
+            self._runner.start()
 
         except Exception as e:  # noqa: BLE001
             self._view.show_error(f"実験開始準備エラー: {e}")
@@ -214,7 +198,7 @@ class HeatCleaningController(ITabController):
             return
 
         self.set_state(HeatCleaningState.STOPPING)
-        self._runner.stop()
+        self._runner.requestInterruption()
 
     # =================================================
     # Runner -> View
@@ -228,7 +212,7 @@ class HeatCleaningController(ITabController):
     @Slot(str)
     def on_error(self, message: str) -> None:
         """エラーメッセージ表示とログ出力処理"""
-        print(f"Error occurred: {message}")
+        self._view.show_error(f"Error occurred: {message}")
 
     @Slot()
     def on_finished(self) -> None:
@@ -245,7 +229,7 @@ class HeatCleaningController(ITabController):
     def _create_recorder(
         self, app_config: AppConfig, protocol_config: ProtocolConfig
     ) -> HCLogRecorder:
-        manager = LogManager(app_config.common.get_tz(), app_config.common.encode)
+        manager = LogManager(app_config.common.encode)
 
         # ログファイル準備
         update_date = protocol_config.log.update_date_folder
@@ -257,18 +241,15 @@ class HeatCleaningController(ITabController):
             major_update=major_update,
         )
 
-        recorder = HCLogRecorder(log_file, protocol_config)
-        recorder.record_header(datetime.datetime.now(app_config.common.get_tz()))
-
         print(f"Log file created: {log_file.path}")
-        return recorder
+        return HCLogRecorder(log_file, protocol_config)
 
     def _update_log_preview(self) -> None:
         """現在の設定に基づいてログファイル名をプレビュー更新"""
         try:
             # マネージャー呼び出し
             app_config = AppConfig.load()
-            manager = LogManager(app_config.common.get_tz(), app_config.common.encode)
+            manager = LogManager(app_config.common.encode)
             log_config = self._view.log_setting_panel.get_config()
 
             # 番号取得

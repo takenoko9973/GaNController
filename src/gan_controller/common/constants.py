@@ -1,4 +1,5 @@
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 # === ルートディレクトリの解決 ===
 PROJECT_ROOT = Path.cwd()
@@ -34,3 +35,6 @@ PLANCK_CONSTANT = 6.62607015e-34
 SPEED_OF_LIGHT = 299792458.0
 # Elementary charge [C]
 ELEMENTARY_CHARGE = 1.602176634e-19
+
+# === その他
+JST = ZoneInfo("Asia/Tokyo")
