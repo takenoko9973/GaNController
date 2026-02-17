@@ -50,11 +50,13 @@ class NEAHardwareBackend(ABC):
         if self._devices:
             if self._devices.laser:
                 try:
+                    self._devices.laser.set_emission(False)
                     self._devices.laser.close()
                 except Exception as e:  # noqa: BLE001
                     print(f"Error closing laser: {e}")
             if self._devices.aps:
                 try:
+                    self._devices.aps.set_output(False)
                     self._devices.aps.close()
                 except Exception as e:  # noqa: BLE001
                     print(f"Error closing APS: {e}")
