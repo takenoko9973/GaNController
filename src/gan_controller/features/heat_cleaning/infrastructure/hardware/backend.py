@@ -58,12 +58,14 @@ class HCHardwareBackend(ABC):
 
             if self._devices.aps:
                 try:
+                    self._devices.aps.set_output(False)
                     self._devices.aps.close()
                 except Exception as e:  # noqa: BLE001
                     print(f"Error closing APS: {e}")
 
             if self._devices.hps:
                 try:
+                    self._devices.hps.set_output(False)
                     self._devices.hps.close()
                 except Exception as e:  # noqa: BLE001
                     print(f"Error closing HPS: {e}")
