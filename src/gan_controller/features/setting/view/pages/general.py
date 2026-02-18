@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QFormLayout, QGroupBox, QLineEdit, QVBoxLayout, QWidget
 
-from gan_controller.core.models.app_config import CommonConfig
+from gan_controller.core.domain.app_config import CommonConfig
 
 
 class GeneralConfigPage(QWidget):

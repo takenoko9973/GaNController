@@ -1,7 +1,7 @@
 import random
 from abc import ABC, abstractmethod
 
-from gan_controller.core.models.quantity import (
+from gan_controller.core.domain.quantity import (
     Ampere,
     Current,
     Power,

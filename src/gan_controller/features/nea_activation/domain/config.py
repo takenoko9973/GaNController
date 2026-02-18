@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from pydantic.functional_validators import field_validator
 
 from gan_controller.core.constants import NEA_CONFIG_PATH
-from gan_controller.core.models.quantity import (
+from gan_controller.core.domain.quantity import (
     Ampere,
     Current,
     Dimensionless,

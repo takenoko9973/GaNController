@@ -3,7 +3,7 @@ from typing import Annotated
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from gan_controller.core.models.quantity import PydanticUnit, Quantity, Second
+from gan_controller.core.domain.quantity import PydanticUnit, Quantity, Second
 
 
 # テスト用のPydanticモデル定義

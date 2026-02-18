@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from gan_controller.core.models.app_config import AppConfig, DevicesConfig
+from gan_controller.core.domain.app_config import AppConfig, DevicesConfig
 from gan_controller.features.setting.view.pages import (
     GeneralConfigPage,
     GM10ConfigPage,

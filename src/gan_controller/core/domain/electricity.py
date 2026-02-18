@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from gan_controller.core.models.quantity import Ampere, Quantity, Volt, Watt
+from gan_controller.core.domain.quantity import Ampere, Quantity, Volt, Watt
 
 
 class ElectricProperties(Enum):

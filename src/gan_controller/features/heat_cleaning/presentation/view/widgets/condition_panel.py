@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from gan_controller.core.models.quantity.factory import Current, Time, Value
+from gan_controller.core.domain.quantity.factory import Current, Time, Value
 from gan_controller.features.heat_cleaning.domain.config import HCConditionConfig, HCSequenceConfig
 from gan_controller.features.heat_cleaning.domain.models import SequenceMode
 from gan_controller.presentation.components.widgets import CheckableSpinBox

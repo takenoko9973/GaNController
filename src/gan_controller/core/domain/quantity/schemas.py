@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic import BeforeValidator, PlainSerializer
 
-from gan_controller.core.models.quantity.unit_types import UNIT_BY_SYMBOL
+from gan_controller.core.domain.quantity.unit_types import UNIT_BY_SYMBOL
 
 from .parser import split_unit
 from .prefix_registry import PREFIX_REGISTRY

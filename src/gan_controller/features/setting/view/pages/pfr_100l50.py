@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QFormLayout, QGroupBox, QLineEdit, QVBoxLayout, QWidget
 
-from gan_controller.core.models.app_config import PFR100l50Config
-from gan_controller.core.models.quantity import Current, Voltage
+from gan_controller.core.domain.app_config import PFR100l50Config
+from gan_controller.core.domain.quantity import Current, Voltage
 from gan_controller.presentation.components.widgets import NoScrollDoubleSpinBox, NoScrollSpinBox
 
 

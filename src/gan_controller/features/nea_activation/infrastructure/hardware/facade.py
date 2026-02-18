@@ -1,6 +1,6 @@
-from gan_controller.core.models.app_config import DevicesConfig
-from gan_controller.core.models.electricity import ElectricMeasurement
-from gan_controller.core.models.quantity import (
+from gan_controller.core.domain.app_config import DevicesConfig
+from gan_controller.core.domain.electricity import ElectricMeasurement
+from gan_controller.core.domain.quantity import (
     Ampere,
     Current,
     Ohm,
@@ -127,7 +127,7 @@ class NEAHardwareFacade(INEAHardwareFacade):
 
     def emergency_stop(self) -> None:
         """安全終了処理"""
-        print("HardwareFacade: Executing Emergency Stop")
+        print("NEAFacade: Executing Emergency Stop")
         try:
             self._dev.laser.set_emission(False)
         except Exception as e:  # noqa: BLE001

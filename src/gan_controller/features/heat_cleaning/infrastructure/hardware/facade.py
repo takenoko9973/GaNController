@@ -1,6 +1,6 @@
-from gan_controller.core.models.app_config import DevicesConfig
-from gan_controller.core.models.electricity import ElectricMeasurement
-from gan_controller.core.models.quantity import (
+from gan_controller.core.domain.app_config import DevicesConfig
+from gan_controller.core.domain.electricity import ElectricMeasurement
+from gan_controller.core.domain.quantity import (
     Ampere,
     Current,
     Pressure,
@@ -92,7 +92,7 @@ class HCHardwareFacade(IHCHardwareFacade):
 
     def emergency_stop(self) -> None:
         """インターフェースの実装: 安全停止"""
-        print("HardwareAdapter: Executing Emergency Stop")
+        print("HCFacade: Executing Emergency Stop")
         try:
             self._dev.hps.set_output(False)
         except Exception as e:  # noqa: BLE001
