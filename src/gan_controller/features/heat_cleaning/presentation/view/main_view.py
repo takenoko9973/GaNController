@@ -125,7 +125,6 @@ class HeatCleaningMainView(QWidget):
 
             self.execution_panel.start_button.setEnabled(False)
             self.execution_panel.stop_button.setEnabled(True)
-            print(self.execution_panel.stop_button.isEnabled())
             self.measure_panel.set_status("実行中", True)
         elif state == HeatCleaningState.STOPPING:
             # 停止中もパネル操作不可
