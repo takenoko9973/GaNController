@@ -1,4 +1,4 @@
-from gan_controller.core.models.quantity import Quantity
+from gan_controller.core.domain.quantity import Quantity
 
 
 class TestQuantityConversion:

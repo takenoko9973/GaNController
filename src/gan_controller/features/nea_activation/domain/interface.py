@@ -1,6 +1,7 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
-from gan_controller.core.models.quantity import Ampere, Ohm, Quantity, Volt
+from gan_controller.core.domain.hardware import IExperimentHardwareFacade
+from gan_controller.core.domain.quantity import Ampere, Ohm, Quantity, Volt
 from gan_controller.features.nea_activation.domain.config import (
     NEAConditionConfig,
     NEAControlConfig,
@@ -8,7 +9,7 @@ from gan_controller.features.nea_activation.domain.config import (
 from gan_controller.features.nea_activation.domain.models import NEARunnerResult
 
 
-class INEAHardwareFacade(ABC):
+class INEAHardwareFacade(IExperimentHardwareFacade):
     """NEAActivationRunnerがハードウェアを操作するためのインターフェース"""
 
     @abstractmethod
@@ -41,7 +42,3 @@ class INEAHardwareFacade(ABC):
         dark_pc_voltage: Quantity[Volt],
     ) -> NEARunnerResult:
         """現在のセンサー値や電源状態を読み取り、測定済みのPC値と合わせてResultオブジェクトを生成する"""
-
-    @abstractmethod
-    def emergency_stop(self) -> None:
-        """安全のための停止措置 (レーザーOFF、出力OFFなど) を行う"""

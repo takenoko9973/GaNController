@@ -14,7 +14,6 @@ from gan_controller.features.nea_activation.domain.models import NEADevices
 from gan_controller.features.nea_activation.infrastructure.hardware.backend import (
     NEAHardwareBackend,
 )
-from gan_controller.features.nea_activation.infrastructure.hardware.facade import NEAHardwareFacade
 from gan_controller.features.nea_activation.infrastructure.persistence.recorder import (
     NEALogRecorder,
 )
@@ -54,7 +53,7 @@ class NEAActivationRunner(ExperimentRunner):
             print(f"\033[32m{start_time:%Y/%m/%d %H:%M:%S} Experiment start\033[0m")
 
             # 設定に基づいて適切なFactoryを選択する
-            with self._backend as facade:
+            with self._backend, self._backend.get_facade() as facade:
                 self._measurement_loop(facade)
 
         except Exception as e:
@@ -70,7 +69,7 @@ class NEAActivationRunner(ExperimentRunner):
 
             self.finished.emit()
 
-    def _measurement_loop(self, facade: NEAHardwareFacade) -> None:
+    def _measurement_loop(self, facade: INEAHardwareFacade) -> None:
         """計測ループ"""
         print("Start NEA activation measurement...")
 
@@ -85,7 +84,7 @@ class NEAActivationRunner(ExperimentRunner):
             except pyvisa.errors.VisaIOError as e:
                 self._handle_visa_error(e)
 
-    def _execute_single_measurement(self, facade: NEAHardwareFacade, start_perf: float) -> bool:
+    def _execute_single_measurement(self, facade: INEAHardwareFacade, start_perf: float) -> bool:
         """
         1回分の測定サイクルを実行
 

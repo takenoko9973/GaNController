@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from gan_controller.core.models.quantity import Power, Quantity, Watt
+from gan_controller.core.domain.quantity import Power, Quantity, Watt
 from gan_controller.infrastructure.hardware.drivers import IBeam
 
 

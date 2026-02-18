@@ -6,7 +6,7 @@ import pyvisa
 import pyvisa.constants
 
 from gan_controller.core.constants import JST
-from gan_controller.core.models.quantity import Current, Time
+from gan_controller.core.domain.quantity import Current, Time
 from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.domain.interface import IHCHardwareFacade
 from gan_controller.features.heat_cleaning.domain.models import HCExperimentResult, Sequence
@@ -39,7 +39,7 @@ class HeatCleaningRunner(ExperimentRunner):
         print(f"\033[32m{start_time:%Y/%m/%d %H:%M:%S} Start\033[0m")
 
         try:
-            with self._backend as facade:
+            with self._backend, self._backend.get_facade() as facade:
                 # 初期設定 (Facade経由)
                 facade.setup_for_protocol(self._config)
 

@@ -1,7 +1,7 @@
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QMessageBox
 
-from gan_controller.core.models.app_config import AppConfig
+from gan_controller.core.domain.app_config import AppConfig
 from gan_controller.features.setting.view.main_view import SettingMainView
 from gan_controller.presentation.components.tab_controller import ITabController
 

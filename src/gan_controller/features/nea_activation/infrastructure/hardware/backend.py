@@ -1,10 +1,10 @@
-from abc import ABC, abstractmethod
 from contextlib import ExitStack
-from types import TracebackType
 
 import pyvisa
 
-from gan_controller.core.models.app_config import DevicesConfig
+from gan_controller.core.domain.app_config import DevicesConfig
+from gan_controller.core.domain.hardware import IHardwareBackend
+from gan_controller.features.nea_activation.domain.interface import INEAHardwareFacade
 from gan_controller.features.nea_activation.domain.models import NEADevices
 from gan_controller.infrastructure.hardware.adapters.laser_adapter import (
     IBeamAdapter,
@@ -23,40 +23,22 @@ from gan_controller.infrastructure.hardware.drivers import GM10, PFR100L50, IBea
 from .facade import NEAHardwareFacade
 
 
-class NEAHardwareBackend(ABC):
+class NEAHardwareBackend(IHardwareBackend[NEADevices, INEAHardwareFacade]):
     """ハードウェアの生成・接続・破棄を担う基底クラス"""
 
     def __init__(self, config: DevicesConfig) -> None:
         self._config = config
-        self._devices: NEADevices | None = None
-        self._rm: pyvisa.ResourceManager | None = None
 
-    @abstractmethod
-    def _connect_devices(self) -> tuple[NEADevices, pyvisa.ResourceManager | None]:
-        """具体的な接続処理 (サブクラスで実装)"""
-
-    def __enter__(self) -> NEAHardwareFacade:
-        """デバイスと接続してFacadeを返す"""
-        self._devices, self._rm = self._connect_devices()
-        return NEAHardwareFacade(self._devices, self._config)
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> None:
-        """コンテキスト出口: 切断処理"""
+    def _disconnect_devices(self) -> None:
+        """具体的な切断処理"""
         if self._devices:
             if self._devices.laser:
                 try:
-                    self._devices.laser.set_emission(False)
                     self._devices.laser.close()
                 except Exception as e:  # noqa: BLE001
                     print(f"Error closing laser: {e}")
             if self._devices.aps:
                 try:
-                    self._devices.aps.set_output(False)
                     self._devices.aps.close()
                 except Exception as e:  # noqa: BLE001
                     print(f"Error closing APS: {e}")
@@ -66,15 +48,18 @@ class NEAHardwareBackend(ABC):
                 except Exception as e:  # noqa: BLE001
                     print(f"Error closing logger: {e}")
 
-        if self._rm:
-            try:
-                self._rm.close()
-            except Exception as e:  # noqa: BLE001
-                print(f"Error closing ResourceManager: {e}")
+    def get_facade(self) -> INEAHardwareFacade:
+        """Facadeを構築して返す"""
+        if not self._devices:
+            msg = "Backend is not initialized. Use 'with' statement."
+            raise RuntimeError(msg)
+
+        return NEAHardwareFacade(devices=self._devices, config=self._config)
 
 
 class RealNEAHardwareBackend(NEAHardwareBackend):
     def _connect_devices(self) -> tuple[NEADevices, pyvisa.ResourceManager]:
+        """具体的な接続処理"""
         print("Connecting to Real Hardware...")
         rm = pyvisa.ResourceManager()
 
@@ -96,7 +81,9 @@ class RealNEAHardwareBackend(NEAHardwareBackend):
                 stack.callback(laser_adapter.close)
 
                 stack.pop_all()
-                return NEADevices(logger=logger_adapter, aps=aps_adapter, laser=laser_adapter), rm
+
+                devices = NEADevices(logger=logger_adapter, aps=aps_adapter, laser=laser_adapter)
+                return devices, rm
 
             except Exception as e:
                 print(f"[CRITICAL] Device creation failed: {e}")

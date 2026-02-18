@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 
-from gan_controller.core.models.quantity import Ampere, Quantity
+from gan_controller.core.domain.hardware import IExperimentHardwareFacade
+from gan_controller.core.domain.quantity import Ampere, Quantity
 from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 
 from .models import HCExperimentResult
 
 
-class IHCHardwareFacade(ABC):
+class IHCHardwareFacade(IExperimentHardwareFacade):
     """HeatCleaningRunnerがハードウェアを操作するためのインターフェース"""
 
     @abstractmethod
@@ -29,10 +30,6 @@ class IHCHardwareFacade(ABC):
     @abstractmethod
     def read_metrics(self) -> HCExperimentResult:
         """現在のセンサー値や電源状態を読み取り、Resultオブジェクトとして返す"""
-
-    @abstractmethod
-    def emergency_stop(self) -> None:
-        """安全のための停止措置 (出力OFFなど) を行う"""
 
 
 class IProtocolRepository(ABC):

@@ -1,9 +1,10 @@
-from abc import ABC, abstractmethod
 from contextlib import ExitStack
 
 import pyvisa
 
-from gan_controller.core.models.app_config import DevicesConfig
+from gan_controller.core.domain.app_config import DevicesConfig
+from gan_controller.core.domain.hardware import IHardwareBackend
+from gan_controller.features.heat_cleaning.domain.interface import IHCHardwareFacade
 from gan_controller.features.heat_cleaning.domain.models import HCDevices
 from gan_controller.infrastructure.hardware.adapters.logger_adapter import (
     GM10Adapter,
@@ -19,34 +20,17 @@ from gan_controller.infrastructure.hardware.adapters.pyrometer_adapter import (
 )
 from gan_controller.infrastructure.hardware.drivers import GM10, PFR100L50, PWUX
 
-from .facade import (
-    HCHardwareFacade,
-)
+from .facade import HCHardwareFacade
 
 
-# --- Abstract Base Class (Strategy Interface) ---
-class HCHardwareBackend(ABC):
+class HCHardwareBackend(IHardwareBackend[HCDevices, IHCHardwareFacade]):
     """ハードウェアの生成・接続・破棄を担う基底クラス"""
 
     def __init__(self, config: DevicesConfig) -> None:
         self._config = config
-        self._devices: HCDevices | None = None
-        self._rm: pyvisa.ResourceManager | None = None
 
-    @abstractmethod
-    def _connect_devices(self) -> tuple[HCDevices, pyvisa.ResourceManager | None]:
-        """具体的な接続処理 (サブクラスで実装)"""
-
-    def __enter__(self) -> HCHardwareFacade:
-        """デバイスと接続してFacadeを返す"""
-        #  デバイス接続
-        self._devices, self._rm = self._connect_devices()
-
-        # Facadeの生成
-        return HCHardwareFacade(self._devices, self._config)
-
-    def __exit__(self, exc_type, exc_value, traceback) -> None:  # noqa: ANN001, C901
-        """コンテキスト出口: 切断処理 (Managerの役割)"""
+    def _disconnect_devices(self) -> None:
+        """具体的な切断処理"""
         # デバイスのクローズ処理
         if self._devices:
             # 各デバイスのクローズ (エラーがあっても続行)
@@ -58,14 +42,12 @@ class HCHardwareBackend(ABC):
 
             if self._devices.aps:
                 try:
-                    self._devices.aps.set_output(False)
                     self._devices.aps.close()
                 except Exception as e:  # noqa: BLE001
                     print(f"Error closing APS: {e}")
 
             if self._devices.hps:
                 try:
-                    self._devices.hps.set_output(False)
                     self._devices.hps.close()
                 except Exception as e:  # noqa: BLE001
                     print(f"Error closing HPS: {e}")
@@ -76,17 +58,16 @@ class HCHardwareBackend(ABC):
                 except Exception as e:  # noqa: BLE001
                     print(f"Error closing logger: {e}")
 
-        # VISAリソースマネージャの破棄
-        if self._rm:
-            try:
-                self._rm.close()
-            except Exception as e:  # noqa: BLE001
-                print(f"Error closing ResourceManager: {e}")
+    def get_facade(self) -> IHCHardwareFacade:
+        """Facadeを構築して返す"""
+        if not self._devices:
+            msg = "Backend is not initialized. Use 'with' statement."
+            raise RuntimeError(msg)
+
+        return HCHardwareFacade(devices=self._devices, config=self._config)
 
 
 # --- Concrete Strategies ---
-
-
 class RealHCHardwareBackend(HCHardwareBackend):
     """実機用バックエンド"""
 
@@ -138,12 +119,13 @@ class RealHCHardwareBackend(HCHardwareBackend):
                 # 成功したら、スタックをすべて削除
                 stack.pop_all()
 
-                return HCDevices(
+                devices = HCDevices(
                     logger=logger_adapter,
                     hps=hps_adapter,
                     aps=aps_adapter,
                     pyrometer=pyrometer_adapter,
-                ), rm
+                )
+                return devices, rm
 
             except Exception as e:
                 print(f"[CRITICAL] Device creation failed: {e}")

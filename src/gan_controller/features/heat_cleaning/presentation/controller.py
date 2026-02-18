@@ -1,6 +1,6 @@
 from PySide6.QtCore import Slot
 
-from gan_controller.core.models.app_config import AppConfig
+from gan_controller.core.domain.app_config import AppConfig
 from gan_controller.features.heat_cleaning.application.protocol_manager import (
     ProtocolManager,
     SaveContext,

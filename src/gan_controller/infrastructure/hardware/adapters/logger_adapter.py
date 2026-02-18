@@ -2,7 +2,7 @@ import random
 import time
 from abc import ABC, abstractmethod
 
-from gan_controller.core.models.quantity import Quantity, Volt, Voltage
+from gan_controller.core.domain.quantity import Quantity, Volt, Voltage
 from gan_controller.infrastructure.hardware.drivers import GM10
 
 

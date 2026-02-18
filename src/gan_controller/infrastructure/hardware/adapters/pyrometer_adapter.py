@@ -1,7 +1,7 @@
 import random
 from abc import ABC, abstractmethod
 
-from gan_controller.core.models.quantity import Celsius, Quantity, Temperature
+from gan_controller.core.domain.quantity import Celsius, Quantity, Temperature
 from gan_controller.infrastructure.hardware.drivers import PWUX
 
 

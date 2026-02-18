@@ -1,6 +1,6 @@
 import pytest
 
-from gan_controller.core.models.quantity import Quantity, Time, Value
+from gan_controller.core.domain.quantity import Quantity, Time, Value
 
 
 class TestQuantity:

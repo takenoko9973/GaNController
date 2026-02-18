@@ -4,7 +4,7 @@ from typing import Annotated
 from pydantic import BaseModel, Field
 
 from gan_controller.core.constants import PROTOCOLS_DIR
-from gan_controller.core.models.quantity import (
+from gan_controller.core.domain.quantity import (
     Ampere,
     Current,
     Dimensionless,
