@@ -1,7 +1,7 @@
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget
 
-from gan_controller.features.nea_activation.domain.models import NEARunnerResult
+from gan_controller.features.nea_activation.domain.models import NEAExperimentResult
 from gan_controller.presentation.components.widgets import DualAxisGraph, GraphData
 
 
@@ -94,7 +94,7 @@ class NEAGraphPanel(QWidget):
 
         self._init_lines()  # ライン再設定
 
-    def append_data(self, result: NEARunnerResult) -> None:
+    def append_data(self, result: NEAExperimentResult) -> None:
         t = result.timestamp
 
         # PC, QE が負の場合は描画しない

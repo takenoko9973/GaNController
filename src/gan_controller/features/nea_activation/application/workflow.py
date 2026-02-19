@@ -1,88 +1,107 @@
 import datetime
 import queue
 import time
-import traceback
 
 import pyvisa
 import pyvisa.constants
-from PySide6.QtCore import Signal
 
 from gan_controller.core.constants import JST
 from gan_controller.features.nea_activation.domain.config import NEAConfig, NEAControlConfig
 from gan_controller.features.nea_activation.domain.interface import INEAHardwareFacade
-from gan_controller.features.nea_activation.domain.models import NEADevices
+from gan_controller.features.nea_activation.domain.models import NEAExperimentResult
 from gan_controller.features.nea_activation.infrastructure.hardware.backend import (
     NEAHardwareBackend,
 )
 from gan_controller.features.nea_activation.infrastructure.persistence.recorder import (
     NEALogRecorder,
 )
-from gan_controller.presentation.async_runners.runner import ExperimentRunner
+from gan_controller.presentation.async_runners.interfaces import (
+    IExperimentObserver,
+    IExperimentWorkflow,
+)
 
 
-class NEAActivationRunner(ExperimentRunner):
+class NEAActivationWorkflow(IExperimentWorkflow):
     _backend: NEAHardwareBackend
     _recorder: NEALogRecorder
     _config: NEAConfig
 
-    _request_queue = queue.Queue()  # スレッド通信用キュー
-
-    params_updated = Signal(str)
+    _request_queue: queue.Queue  # スレッド通信用キュー
 
     def __init__(
-        self, backend: NEAHardwareBackend, recorder: NEALogRecorder, config: NEAConfig
+        self,
+        backend: NEAHardwareBackend,
+        recorder: NEALogRecorder,
+        config: NEAConfig,
+        request_queue: queue.Queue,  # パラメータ更新用
     ) -> None:
-        super().__init__()
         self._backend = backend
         self._recorder = recorder
         self._config = config
 
-    def update_control_params(self, new_params: NEAControlConfig) -> None:
-        """実験中にパラメータを更新する"""
-        self._request_queue.put(new_params)
+        self._request_queue = request_queue
 
-    # =================================================================
-    # Main Execution Flow
-    # =================================================================
+        self._observer: IExperimentObserver | None = None
 
-    def run(self) -> None:
-        """実験開始"""
+    def execute(self, observer: IExperimentObserver) -> None:
+        """メインループ"""
+        self._observer = observer
+
         try:
             start_time = datetime.datetime.now(JST)
             self._recorder.record_header(start_time)
             print(f"\033[32m{start_time:%Y/%m/%d %H:%M:%S} Experiment start\033[0m")
 
-            # 設定に基づいて適切なFactoryを選択する
+            # backendのコンテキスト管理
             with self._backend, self._backend.get_facade() as facade:
                 self._measurement_loop(facade)
-
-        except Exception as e:
-            # エラー発生時はログ出力などを行う
-
-            print(f"\033[31mExperiment Error: {e}\033[0m")
-            print(traceback.format_exc())
-            raise
 
         finally:
             finish_time = datetime.datetime.now(JST)
             print(f"\033[31m{finish_time:%Y/%m/%d %H:%M:%S} Finish\033[0m")
 
-            self.finished.emit()
+            self._observer.on_finished()
 
     def _measurement_loop(self, facade: INEAHardwareFacade) -> None:
         """計測ループ"""
-        print("Start NEA activation measurement...")
-
         start_perf = time.perf_counter()  # 開始時間 (高分解能)
 
         # メインループ
-        while not self.isInterruptionRequested():
+        while not self._should_stop():
             try:
                 # 1ステップ分実行
-                if not self._execute_single_measurement(facade, start_perf):
+                success = self._execute_single_measurement(facade, start_perf)
+                if not success:
                     break
+
             except pyvisa.errors.VisaIOError as e:
                 self._handle_visa_error(e)
+
+    # =================================================================
+    # Observer ヘルパーメソッド
+    # =================================================================
+
+    def _should_stop(self) -> bool:
+        """中断要求が来ているかチェック"""
+        # Observerがなければ強制停止
+        if self._observer is None:
+            return True
+
+        return self._observer.is_interruption_requested()
+
+    def _notify_message(self, message: str) -> None:
+        """メッセージ通知"""
+        if self._observer:
+            self._observer.on_message(message)
+
+    def _notify_result(self, result: NEAExperimentResult) -> None:
+        """結果通知"""
+        if self._observer:
+            self._observer.on_step_completed(result)
+
+    # =================================================================
+    # 内部ロジック
+    # =================================================================
 
     def _execute_single_measurement(self, facade: INEAHardwareFacade, start_perf: float) -> bool:
         """
@@ -130,11 +149,8 @@ class NEAActivationRunner(ExperimentRunner):
         pc = result.photocurrent
         print(f"{qe:.3e}, {pc:.3e}, {result.ext_pressure:.2e} (EXT)")
 
-        if self._recorder:
-            self._recorder.record_data(result, "")
-
-        if self.step_result_observed:
-            self.step_result_observed.emit(result)
+        self._recorder.record_data(result, "")
+        self._notify_result(result)
 
         return True
 
@@ -153,7 +169,7 @@ class NEAActivationRunner(ExperimentRunner):
             facade.apply_control_params(latest_config)
             self._config.control = latest_config
 
-            self.params_updated.emit(msg)
+            self._notify_message(msg)
 
     # =================================================================
 
@@ -180,7 +196,7 @@ class NEAActivationRunner(ExperimentRunner):
                 return True  # 待機完了
 
             # 中断フラグチェック
-            if self.isInterruptionRequested():
+            if self._should_stop():
                 return False  # 中断された
 
             # 次のチェックまでのスリープ (残り時間とインターバルの短い方)
@@ -194,20 +210,6 @@ class NEAActivationRunner(ExperimentRunner):
         else:
             # それ以外は再送出
             raise e
-
-    def _finalize_safety(self, devices: NEADevices) -> None:
-        """終了処理"""
-        print("Executing safety cleanup...")
-
-        try:
-            devices.laser.set_emission(False)
-        except Exception as cleanup_err:  # noqa: BLE001
-            print(f"Failed to stop laser: {cleanup_err}")
-
-        try:
-            devices.aps.set_output(False)
-        except Exception as cleanup_err:  # noqa: BLE001
-            print(f"Failed to stop APS: {cleanup_err}")
 
     # =================================================================
 

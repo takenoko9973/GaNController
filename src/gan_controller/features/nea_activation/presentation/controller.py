@@ -1,10 +1,15 @@
+import queue
+
 from PySide6.QtCore import Slot
 
 from gan_controller.core.constants import NEA_CONFIG_PATH
 from gan_controller.core.domain.app_config import AppConfig
-from gan_controller.features.nea_activation.application.runner import NEAActivationRunner
+from gan_controller.features.nea_activation.application.workflow import NEAActivationWorkflow
 from gan_controller.features.nea_activation.domain.config import NEAConfig
-from gan_controller.features.nea_activation.domain.models import NEAActivationState, NEARunnerResult
+from gan_controller.features.nea_activation.domain.models import (
+    NEAActivationState,
+    NEAExperimentResult,
+)
 from gan_controller.features.nea_activation.infrastructure.hardware.backend import (
     RealNEAHardwareBackend,
     SimulationNEAHardwareBackend,
@@ -14,6 +19,7 @@ from gan_controller.features.nea_activation.infrastructure.persistence.recorder 
 )
 from gan_controller.features.nea_activation.presentation.view import NEAActivationMainView
 from gan_controller.infrastructure.persistence.log_manager import LogManager
+from gan_controller.presentation.async_runners.manager import AsyncExperimentManager
 from gan_controller.presentation.components.tab_controller import ITabController
 
 
@@ -22,25 +28,24 @@ class NEAActivationController(ITabController):
 
     _state: NEAActivationState
 
-    _runner: NEAActivationRunner | None
+    _runner_manager: AsyncExperimentManager
 
     def __init__(self, view: NEAActivationMainView) -> None:
         super().__init__()
 
         self._view = view
-        self._attach_view()
 
-        self._state = NEAActivationState.IDLE
-        self._cleanup_experiment()
+        self._runner_manager = AsyncExperimentManager()
+        self._request_queue = queue.Queue()
 
+        self._connect_view_signals()
+        self._connect_manager_signals()
+
+        self.set_state(NEAActivationState.IDLE)
         self._load_initial_config()
 
-    def _load_initial_config(self) -> None:
-        """起動時に設定ファイルを読み込んでUIにセットする"""
-        config = NEAConfig.load(NEA_CONFIG_PATH)
-        self._view.set_full_config(config)
-
-    def _attach_view(self) -> None:
+    def _connect_view_signals(self) -> None:
+        """UI操作を受け取るシグナルの接続"""
         self._view.execution_panel.start_requested.connect(self.experiment_start)
         self._view.execution_panel.stop_requested.connect(self.experiment_stop)
         self._view.execution_panel.apply_requested.connect(self.setting_apply)
@@ -48,8 +53,17 @@ class NEAActivationController(ITabController):
         # ログ設定変更時のプレビュー更新
         self._view.log_setting_panel.config_changed.connect(self._update_log_preview)
 
-    def _cleanup_experiment(self) -> None:
-        self._runner = None
+    def _connect_manager_signals(self) -> None:
+        """実験ロジックからの通知を受け取るシグナルの接続"""
+        self._runner_manager.step_result_observed.connect(self.on_result)
+        self._runner_manager.error_occurred.connect(self.on_error)
+        self._runner_manager.finished.connect(self.on_finished)
+        self._runner_manager.message_logged.connect(self.on_message)
+
+    def _load_initial_config(self) -> None:
+        """起動時に設定ファイルを読み込んでUIにセットする"""
+        config = NEAConfig.load(NEA_CONFIG_PATH)
+        self._view.set_full_config(config)
 
     def set_state(self, state: NEAActivationState) -> None:
         """状態変更"""
@@ -94,42 +108,36 @@ class NEAActivationController(ITabController):
 
             recorder = self._create_recorder(app_config, nea_config)
 
-            # Runner作成
-            self._runner = NEAActivationRunner(backend, recorder, nea_config)
-            self._runner.step_result_observed.connect(self.on_result)
-            self._runner.error_occurred.connect(self.on_error)
-            self._runner.finished.connect(self.on_finished)
-            self._runner.params_updated.connect(self.on_params_updated)
-            self._runner.start()
+            workflow = NEAActivationWorkflow(backend, recorder, nea_config, self._request_queue)
+            self._runner_manager.start_workflow(workflow)
 
         except Exception as e:  # noqa: BLE001, F841
             # self._view.show_error(f"実験開始準備エラー: {e}")
             self.set_state(NEAActivationState.IDLE)
-            self._cleanup_experiment()
 
     @Slot()
     def experiment_stop(self) -> None:
         """実験中断処理"""
-        if self._state != NEAActivationState.RUNNING or self._runner is None:
+        if self._state != NEAActivationState.RUNNING or not self._runner_manager.is_running():
             return
 
         self.set_state(NEAActivationState.STOPPING)
-        self._runner.requestInterruption()
+        self._runner_manager.stop_workflow()
 
     @Slot()
     def setting_apply(self) -> None:
         """実験途中での値更新"""
         config = self._view.execution_panel.get_config()
 
-        if self._state == NEAActivationState.RUNNING and self._runner is not None:
-            self._runner.update_control_params(config)
+        if self._state == NEAActivationState.RUNNING and self._runner_manager.is_running():
+            self._request_queue.put(config)
 
     # =================================================
     # Runner -> View
     # =================================================
 
     @Slot(object)
-    def on_result(self, result: NEARunnerResult) -> None:
+    def on_result(self, result: NEAExperimentResult) -> None:
         """結果表示とログ出力処理"""
         self._view.update_view(result)
 
@@ -140,12 +148,11 @@ class NEAActivationController(ITabController):
     @Slot()
     def on_finished(self) -> None:
         """実験終了処理"""
-        self._cleanup_experiment()
         self.set_state(NEAActivationState.IDLE)
 
     @Slot(str)
-    def on_params_updated(self, message: str) -> None:
-        """パラメータが更新された際にステータスバーに表示する"""
+    def on_message(self, message: str) -> None:
+        """実験ロジックからの通知を受け取ったときの処理"""
         self.status_message_requested.emit(message, 10000)
 
     # =================================================

@@ -6,7 +6,7 @@ from gan_controller.features.nea_activation.domain.config import (
     NEAConditionConfig,
     NEAControlConfig,
 )
-from gan_controller.features.nea_activation.domain.models import NEARunnerResult
+from gan_controller.features.nea_activation.domain.models import NEAExperimentResult
 
 
 class INEAHardwareFacade(IExperimentHardwareFacade):
@@ -40,5 +40,5 @@ class INEAHardwareFacade(IExperimentHardwareFacade):
         bright_pc_voltage: Quantity[Volt],
         dark_pc: Quantity[Ampere],
         dark_pc_voltage: Quantity[Volt],
-    ) -> NEARunnerResult:
+    ) -> NEAExperimentResult:
         """現在のセンサー値や電源状態を読み取り、測定済みのPC値と合わせてResultオブジェクトを生成する"""

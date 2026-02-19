@@ -21,7 +21,7 @@ from gan_controller.features.nea_activation.domain.config import (
     NEAControlConfig,
 )
 from gan_controller.features.nea_activation.domain.interface import INEAHardwareFacade
-from gan_controller.features.nea_activation.domain.models import NEADevices, NEARunnerResult
+from gan_controller.features.nea_activation.domain.models import NEADevices, NEAExperimentResult
 
 
 class NEAHardwareFacade(INEAHardwareFacade):
@@ -77,7 +77,7 @@ class NEAHardwareFacade(INEAHardwareFacade):
         bright_pc_voltage: Quantity[Volt],
         dark_pc: Quantity[Ampere],
         dark_pc_voltage: Quantity[Volt],
-    ) -> NEARunnerResult:
+    ) -> NEAExperimentResult:
         """各種センサー読み取りとResult生成"""
         # --- 計算 ---
         wavelength_nm = condition_config.laser_wavelength.value_as("n")
@@ -108,7 +108,7 @@ class NEAHardwareFacade(INEAHardwareFacade):
             power=self._dev.aps.measure_power(),
         )
 
-        return NEARunnerResult(
+        return NEAExperimentResult(
             timestamp=Time(timestamp),
             laser_power_sv=control_config.laser_power_sv,
             laser_power_pv=control_config.laser_power_pv,
