@@ -12,10 +12,13 @@ from gan_controller.features.heat_cleaning.domain.interface import IHCHardwareFa
 from gan_controller.features.heat_cleaning.domain.models import HCExperimentResult, Sequence
 from gan_controller.features.heat_cleaning.infrastructure.hardware import HCHardwareBackend
 from gan_controller.features.heat_cleaning.infrastructure.persistence import HCLogRecorder
-from gan_controller.presentation.async_runners.runner import ExperimentRunner
+from gan_controller.presentation.async_runners.interfaces import (
+    IExperimentObserver,
+    IExperimentWorkflow,
+)
 
 
-class HeatCleaningRunner(ExperimentRunner):
+class HeatCleaningWorkflow(IExperimentWorkflow):
     _backend: HCHardwareBackend
     _recorder: HCLogRecorder
     _config: ProtocolConfig
@@ -28,12 +31,16 @@ class HeatCleaningRunner(ExperimentRunner):
         self._recorder = recorder
         self._config = config
 
+        self._observer: IExperimentObserver | None = None
+
     # =================================================================
     # Main Execution Flow
     # =================================================================
 
-    def run(self) -> None:
+    def execute(self, observer: IExperimentObserver) -> None:
         """実験開始"""
+        self._observer = observer
+
         start_time = datetime.datetime.now(JST)
         self._recorder.record_header(start_time)
         print(f"\033[32m{start_time:%Y/%m/%d %H:%M:%S} Start\033[0m")
@@ -55,7 +62,33 @@ class HeatCleaningRunner(ExperimentRunner):
             finish_time = datetime.datetime.now(JST)
             print(f"\033[31m{finish_time:%Y/%m/%d %H:%M:%S} Finish\033[0m")
 
-            self.finished.emit()
+            self._observer.on_finished()
+
+    # =================================================================
+    # Observer ヘルパーメソッド
+    # =================================================================
+
+    def _should_stop(self) -> bool:
+        """中断要求が来ているかチェック"""
+        # Observerがなければ強制停止
+        if self._observer is None:
+            return True
+
+        return self._observer.is_interruption_requested()
+
+    def _notify_message(self, message: str) -> None:
+        """メッセージ通知"""
+        if self._observer:
+            self._observer.on_message(message)
+
+    def _notify_result(self, result: HCExperimentResult) -> None:
+        """結果通知"""
+        if self._observer:
+            self._observer.on_step_completed(result)
+
+    # =================================================================
+    # 内部ロジック
+    # =================================================================
 
     def _execute_sequences(self, facade: IHCHardwareFacade) -> None:
         # シーケンスの取得
@@ -70,7 +103,7 @@ class HeatCleaningRunner(ExperimentRunner):
         # 各シーケンスを順番に実行
         for i, seq in enumerate(sequences):
             # 停止フラグが立っていたらループを抜ける
-            if self.isInterruptionRequested():
+            if self._should_stop():
                 print("Experiment stopped by user.")
                 break
 
@@ -88,7 +121,7 @@ class HeatCleaningRunner(ExperimentRunner):
         seq_start_time = time.perf_counter()
         next_target_perf = seq_start_time
 
-        while not self.isInterruptionRequested():
+        while not self._should_stop():
             # タイミング調整
             self._wait_for_next_tick(next_target_perf)
             next_target_perf += interval  # 次の時刻更新
@@ -105,7 +138,7 @@ class HeatCleaningRunner(ExperimentRunner):
             # Result 処理
             if result:
                 # 画面更新用シグナル
-                self.step_result_observed.emit(result)
+                self._notify_result(result)
 
                 # ログ書き込み
                 self._recorder.record_data(result)

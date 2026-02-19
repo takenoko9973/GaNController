@@ -5,7 +5,7 @@ from gan_controller.features.heat_cleaning.application.protocol_manager import (
     ProtocolManager,
     SaveContext,
 )
-from gan_controller.features.heat_cleaning.application.runner import HeatCleaningRunner
+from gan_controller.features.heat_cleaning.application.workflow import HeatCleaningWorkflow
 from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.domain.constants import NEW_PROTOCOL_TEXT
 from gan_controller.features.heat_cleaning.domain.models import (
@@ -22,6 +22,7 @@ from gan_controller.features.heat_cleaning.infrastructure.persistence import (
 )
 from gan_controller.features.heat_cleaning.presentation.view import HeatCleaningMainView
 from gan_controller.infrastructure.persistence.log_manager import LogManager
+from gan_controller.presentation.async_runners.manager import AsyncExperimentManager
 from gan_controller.presentation.components.tab_controller import ITabController
 
 
@@ -30,7 +31,7 @@ class HeatCleaningController(ITabController):
     _protocol_manager: ProtocolManager
     _state: HeatCleaningState
 
-    _runner: HeatCleaningRunner | None
+    _runner_manager: AsyncExperimentManager
 
     def __init__(self, view: HeatCleaningMainView) -> None:
         super().__init__()
@@ -38,12 +39,15 @@ class HeatCleaningController(ITabController):
 
         repository = ProtocolRepository()
         self._protocol_manager = ProtocolManager(repository)
+        self._runner_manager = AsyncExperimentManager()
 
-        self._attach_view()
+        self._connect_view_signals()
+        self._connect_manager_signals()
+
         self.set_state(HeatCleaningState.IDLE)
         self._refresh_protocol_list()
 
-    def _attach_view(self) -> None:
+    def _connect_view_signals(self) -> None:
         """Viewからのシグナル接続"""
         self._view.protocol_select_panel.protocol_changed.connect(self._on_protocol_changed)
         self._view.protocol_select_panel.protocol_saved.connect(self._on_save_action)
@@ -57,10 +61,12 @@ class HeatCleaningController(ITabController):
         # ログ設定変更時のプレビュー更新
         self._view.log_setting_panel.config_changed.connect(self._update_log_preview)
 
-    def _cleanup_experiment(self) -> None:
-        """実験終了時のリソース解放"""
-        self._worker = None
-        self._runner = None
+    def _connect_manager_signals(self) -> None:
+        """実験ロジックからの通知を受け取るシグナルの接続"""
+        self._runner_manager.step_result_observed.connect(self.on_result)
+        self._runner_manager.error_occurred.connect(self.on_error)
+        self._runner_manager.finished.connect(self.on_finished)
+        self._runner_manager.message_logged.connect(self.on_message)
 
     def set_state(self, state: HeatCleaningState) -> None:
         """状態変更"""
@@ -180,25 +186,21 @@ class HeatCleaningController(ITabController):
             recorder = self._create_recorder(app_config, protocol_config)
 
             # Runner作成
-            self._runner = HeatCleaningRunner(backend, recorder, protocol_config)
-            self._runner.step_result_observed.connect(self.on_result)
-            self._runner.error_occurred.connect(self.on_error)
-            self._runner.finished.connect(self.on_finished)
-            self._runner.start()
+            workflow = HeatCleaningWorkflow(backend, recorder, protocol_config)
+            self._runner_manager.start_workflow(workflow)
 
         except Exception as e:  # noqa: BLE001
             self._view.show_error(f"実験開始準備エラー: {e}")
             self.set_state(HeatCleaningState.IDLE)
-            self._cleanup_experiment()
 
     @Slot()
     def experiment_stop(self) -> None:
         """実験中断処理"""
-        if self._state != HeatCleaningState.RUNNING or self._runner is None:
+        if self._state != HeatCleaningState.RUNNING or not self._runner_manager.is_running():
             return
 
         self.set_state(HeatCleaningState.STOPPING)
-        self._runner.requestInterruption()
+        self._runner_manager.stop_workflow()
 
     # =================================================
     # Runner -> View
@@ -218,7 +220,11 @@ class HeatCleaningController(ITabController):
     def on_finished(self) -> None:
         """実験終了処理"""
         self.set_state(HeatCleaningState.IDLE)
-        self._cleanup_experiment()
+
+    @Slot(str)
+    def on_message(self, message: str) -> None:
+        """実験ロジックからの通知を受け取ったときの処理"""
+        self.status_message_requested.emit(message, 10000)
 
     # =================================================
     # Log Helpers

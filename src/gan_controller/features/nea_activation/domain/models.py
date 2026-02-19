@@ -44,7 +44,7 @@ class NEAActivationState(Enum):
 # Result Data
 # =============================================================================
 @dataclass
-class NEARunnerResult(ExperimentResult):
+class NEAExperimentResult(ExperimentResult):
     """NEA活性化の測定結果 (必要そうな設定値や観測値は全て入れとく)"""
 
     timestamp: Quantity[Second]
