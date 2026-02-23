@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget
 
 from gan_controller.features.nea_activation.domain.models import NEAExperimentResult
 from gan_controller.presentation.components.widgets import DualAxisGraph, GraphData
@@ -30,13 +30,12 @@ class NEAGraphPanel(QWidget):
         # グラフ表示幅
         self.time_window_spin = QSpinBox(minimum=0, maximum=99999, value=600, suffix=" s")
         self.time_window_spin.setSpecialValueText("全期間")  # 0の時のテキスト
-        self.update_window_button = QPushButton("更新")
-        setting_layout.addWidget(QLabel("表示範囲 (0s=全表示) :"))
-        setting_layout.addWidget(self.time_window_spin)
-        setting_layout.addWidget(self.update_window_button)
+        # タイピング中は値を更新せず、Enterキー押下かフォーカス外れ時のみ更新
+        self.time_window_spin.setKeyboardTracking(False)
+        self.time_window_spin.valueChanged.connect(self._on_update_graph_settings)
 
-        # ボタンを押すと反映
-        self.update_window_button.clicked.connect(self._on_update_graph_settings)
+        setting_layout.addWidget(QLabel("表示範囲 (0s=全期間) :"))
+        setting_layout.addWidget(self.time_window_spin)
 
         layout.addLayout(setting_layout)
 
