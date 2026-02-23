@@ -28,7 +28,7 @@ class NEAGraphPanel(QWidget):
         setting_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         # グラフ表示幅
-        self.time_window_spin = QSpinBox(minimum=0, maximum=99999, value=600, suffix=" s")
+        self.time_window_spin = QSpinBox(minimum=0, maximum=180, value=10, suffix=" min")
         self.time_window_spin.setSpecialValueText("全期間")  # 0の時のテキスト
         # タイピング中は値を更新せず、Enterキー押下かフォーカス外れ時のみ更新
         self.time_window_spin.setKeyboardTracking(False)
@@ -44,7 +44,7 @@ class NEAGraphPanel(QWidget):
         self.graph_pc.setMinimumSize(500, 300)
         self.graph_pc.set_title("Photocurrent")
         self.graph_pc.set_axis_labels(
-            x_label="Time (s)", left_label="Photocurrent (A)", right_label="Pressure (Pa)"
+            x_label="Time (min)", left_label="Photocurrent (A)", right_label="Pressure (Pa)"
         )
         self.graph_pc.set_axis_scale("right", "log")
         self.graph_pc.set_axis_formatter("left", True)
@@ -54,7 +54,7 @@ class NEAGraphPanel(QWidget):
         self.graph_qe.setMinimumSize(500, 300)
         self.graph_qe.set_title("Quantum Efficiency")
         self.graph_qe.set_axis_labels(
-            x_label="Time (s)", left_label="Quantum Efficiency (%)", right_label="Pressure (Pa)"
+            x_label="Time (min)", left_label="Quantum Efficiency (%)", right_label="Pressure (Pa)"
         )
         self.graph_qe.set_axis_scale("right", "log")
         self.graph_qe.set_axis_formatter("left", True)
@@ -107,14 +107,14 @@ class NEAGraphPanel(QWidget):
 
         #  データ追加
         self._history_pc.append_point(
-            x_value=t.base_value,
+            x_value=t.value_as("min"),
             y_values={
                 "pc": pc_val,
                 "pres": result.ext_pressure.base_value,
             },
         )
         self._history_qe.append_point(
-            x_value=t.base_value,
+            x_value=t.value_as("min"),
             y_values={
                 "qe": qe_val,
                 "pres": result.ext_pressure.base_value,
