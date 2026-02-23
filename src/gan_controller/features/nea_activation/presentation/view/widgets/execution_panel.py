@@ -13,7 +13,10 @@ from PySide6.QtWidgets import (
 
 from gan_controller.core.domain.quantity import Current, Power
 from gan_controller.features.nea_activation.domain.config import NEAControlConfig
-from gan_controller.presentation.components.widgets import CheckableSpinBox
+from gan_controller.presentation.components.widgets import (
+    CheckableSpinBox,
+    SignificantFigureSpinBox,
+)
 
 
 class NEAExecutionPanel(QGroupBox):
@@ -62,8 +65,15 @@ class NEAExecutionPanel(QGroupBox):
         laser_layout = QGridLayout()
         laser_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        self.laser_sv_spin = QDoubleSpinBox(value=10, suffix=" mW", decimals=1, maximum=120)
-        self.laser_pv_spin = QDoubleSpinBox(value=3.01, suffix=" mW", decimals=4, maximum=120)
+        self.laser_sv_spin = QDoubleSpinBox()
+        self.laser_sv_spin.setValue(10)
+        self.laser_sv_spin.setSuffix(" mW")
+        self.laser_sv_spin.setRange(0, 120)
+        self.laser_sv_spin.setDecimals(1)
+        self.laser_pv_spin = SignificantFigureSpinBox(sig_figs=3)
+        self.laser_pv_spin.setValue(3.01)
+        self.laser_pv_spin.setSuffix(" mW")
+        self.laser_pv_spin.setRange(1e-3, 120)
         laser_layout.addWidget(QLabel("レーザー出力 :"), 0, 0)
         laser_layout.addWidget(self.laser_sv_spin, 0, 1)
         laser_layout.addWidget(QLabel("レーザー実出力 :"), 1, 0)

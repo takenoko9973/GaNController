@@ -46,7 +46,7 @@ class NEAActivationMainView(QWidget):
         """左側 (設定値、制御) レイアウト"""
         left_panel = QFrame()
         left_panel.setFrameShape(QFrame.Shape.StyledPanel)
-        left_panel.setFixedWidth(400)
+        left_panel.setFixedWidth(410)
 
         left_layout = QVBoxLayout(left_panel)
 
