@@ -1,39 +1,41 @@
-[250904."[2.1]NEA-20250917101546"]
-event_spans = [
-    { event_name = "Cs", start_sec = 97.1, end_sec = 735.7, label = "Cs (3.5A)" },
-    { event_name = "O2", start_sec = 735.7, end_sec = 745.7 },
-    #
-    { event_name = "Cs", start_sec = 880.3, end_sec = 1374.6 },
-    { event_name = "O2", start_sec = 1419.8, end_sec = 1491.1, label = "$\\mathrm{O_2}$" },
-    #
-    { event_name = "Cs", start_sec = 1607.6, end_sec = 1758.6 },
-    { event_name = "O2", start_sec = 1816.8, end_sec = 1862.2 },
-    #
-    { event_name = "Cs", start_sec = 1954.4, end_sec = 2385.9 },
-    { event_name = "O2", start_sec = 2539.8, end_sec = 2645.6 },
-    #
-    { event_name = "Cs", start_sec = 2693.0, end_sec = 2829.1 },
+[colors]
+Cs = "red"
+O2 = "blue"
+"Cs(3.0A)" = "orange"
+"Cs(3.8A)" = "chocolate"
+Event = "green"
+LaserEngChange = "green"
+
+[plots."250904_2.1"]
+spans = [
+    { event = "Cs", start = 97.1, end = 735.7, label = "Cs (3.5A)" },
+    { event = "O2", start = 735.7, end = 745.7 },
+    { event = "Cs", start = 880.3, end = 1374.6 },
+    { event = "O2", start = 1419.8, end = 1491.1, label = "$\\mathrm{O_2}$" },
+    { event = "Cs", start = 1607.6, end = 1758.6 },
+    { event = "O2", start = 1816.8, end = 1862.2 },
+    { event = "Cs", start = 1954.4, end = 2385.9 },
+    { event = "O2", start = 2539.8, end = 2645.6 },
+    { event = "Cs", start = 2693.0, end = 2829.1 },
 ]
 
-[251015."[2.2]NEA-20251028153023"]
-event_spans = [
-    { event_name = "Cs", start_sec = 217.3, end_sec = 3108.6, label = "Cs (3.5A)", label_dx_sec = 200.0 },
-    { event_name = "O2", start_sec = 3272.6, end_sec = 3477.6, label = "$\\mathrm{O_2}$" },
-    #
-    { event_name = "Cs", start_sec = 3652.4, end_sec = 4034.4 },
-    { event_name = "Cs(3.0A)", start_sec = 4034.4, end_sec = 4494.1, label = "Cs (3.0A)", label_dx_sec = 200.0 },
-    #
-    { event_name = "LaserEngChange", start_sec = 1191.4, end_sec = 1415.9, label = "Laser \n 3mW → 6mW → 25mW", label_y = 0.7 },
+[plots."251015_2.2"]
+spans = [
+    { event = "Cs", start = 217.3, end = 3108.6, label = "Cs (3.5A)" },
+    { event = "O2", start = 3272.6, end = 3477.6, label = "$\\mathrm{O_2}$" },
+    { event = "Cs", start = 3652.4, end = 4034.4 },
+    { event = "Cs(3.0A)", start = 4034.4, end = 4494.1, label = "Cs (3.0A)" },
+]
+points = [
+    { event = "LaserEngChange", time = 1191.4, label = "Laser \n 3mW → 6mW → 25mW", y = 0.7 },
 ]
 
-[251015."[3.3]NEA-20251104140916"]
-event_spans = [
-    { event_name = "Cs", start_sec = 146.9, end_sec = 2410.6, label = "Cs (3.5A)" },
-    { event_name = "O2", start_sec = 2792.8, end_sec = 2998.3, label = "$\\mathrm{O_2}$" },
-    #
-    { event_name = "Cs", start_sec = 3064.3, end_sec = 3064.3 },
-    { event_name = "Cs(3.8A)", start_sec = 3064.3, end_sec = 4094.8, label = "Cs (3.8A)", label_dx_sec = 200.0, label_y = 0.98 },
-    { event_name = "O2", start_sec = 4188.8, end_sec = 4270.9 },
-    #
-    { event_name = "Cs(3.8A)", start_sec = 4333.2, end_sec = 4636.3 },
+[plots."251015_3.3"]
+spans = [
+    { event = "Cs", start = 146.9, end = 2410.6, label = "Cs (3.5A)" },
+    { event = "O2", start = 2792.8, end = 2998.3, label = "$\\mathrm{O_2}$" },
+    { event = "Cs", start = 3064.3, end = 3064.3 },
+    { event = "Cs(3.8A)", start = 3064.3, end = 4094.8, label = "Cs (3.8A)" },
+    { event = "O2", start = 4188.8, end = 4270.9 },
+    { event = "Cs(3.8A)", start = 4333.2, end = 4636.3 },
 ]

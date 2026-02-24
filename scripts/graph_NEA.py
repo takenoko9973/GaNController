@@ -2,54 +2,65 @@ import sys
 import tomllib
 from pathlib import Path
 
-from heater_amd_controller.utils.log_file import LogFile
+from gan_controller.infrastructure.persistence.log_manager import LogFile, LogManager
 
 sys.path.append(str(Path(__file__).parent.parent))
-from scripts.data_plot.plot_nea import EventColor, EventSpan, NEAPlotter
-
-event_data_path = Path(Path(__file__).parent / "NEA_graph_data.toml")
-with event_data_path.open("rb") as f:
-    event_data = tomllib.load(f)
-
-# ======= Plot Setting =============================================
-
-event_colors: list[EventColor] = [
-    EventColor("Cs", "red"),
-    EventColor("O2", "blue"),
-    EventColor("Cs(3.0A)", "orange"),
-    EventColor("Cs(3.8A)", "chocolate"),
-    EventColor("LaserEngChange", "green"),
-]
-
-FORCE_SAVE_FIG = True
+from scripts.data_plot.plot_nea import NEAPlotConfig, NEAPlotter
 
 PLOT_DIR = "plots"
 root_path = Path(__file__).parent.parent
+TOML_PATH = root_path / "scripts" / "NEA_graph_data.toml"
 
-# ==================================================================
+
+def load_nea_config() -> dict:
+    if not TOML_PATH.exists():
+        return {"colors": {}, "plots": {}}
+
+    with TOML_PATH.open("rb") as f:
+        return tomllib.load(f)
 
 
-def plot(path: Path) -> None:
-    logfile = LogFile(path)
+def plots_nea(logfile: LogFile, config_data: dict) -> None:
+    # 日付と実験番号のキーを作成
+    # LogFile の path.parent.name が "250904" などの日付ディレクトリであることを前提
+    date_str = logfile.path.parent.name
+    major, minor = logfile.major, logfile.minor
+    plot_key = f"{date_str}_{major}.{minor}"
 
-    parts = list(logfile.path.parent.absolute().relative_to(root_path).parts)
-    parts[0] = PLOT_DIR
-    save_dir = root_path / Path(*parts)
+    # このログに対する設定が存在するかチェック
+    plot_config = config_data.get("plots", {}).get(plot_key)
+    if not plot_config:
+        # 設定がなければスキップ
+        return
+
+    # 保存先ディレクトリの作成
+    try:
+        rel_dir = logfile.path.parent.relative_to(Path("logs").absolute())
+        save_dir = root_path / PLOT_DIR / rel_dir
+    except ValueError:
+        save_dir = root_path / PLOT_DIR / logfile.path.parent.name
     save_dir.mkdir(exist_ok=True, parents=True)
 
-    log_events: list[dict] = event_data[path.parts[-2]][path.stem]["event_spans"]
-    event_spans = [EventSpan(**event) for event in log_events]
+    # 抽出した設定をデータクラスにまとめる
+    nea_config = NEAPlotConfig(
+        colors=config_data.get("colors", {}),
+        spans=plot_config.get("spans", []),
+        points=plot_config.get("points", []),
+    )
 
-    plotter = NEAPlotter(logfile, save_dir, event_spans, event_colors, FORCE_SAVE_FIG)
+    print(f"Plotting NEA: {logfile.path.name}")
+    plotter = NEAPlotter(logfile, save_dir, nea_config)
     plotter.plot()
 
 
 def main() -> None:
-    for date in event_data:
-        for file_name in event_data[date]:
-            nea_log_path = Path("logs") / date / (file_name + ".dat")
+    log_manager = LogManager()
+    config_data = load_nea_config()
 
-            plot(nea_log_path)
+    for logfile in log_manager.get_all_log_files():
+        # プロトコル名が "NEA" を含むものだけを処理対象とする
+        if logfile.protocol == "NEA":
+            plots_nea(logfile, config_data)
 
 
 if __name__ == "__main__":
