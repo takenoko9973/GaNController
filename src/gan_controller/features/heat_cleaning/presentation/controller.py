@@ -1,5 +1,6 @@
 from PySide6.QtCore import Slot
 
+from gan_controller.core.constants import LOG_DIR
 from gan_controller.core.domain.app_config import AppConfig
 from gan_controller.features.heat_cleaning.application.protocol_manager import (
     ProtocolManager,
@@ -233,13 +234,13 @@ class HeatCleaningController(ITabController):
     def _create_recorder(
         self, app_config: AppConfig, protocol_config: ProtocolConfig
     ) -> HCLogRecorder:
-        manager = LogManager(app_config.common.encode)
+        manager = LogManager(LOG_DIR, app_config.common.encode)
 
         # ログファイル準備
         update_date = protocol_config.log.update_date_folder
         major_update = protocol_config.log.update_major_number
 
-        log_dir = manager.get_date_directory(update_date)
+        log_dir = manager.get_active_directory(update_date)
         log_file = log_dir.create_logfile(
             protocol_name=self._view.protocol_select_panel.current_selected_protocol(),
             major_update=major_update,
@@ -253,11 +254,11 @@ class HeatCleaningController(ITabController):
         try:
             # マネージャー呼び出し
             app_config = AppConfig.load()
-            manager = LogManager(app_config.common.encode)
+            manager = LogManager(LOG_DIR, app_config.common.encode)
             log_config = self._view.log_setting_panel.get_config()
 
             # 番号取得
-            date_dir = manager.get_date_directory(log_config.update_date_folder)
+            date_dir = manager.get_active_directory(log_config.update_date_folder)
             next_numbers = date_dir.get_next_number(major_update=log_config.update_major_number)
 
             number_text = f"{next_numbers[0]}.{next_numbers[1]}"

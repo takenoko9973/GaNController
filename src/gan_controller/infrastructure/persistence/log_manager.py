@@ -1,11 +1,59 @@
 import datetime
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 from gan_controller.core.constants import JST, LOG_DIR
 
-# ログファイル名の正規表現パターン: [Number]Protocol-yyyymmddHHMMSS.ext
-LOGFILE_PATTERN = re.compile(r"^\[(\d+\.\d+)\]([A-Z0-9]+)\-(\d{14})\.dat$")
+# ---------------------------------------------------------------------------
+# Helpers / Parsers (状態を持たない純粋なロジック群)
+# ---------------------------------------------------------------------------
+
+# ログファイル名の正規表現パターン: [Number]Protocol-yyyymmddHHMMSS.dat
+LOGFILE_PATTERN = re.compile(r"^\[(\d+)\.(\d+)\]([A-Z0-9]+)\-(\d{14})\.dat$")
+DATE_DIR_PATTERN = re.compile(r"^\d{6}$")  # YYMMDD
+
+
+@dataclass(frozen=True)
+class LogFileMetadata:
+    """ログファイル名から抽出されるメタデータ"""
+
+    major: int
+    minor: int
+    protocol: str
+
+
+def parse_logfile_name(filename: str) -> LogFileMetadata:
+    """ログファイル名からメタデータを抽出する"""
+    match = LOGFILE_PATTERN.match(filename)
+    if match:
+        return LogFileMetadata(
+            major=int(match.group(1)),
+            minor=int(match.group(2)),
+            protocol=match.group(3),
+        )
+    return LogFileMetadata(major=0, minor=0, protocol="ERROR")
+
+
+def parse_date_dirname(dirname: str) -> datetime.date | None:
+    """ディレクトリ名 (YYMMDD) から日付を抽出する"""
+    if not DATE_DIR_PATTERN.match(dirname):
+        return None
+    try:
+        return datetime.datetime.strptime(dirname, "%y%m%d").astimezone(JST).date()
+    except ValueError:
+        return None
+
+
+def normalize_protocol_name(protocol_name: str) -> str:
+    """プロトコル名をファイル名用に正規化 (英数字大文字のみ) する"""
+    formatted = re.sub(r"[^a-zA-Z0-9]", "", protocol_name).upper()
+    return formatted if formatted else "DEFAULT"
+
+
+def generate_timestamp() -> str:
+    """現在時刻のタイムスタンプ文字列を生成する"""
+    return datetime.datetime.now(JST).strftime("%Y%m%d%H%M%S")
 
 
 class LogFile:
@@ -14,17 +62,24 @@ class LogFile:
     def __init__(self, file_path: Path, encoding: str = "utf-8") -> None:
         self.path = file_path
         self.encoding = encoding
+        self._metadata = parse_logfile_name(self.path.name)
+
+    @property
+    def major(self) -> int:
+        return self._metadata.major
+
+    @property
+    def minor(self) -> int:
+        return self._metadata.minor
 
     @property
     def number(self) -> str:
         """ファイル名から連番を取得"""
-        match = LOGFILE_PATTERN.match(self.path.name)
-        return match[1] if match is not None else "0.0"
+        return f"{self.major}.{self.minor}"
 
     @property
     def protocol(self) -> str:
-        match = LOGFILE_PATTERN.match(self.path.name)
-        return match[2] if match is not None else "ERROR"
+        return self._metadata.protocol
 
     def write(self, content: str) -> None:
         """追記モードで書き込み"""
@@ -39,13 +94,30 @@ class LogFile:
 class DateLogDirectory:
     """日付ごとのディレクトリとファイル連番を管理するクラス"""
 
-    def __init__(self, path: Path, encoding: str) -> None:
+    def __init__(self, path: Path, target_date: datetime.date, encoding: str = "utf-8") -> None:
         self.path: Path = path
-
+        self.date: datetime.date = target_date
         self.encoding: str = encoding
 
     def __str__(self) -> str:
         return f"DateLogDirectory(path={self.path})"
+
+    def get_log_files(self) -> list[LogFile]:
+        """このディレクトリ内のすべての有効なログファイルを取得する"""
+        if not self.path.exists():
+            return []
+
+        log_files = []
+        try:
+            for entry in self.path.iterdir():
+                if entry.is_file() and LOGFILE_PATTERN.match(entry.name):
+                    log_files.append(LogFile(entry, self.encoding))  # noqa: PERF401
+
+        except OSError as e:
+            print(f"Error reading directory {self.path}: {e}")
+
+        # 必要に応じてファイル名や作成日時でソートして返す
+        return sorted(log_files, key=lambda log: log.path.name)
 
     def _find_current_version(self) -> tuple[int, int]:
         """
@@ -56,49 +128,31 @@ class DateLogDirectory:
                              ファイルが存在しない場合は (0, 0)
 
         """
-        number_pattern = re.compile(r"(\d+)\.(\d+)")
+        if not self.path.exists():
+            return (0, 0)
 
-        current_major = 0
-        current_minor = 0
+        versions = []
+        try:
+            for entry in self.path.iterdir():
+                if not entry.is_file():
+                    continue
 
-        if self.path.exists():
-            try:
-                for entry in self.path.iterdir():
-                    if not entry.is_file():
-                        continue
+                metadata = parse_logfile_name(entry.name)
+                versions.append((metadata.major, metadata.minor))
 
-                    match = LOGFILE_PATTERN.match(entry.name)
-                    if match is None:
-                        continue
+        except OSError as e:
+            print(f"Error scanning directory {self.path} for versions: {e}")
 
-                    number = match.group(1)
-                    number_match = number_pattern.match(number)
-                    if number_match is None:
-                        msg = f"Invalid number format in file name {entry.name}"
-                        raise ValueError(msg)
-
-                    major = int(number_match.group(1))
-                    minor = int(number_match.group(2))
-
-                    # より大きい番号を探す
-                    if major > current_major:
-                        current_major = major
-                        current_minor = minor
-                    elif major == current_major and minor > current_minor:
-                        current_minor = minor
-
-            except OSError as e:
-                print(f"Error scanning directory {self.path} for versions: {e}")
-
-        return (current_major, current_minor)
+        # タプルの比較を利用して最大値を一括取得
+        return max(versions) if versions else (0, 0)
 
     def get_next_number(self, major_update: bool) -> tuple[int, int]:
         """現在の実験番号に基づき、次の実験番号を決定"""
         current_major, current_minor = self._find_current_version()
 
         if current_major == 0 and current_minor == 0:
-            # 初回 (0.1 開始)
-            return (0, 1)
+            # 初回
+            return (1, 1) if major_update else (0, 1)
 
         if major_update:
             # メジャー番号更新
@@ -124,7 +178,12 @@ class DateLogDirectory:
     def create_logfile(self, protocol_name: str, major_update: bool = False) -> LogFile:
         """新しいログファイルを作成する"""
         # 作成先
-        filename = self._create_logfile_name(protocol_name, major_update)
+        new_major, new_minor = self.get_next_number(major_update)
+
+        protocol_formatted = normalize_protocol_name(protocol_name)
+        timestamp = generate_timestamp()
+
+        filename = f"[{new_major}.{new_minor}]{protocol_formatted}-{timestamp}.dat"
         file_path = self.path / filename
 
         # フォルダ・ファイル作成
@@ -137,61 +196,79 @@ class LogManager:
 
     DATE_DIR_PATTERN = re.compile(r"^\d{6}$")  # YYMMDD
 
-    def __init__(self, encoding: str) -> None:
-        self.base_path = Path(LOG_DIR)
+    def __init__(self, base_path: str | Path = LOG_DIR, encoding: str = "utf-8") -> None:
+        self.base_path = Path(base_path)
         self.base_path.mkdir(parents=True, exist_ok=True)
-
         self.encoding = encoding
-
-        self.base_path.mkdir(parents=True, exist_ok=True)
 
     def __str__(self) -> str:
         return f"LogFileManager(path={self.base_path})"
 
-    def _find_latest_date(self) -> datetime.date | None:
-        """最新の日付ディレクトリを探す"""
-        latest_date = None
+    def _get_valid_date_directories(self) -> list[DateLogDirectory]:
+        """有効な日付ディレクトリのリストをタプル (日付, パス) で取得する"""
+        if not self.base_path.exists():
+            return []
 
+        directories = []
         try:
             for entry in self.base_path.iterdir():
-                if not entry.is_dir() or self.DATE_DIR_PATTERN.match(entry.name) is None:
+                if not entry.is_dir():
                     continue
 
-                try:
-                    # ディレクトリ名を日付オブジェクトに変換
-                    current_date = (
-                        datetime.datetime.strptime(entry.name, "%y%m%d").astimezone(JST).date()
-                    )
-
-                    # latest_date が未設定、または見つかった日付の方が新しい場合
-                    if latest_date is None or current_date > latest_date:
-                        latest_date = current_date
-
-                except ValueError:
-                    # strptime が失敗した場合 (例: '999999' など不正な日付) は無視
-                    continue
-
+                parsed_date = parse_date_dirname(entry.name)
+                if parsed_date:
+                    directories.append(DateLogDirectory(entry, parsed_date, self.encoding))
         except OSError as e:
-            # ディレクトリのスキャンに失敗
             print(f"Error scanning log directory {self.base_path}: {e}")
 
-        return latest_date
+        return directories
 
-    def get_date_directory(self, update_date: bool = False) -> DateLogDirectory:
+    def get_active_directory(self, update_date: bool = False) -> DateLogDirectory:
         """使用すべき日付ディレクトリを取得・生成する"""
-        target_date: datetime.date
-
         if update_date:
             # 更新する場合は今日の日付
             target_date = datetime.datetime.now(JST).date()
         else:
-            latest_date = self._find_latest_date()
+            valid_dirs = self._get_valid_date_directories()
             # 最新が見つかればそれを使い、なければ (logsが空なら) 今日の日付を使う
-            target_date = (
-                latest_date if latest_date is not None else datetime.datetime.now(JST).date()
-            )
+            if valid_dirs:
+                latest_dir = max(valid_dirs, key=lambda d: d.date)
+                target_date = latest_dir.date
+            else:
+                target_date = datetime.datetime.now(JST).date()
 
         dir_name = target_date.strftime("%y%m%d")
         dir_path = self.base_path / dir_name
 
-        return DateLogDirectory(dir_path, self.encoding)
+        return DateLogDirectory(dir_path, target_date, self.encoding)
+
+    def get_directory_by_date(
+        self, target_date: datetime.date | None = None
+    ) -> DateLogDirectory | None:
+        """指定された日付 (指定がない場合は最新) のディレクトリを取得する"""
+        if target_date is None:
+            valid_dirs = self._get_valid_date_directories()
+            if not valid_dirs:
+                return None
+
+            latest_dir = max(valid_dirs, key=lambda d: d.date)
+            target_date = latest_dir.date
+
+        dir_name = target_date.strftime("%y%m%d")
+        dir_path = self.base_path / dir_name
+
+        if not dir_path.exists() or not dir_path.is_dir():
+            return None
+
+        return DateLogDirectory(dir_path, target_date, self.encoding)
+
+    def get_all_log_files(self) -> list[LogFile]:
+        """すべての日付ディレクトリを走査し、全ログファイルを時系列順に取得する"""
+        valid_dirs = self._get_valid_date_directories()
+        valid_dirs.sort(key=lambda d: d.date)
+
+        all_logs: list[LogFile] = []
+        for date_dir in valid_dirs:
+            all_logs.extend(date_dir.get_log_files())
+
+        return all_logs
