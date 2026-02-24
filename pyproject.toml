@@ -3,28 +3,44 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "heater_amd_controller"
+name = "gan_controller"
 version = "1.0"
 requires-python = "==3.12.*"
 
 dependencies = [
-    "matplotlib>=3.10.7",
-    "numpy>=2.3.4",
+    "matplotlib>=3.10.8",
+    "numpy>=2.4",
     "pandas>=2.3.3",
-    "psutil>=7.1.2",
-    "pydantic>=2.12.3",
+    "psutil>=7.1.3",
+    "pydantic>=2.12.5",
     "pyserial>=3.5",
-    "pyvisa>=1.15.0",
+    "pyside6>=6.10.1",
+    "pytest>=9.0.2",
+    "pyvisa>=1.16",
     "pyvisa-py>=0.8.1",
+    "tomlkit>=0.13.3",
     "zeroconf>=0.148.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pylance>=1.0.0",
+    "pytest-qt>=4.5.0",
+    "ruff>=0.14.2",
+    "ty>=0.0.1a24",
+]
+
+[project.scripts]
+main = "gan_controller.main:main"
+
+[tool.uv.sources]
+my-pyside-app = { url = "https://pypi.org/simple" }
 
 [project.optional-dependencies]
 dev = ["ruff", "ty"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/heater_amd_controller"]
-
+packages = ["src/gan_controller"]
 
 [tool.ruff]
 target-version = "py312"
@@ -42,13 +58,22 @@ ignore = [
     "T20",    # flake8-print
     "D1",     # docstring除外する
     "EXE",    # flake8-executable
+    "D205",
+    "D212",
     "D400",
+    "D403",
     "D415",   # docstringの末尾ピリオドの強制を無効化
     "FBT001",
     "FBT002", # 関数の引数にbooleanを許可
     "ERA001",
     #
     "S101",
+    "TD002",
+    "TD003",
+    "FIX002",
+    "FBT003",
+    "TRY300",
+    "RUF003",
 ]
 # 警告はするが、自動修正はしないエラー
 unfixable = [
@@ -59,6 +84,7 @@ unfixable = [
 
 [tool.ruff.per-file-ignores]
 "__init__.py" = ["F401"]
+"tests/**" = ["PLR2004"]
 
 [tool.ruff.isort]
 known-third-party = ["fastapi", "pydantic", "starlette"]

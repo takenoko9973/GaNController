@@ -1,3 +1,6 @@
 logs/**
+!logs/.gitkeep
 plots/**
+!plots/.gitkeep
+configs/**
 **/__pycache__/**

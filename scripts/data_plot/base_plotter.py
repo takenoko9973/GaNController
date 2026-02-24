@@ -1,3 +1,4 @@
+import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -5,8 +6,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 from heater_amd_controller.utils.log_file import LogFile
-
-from .plot_util import AxisSide, PlotInfo, plot_twinx_multi_y
+from scripts.data_plot.plot_util import AxisSide, PlotInfo, plot_twinx_multi_y
 
 
 class BasePlotter(ABC):
