@@ -4,3 +4,5 @@ plots/**
 !plots/.gitkeep
 configs/**
 **/__pycache__/**
+
+scripts/NEA_graph_data.toml
