@@ -2,7 +2,7 @@ import queue
 
 from PySide6.QtCore import Slot
 
-from gan_controller.core.constants import NEA_CONFIG_PATH
+from gan_controller.core.constants import LOG_DIR, NEA_CONFIG_PATH
 from gan_controller.core.domain.app_config import AppConfig
 from gan_controller.features.nea_activation.application.workflow import NEAActivationWorkflow
 from gan_controller.features.nea_activation.domain.config import NEAConfig
@@ -160,13 +160,13 @@ class NEAActivationController(ITabController):
     # =================================================
 
     def _create_recorder(self, app_config: AppConfig, nea_config: NEAConfig) -> NEALogRecorder:
-        manager = LogManager(app_config.common.encode)
+        manager = LogManager(LOG_DIR, app_config.common.encode)
 
         # ログファイル準備
         update_date = nea_config.log.update_date_folder
         major_update = nea_config.log.update_major_number
 
-        log_dir = manager.get_date_directory(update_date)
+        log_dir = manager.get_active_directory(update_date)
         log_file = log_dir.create_logfile(
             protocol_name="NEA",
             major_update=major_update,
@@ -180,11 +180,11 @@ class NEAActivationController(ITabController):
         try:
             # マネージャー呼び出し
             app_config = AppConfig.load()
-            manager = LogManager(app_config.common.encode)
+            manager = LogManager(LOG_DIR, app_config.common.encode)
 
             # 番号取得
             log_config = self._view.log_setting_panel.get_config()
-            date_dir = manager.get_date_directory(log_config.update_date_folder)
+            date_dir = manager.get_active_directory(log_config.update_date_folder)
             next_numbers = date_dir.get_next_number(major_update=log_config.update_major_number)
 
             number_text = f"{next_numbers[0]}.{next_numbers[1]}"

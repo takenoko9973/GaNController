@@ -6,6 +6,18 @@ from matplotlib import pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 
 
+@dataclass
+class PlotStyleConfig:
+    """グラフのスタイル設定を保持するデータクラス"""
+
+    size: tuple[int, int] = (900, 550)
+    dpi: int = 100
+    title_fontsize: int = 10
+    label_fontsize: int = 18
+    tick_fontsize: int = 16
+    legend_fontsize: int = 10
+
+
 class AxisSide(Enum):
     LEFT = "left"
     RIGHT = "right"
@@ -26,75 +38,112 @@ class PlotInfo:
     scale: ScaleEnum = ScaleEnum.LINEAR
 
 
-def plot_twinx_multi_y(
-    x: pd.Series,
-    plot_info_list: list[PlotInfo],
-    size: tuple[int, int],
-    xlabel: str,
-    ylabel1: str,
-    ylabel2: str = "",
-    title: str = "",
-) -> tuple[plt.Figure, plt.Axes, plt.Axes | None]:
-    dpi = 100
+class GraphBuilder:
+    def __init__(self, style_config: PlotStyleConfig | None = None) -> None:
+        self.style = style_config or PlotStyleConfig()
 
-    title_fontsize = 10
-    label_fontsize = 18  # 軸ラベル (X, Y1, Y2 共通)
-    tick_fontsize = 16  # 目盛り数値 (X, Y1, Y2 共通)
-    legend_fontsize = 10
+        self.fig, self.ax1 = plt.subplots(
+            figsize=(self.style.size[0] / self.style.dpi, self.style.size[1] / self.style.dpi),
+            dpi=self.style.dpi,
+        )
+        self.ax2: plt.Axes | None = None
 
-    # ==================================================
+        # 1軸目 (左) の初期設定
+        self._setup_axis(self.ax1)
+        self.ax1.tick_params(
+            axis="both",
+            which="major",
+            labelsize=self.style.tick_fontsize,
+            direction="in",
+            top=True,
+            left=True,
+        )
+        self.ax1.tick_params(axis="both", which="minor", direction="in", top=True, left=True)
 
-    fig, ax1 = plt.subplots(figsize=(size[0] / dpi, size[1] / dpi), dpi=dpi)
+        # 凡例用の保持リスト
+        self.lines = []
+        self.labels = []
 
-    ax2 = None
-    if ylabel2 != "":
-        ax2 = ax1.twinx()
+        self._base_ylim: dict[AxisSide, tuple[float, float] | None] = {
+            AxisSide.LEFT: None,
+            AxisSide.RIGHT: None,
+        }
 
-    # ==================================================
+    def _setup_axis(self, ax: plt.Axes) -> None:
+        ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+        ax.yaxis.set_minor_locator(AutoMinorLocator(5))
 
-    ax1.xaxis.set_minor_locator(AutoMinorLocator(5))
-    ax1.set_xlabel(xlabel, fontsize=label_fontsize)
+    def get_ax2(self) -> plt.Axes:
+        """右軸を遅延生成"""
+        if self.ax2 is None:
+            self.ax2 = self.ax1.twinx()
+            self._setup_axis(self.ax2)
+            self.ax2.tick_params(
+                which="major", labelsize=self.style.tick_fontsize, direction="in", right=True
+            )
+            self.ax2.tick_params(which="minor", direction="in", right=True)
+        return self.ax2
 
-    ax1.yaxis.set_minor_locator(AutoMinorLocator(5))
-    ax1.set_ylabel(ylabel1, fontsize=label_fontsize)
-    ax1.tick_params(
-        axis="both", which="major", labelsize=tick_fontsize, direction="in", top=True, left=True
-    )
-    ax1.tick_params(axis="both", which="minor", direction="in", top=True, left=True)
+    def set_labels(self, xlabel: str, ylabel_left: str, ylabel_right: str = "") -> None:
+        self.ax1.set_xlabel(xlabel, fontsize=self.style.label_fontsize)
+        self.ax1.set_ylabel(ylabel_left, fontsize=self.style.label_fontsize)
+        if ylabel_right:
+            ax2 = self.get_ax2()
+            ax2.set_ylabel(ylabel_right, fontsize=self.style.label_fontsize)
 
-    if ax2 is not None:
-        ax2.yaxis.set_minor_locator(AutoMinorLocator(5))
-        ax2.set_ylabel(ylabel2, fontsize=label_fontsize)
-        ax2.tick_params(which="major", labelsize=tick_fontsize, direction="in", right=True)
-        ax2.tick_params(which="minor", direction="in", right=True)
+    def set_title(self, title: str) -> None:
+        self.ax1.set_title(title, fontsize=self.style.title_fontsize)
 
-    # ==================================================
+    def set_xlim(self, xmin: float, xmax: float) -> None:
+        self.ax1.set_xlim(xmin, xmax)
 
-    lines = []
-    labels = []
-    for plot_info in plot_info_list:
-        y_data = plot_info.data
+    def set_base_ylim(self, side: AxisSide, ymin: float, ymax: float) -> None:
+        """最低限確保する描画範囲のベースラインを設定する"""
+        self._base_ylim[side] = (ymin, ymax)
 
-        label = plot_info.label
-        color = plot_info.color
-        style = plot_info.style
+    def set_yscale(self, side: AxisSide, scale: str) -> None:
+        target_ax = self.ax1 if side == AxisSide.LEFT else self.get_ax2()
+        target_ax.set_yscale(scale)
 
-        if plot_info.axis == AxisSide.LEFT:
-            (line,) = ax1.plot(x, y_data, linestyle=style, color=color, label=label)
-        elif plot_info.axis == AxisSide.RIGHT and ax2 is not None:
-            (line,) = ax2.plot(x, y_data, linestyle=style, color=color, label=label)
-        else:
-            (line,) = ax1.plot(x, y_data, linestyle=style, color=color, label=label)
+    def add_plot(self, x_data: pd.Series, plot_info: PlotInfo) -> None:
+        """1系列分のデータをプロットする"""
+        target_ax = self.ax1 if plot_info.axis == AxisSide.LEFT else self.get_ax2()
 
-        # 凡例のために情報を保存
-        lines.append(line)
-        if label:
-            labels.append(label)
+        (line,) = target_ax.plot(
+            x_data,
+            plot_info.data,
+            plot_info.style,
+            color=plot_info.color,
+            label=plot_info.label,
+        )
 
-    if len(labels) != 0:
-        ax1.legend(lines, labels, loc="best", fontsize=legend_fontsize)
+        self.lines.append(line)
+        if plot_info.label:
+            self.labels.append(plot_info.label)
 
-    ax1.set_title(title, fontsize=title_fontsize)
-    fig.tight_layout()
+    def adjust_axes_limits(self) -> None:
+        """Y軸の最終的な描画範囲を計算して確定させる"""
+        for side in [AxisSide.LEFT, AxisSide.RIGHT]:
+            ax = self.ax1 if side == AxisSide.LEFT else self.ax2
+            if ax is None or self._base_ylim[side] is None:
+                continue
 
-    return fig, ax1, ax2
+            ymin_base, ymax_base = self._base_ylim[side]  # ty:ignore[not-iterable]
+            ymin_auto, ymax_auto = ax.get_ylim()
+
+            final_ymin = min(ymin_base, ymin_auto)
+            final_ymax = max(ymax_base, ymax_auto)
+
+            ax.set_ylim(final_ymin, final_ymax)
+
+    def finalize(self) -> plt.Figure:
+        """すべての要素を合成し、Figureを完成させる"""
+        self.adjust_axes_limits()  # 軸の確定をここでも呼ぶ (複数回呼んでも問題ない設計)
+
+        if self.labels:
+            self.ax1.legend(
+                self.lines, self.labels, loc="best", fontsize=self.style.legend_fontsize
+            )
+        self.fig.tight_layout()
+
+        return self.fig

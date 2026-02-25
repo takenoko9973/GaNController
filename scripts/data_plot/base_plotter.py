@@ -1,12 +1,11 @@
-import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
 
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from heater_amd_controller.utils.log_file import LogFile
-from scripts.data_plot.plot_util import AxisSide, PlotInfo, plot_twinx_multi_y
+from gan_controller.infrastructure.persistence.log_manager import LogFile
+from scripts.data_plot.plot_util import AxisSide, GraphBuilder, PlotInfo, PlotStyleConfig
 
 
 class BasePlotter(ABC):
@@ -17,8 +16,54 @@ class BasePlotter(ABC):
         self.save_dir = save_dir
         self.overwrite = overwrite
 
-        self.log_df = pd.read_csv(self.logfile.path, comment="#", sep="\t")
+        self._log_df: pd.DataFrame | None = None
         self.conditions = self._parse_conditions()
+
+    def extract_data(self) -> bool:
+        """
+        [Extract] ログファイルからデータを読み込む
+
+        Returns:
+            bool: データの読み込みに成功し、描画に必要な最低限の列が存在すれば True。
+                  無効なデータの場合は False。
+
+        """
+        if self._log_df is not None:
+            return True
+
+        try:
+            # データの読み込み
+            self._log_df = pd.read_csv(
+                self.logfile.path, comment="#", sep="\t", na_values=["NAN", "nan"]
+            )
+            self.conditions = self._parse_conditions()
+
+            # データフレームが空でないか
+            if self._log_df.empty:
+                print(f"[ERROR] {self.logfile.path.name}: データ行が存在しません。")
+                return False
+
+            return True
+
+        except pd.errors.EmptyDataError:
+            print(
+                f"[ERROR] {self.logfile.path.name}: "
+                "ファイルが空、またはパース可能なデータがありません"
+            )
+            return False
+        except Exception as e:  # noqa: BLE001
+            print(
+                f"[ERROR] {self.logfile.path.name}: 読み込み中に予期せぬエラーが発生しました ({e})"
+            )
+            return False
+
+    @property
+    def log_df(self) -> pd.DataFrame:
+        if self._log_df is None:
+            msg = "Data not loaded. Call extract_data() first."
+            raise ValueError(msg)
+
+        return self._log_df
 
     @property
     def time_axis(self) -> pd.Series:
@@ -73,96 +118,56 @@ class BasePlotter(ABC):
         plot_info_list: list[PlotInfo],
         xlabel: str,
         ylabel_left: str,
-        ylabel_right: str | None = None,
+        ylabel_right: str = "",
         ylim_left: tuple[float, float] | None = None,
         ylim_right: tuple[float, float] | None = None,
-        plot_size: tuple[int, int] = (900, 500),
+        style_config: PlotStyleConfig | None = None,
     ) -> None:
         if self._should_skip(filename):
             return
 
-        fig, _, _ = self._plot_generate(
-            plot_info_list, xlabel, ylabel_left, ylabel_right, ylim_left, ylim_right, plot_size
-        )
+        # ビルダーの初期化と基本設定
+        builder = GraphBuilder(style_config)
+        builder.set_title(self.logfile.path.stem)
+        builder.set_labels(xlabel, ylabel_left, ylabel_right)
 
-        self._save_figure(fig, filename)
-        plt.close(fig)
-
-    def _plot_generate(
-        self,
-        plot_info_list: list[PlotInfo],
-        xlabel: str,
-        ylabel_left: str,
-        ylabel_right: str | None = None,
-        ylim_left: tuple[float, float] | None = None,
-        ylim_right: tuple[float, float] | None = None,
-        plot_size: tuple[int, int] = (900, 500),
-    ) -> tuple[plt.Figure, plt.Axes, plt.Axes | None]:
-        """汎用的な2軸グラフ生成処理"""
-        fig, ax1, ax2 = plot_twinx_multi_y(
-            self.time_axis,
-            plot_info_list,
-            plot_size,
-            xlabel,
-            ylabel_left,
-            ylabel_right or "",
-            self.logfile.path.stem,
-        )
-
-        # =========================
-
+        # X軸の範囲設定
         time_h = self.time_axis
-        ax1.set_xlim(time_h.min(), time_h.max())
+        builder.set_xlim(time_h.min(), time_h.max())
 
+        # Y軸の範囲設定
         if ylim_left:
-            ax1.set_ylim(*ylim_left)
-        if ylim_right and ax2:
-            ax2.set_ylim(*ylim_right)
+            builder.set_base_ylim(AxisSide.LEFT, *ylim_left)
+        if ylim_right:
+            builder.set_base_ylim(AxisSide.RIGHT, *ylim_right)
 
-        # =========================
-
-        # 重複チェック
+        # データの追加とスケール(log/linear)の記録
         scales = {AxisSide.LEFT: set(), AxisSide.RIGHT: set()}
         for plot_info in plot_info_list:
+            builder.add_plot(time_h, plot_info)
             scales[plot_info.axis].add(plot_info.scale)
 
-        if len(scales[AxisSide.LEFT]) >= 2:  # noqa: PLR2004
-            # linter, logが両方ある場合
-            print("[WARN] 右軸に log/linear が混在しています。log優先で描画します。")
-            ax1.set_yscale("log")
-        else:
-            ax1.set_yscale(
-                next(iter(scales[AxisSide.LEFT])).value if scales[AxisSide.LEFT] else "linear"
-            )
+        # スケールの適用 (混在時はlog優先)
+        for side in [AxisSide.LEFT, AxisSide.RIGHT]:
+            if len(scales[side]) >= 2:  # noqa: PLR2004
+                print(f"[WARN] {side.value}軸に log/linear が混在しています。log優先で描画します。")
+                builder.set_yscale(side, "log")
+            elif len(scales[side]) == 1:
+                builder.set_yscale(side, next(iter(scales[side])).value)
 
-        if ax2:
-            if len(scales[AxisSide.RIGHT]) >= 2:  # noqa: PLR2004
-                # linter, logが両方ある場合
-                print("[WARN] 右軸に log/linear が混在しています。log優先で描画します。")
-                ax2.set_yscale("log")
-            else:
-                ax2.set_yscale(
-                    next(iter(scales[AxisSide.RIGHT])).value if scales[AxisSide.RIGHT] else "linear"
-                )
-
-        return fig, ax1, ax2
+        # グラフの完成と保存
+        fig = builder.finalize()
+        self._save_figure(fig, filename)
+        plt.close(fig)
 
     def _should_skip(self, filename: str) -> bool:
         save_path = self.save_dir / filename
         if save_path.exists() and not self.overwrite:
             print(f"[SKIP] {save_path.name} は既に存在します。")
             return True
-
         return False
 
     def _save_figure(self, fig: plt.Figure, filename: str) -> None:
         save_path = self.save_dir / filename
-        if save_path.exists() and not self.overwrite:
-            print(f"[SKIP] {save_path.name} は既に存在します。")
-            plt.close(fig)
-            return
-
-        fig.tight_layout()
-        # plt.show()
-        fig.savefig(self.save_dir / filename, format="svg")
+        fig.savefig(save_path, format="svg")
         print(f"[SAVE] {save_path.name} を保存しました。")
