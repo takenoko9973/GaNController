@@ -10,7 +10,7 @@ from matplotlib.ticker import AutoMinorLocator
 class PlotStyleConfig:
     """グラフのスタイル設定を保持するデータクラス"""
 
-    size: tuple[int, int] = (900, 500)
+    size: tuple[int, int] = (900, 550)
     dpi: int = 100
     title_fontsize: int = 10
     label_fontsize: int = 18
