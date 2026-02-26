@@ -182,7 +182,9 @@ class HeatCleaningController(ITabController):
             if is_sim:
                 backend = SimulationHCHardwareBackend(app_config.devices)
             else:
-                backend = RealHCHardwareBackend(app_config.devices)
+                backend = RealHCHardwareBackend(
+                    app_config.devices, protocol_config.log.record_pyrometer
+                )
 
             recorder = self._create_recorder(app_config, protocol_config)
 

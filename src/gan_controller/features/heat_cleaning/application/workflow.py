@@ -6,7 +6,7 @@ import pyvisa
 import pyvisa.constants
 
 from gan_controller.core.constants import JST
-from gan_controller.core.domain.quantity import Current, Time
+from gan_controller.core.domain.quantity import Current, Temperature, Time
 from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.domain.interface import IHCHardwareFacade
 from gan_controller.features.heat_cleaning.domain.models import HCExperimentResult, Sequence
@@ -187,6 +187,9 @@ class HeatCleaningWorkflow(IExperimentWorkflow):
         """1ステップ分の測定を行う"""
         try:
             result = facade.read_metrics()
+            if not self._config.log.record_pyrometer:
+                # 放射温度計を使用しない場合は、nanに上書き
+                result.temperature_case = Temperature(float("nan"))
 
             # Resultにコンテキスト情報 (時間やシーケンス名) を付与
             result.sequence_index = seq_index
