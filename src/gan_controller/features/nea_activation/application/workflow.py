@@ -6,6 +6,7 @@ import pyvisa
 import pyvisa.constants
 
 from gan_controller.core.constants import JST
+from gan_controller.core.domain.quantity import Current
 from gan_controller.features.nea_activation.domain.config import NEAConfig, NEAControlConfig
 from gan_controller.features.nea_activation.domain.interface import INEAHardwareFacade
 from gan_controller.features.nea_activation.domain.models import NEAExperimentResult
@@ -123,17 +124,25 @@ class NEAActivationWorkflow(IExperimentWorkflow):
         interval = cond.integration_interval.base_value
 
         # 出力状態測定 (Bright)
-        facade.set_laser_emission(True)  # レーザー出力開始
+        if not cond.is_fixed_background:
+            facade.set_laser_emission(True)  # レーザー出力開始
         # 安定するまで待機
         if not self._wait_interruptable(stabilization_time):
             return False  # 待機中に中断されたら終了
         bright_pc_volt, bright_pc = facade.read_photocurrent(shunt_r, count, interval)
 
         # バックグラウンド測定 (Dark)
-        facade.set_laser_emission(False)
+        if not cond.is_fixed_background:
+            facade.set_laser_emission(False)
         if not self._wait_interruptable(stabilization_time):
             return False
-        dark_pc_volt, dark_pc = facade.read_photocurrent(shunt_r, count, interval)
+        if not cond.is_fixed_background:
+            dark_pc_volt, dark_pc = facade.read_photocurrent(shunt_r, count, interval)
+        else:
+            dark_pc_volt, dark_pc = (
+                cond.fixed_background_volt,
+                Current(cond.fixed_background_volt.base_value / shunt_r.base_value),
+            )
 
         result = facade.read_metrics(
             control_config=self._config.control,
