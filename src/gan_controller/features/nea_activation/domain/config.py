@@ -19,6 +19,8 @@ from gan_controller.core.domain.quantity import (
     Second,
     Time,
     Value,
+    Volt,
+    Voltage,
     Watt,
 )
 from gan_controller.infrastructure.persistence.toml_config_io import (
@@ -36,6 +38,12 @@ class NEAConditionConfig(BaseModel):
     laser_wavelength: Annotated[
         Quantity[Meter], *PydanticUnit("nm"), Field(description="レーザー波長[nm]")
     ] = Length(406, "n")
+    is_fixed_background: bool = Field(
+        default=False, description="Photocurrentバックグラウンドの固定"
+    )
+    fixed_background_volt: Annotated[
+        Quantity[Volt], *PydanticUnit("mV"), Field(description="Photocurrentバックグラウンド[mV]")
+    ] = Voltage(1.5, "mV")
     stabilization_time: Annotated[
         Quantity[Second], *PydanticUnit("s"), Field(description="安定化時間[s]")
     ] = Time(1.0)

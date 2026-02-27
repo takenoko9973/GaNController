@@ -10,8 +10,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from gan_controller.core.domain.quantity import Length, Resistance, Time, Value
+from gan_controller.core.domain.quantity import Length, Resistance, Time, Value, Voltage
 from gan_controller.features.nea_activation.domain.config import NEAConditionConfig
+from gan_controller.presentation.components.widgets import CheckableSpinBox
 
 
 class NEAConditionSettingsPanel(QGroupBox):
@@ -20,6 +21,7 @@ class NEAConditionSettingsPanel(QGroupBox):
     # === 要素
     shunt_r_spin: QDoubleSpinBox
     laser_wavelength_spin: QDoubleSpinBox
+    fixed_background_checkable_spin: CheckableSpinBox
 
     stabilization_time_spin: QDoubleSpinBox
     integrated_interval_spin: QDoubleSpinBox
@@ -49,10 +51,14 @@ class NEAConditionSettingsPanel(QGroupBox):
         self.laser_wavelength_spin = QDoubleSpinBox(
             value=406, minimum=1, maximum=1000, decimals=0, suffix=" nm"
         )
+        self.fixed_background_checkable_spin = CheckableSpinBox(
+            "BG固定 :", False, 1.5, suffix=" mV", minimum=0, single_step=0.1
+        )
         config_layout1.addWidget(QLabel("換算抵抗 :"), 0, 0)
         config_layout1.addWidget(self.shunt_r_spin, 0, 1)
         config_layout1.addWidget(QLabel("レーザー波長 :"), 2, 0)
         config_layout1.addWidget(self.laser_wavelength_spin, 2, 1)
+        config_layout1.addWidget(self.fixed_background_checkable_spin, 3, 0, 1, 2)
 
         # ====================
 
@@ -86,6 +92,8 @@ class NEAConditionSettingsPanel(QGroupBox):
         return NEAConditionConfig(
             shunt_resistance=Resistance(self.shunt_r_spin.value(), "k"),
             laser_wavelength=Length(self.laser_wavelength_spin.value(), "n"),
+            is_fixed_background=self.fixed_background_checkable_spin.isChecked(),
+            fixed_background_volt=Voltage(self.fixed_background_checkable_spin.value(), "m"),
             stabilization_time=Time(self.stabilization_time_spin.value()),
             integration_count=Value(self.integrated_count_spin.value()),
             integration_interval=Time(self.integrated_interval_spin.value()),
@@ -94,6 +102,8 @@ class NEAConditionSettingsPanel(QGroupBox):
     def set_config(self, config: NEAConditionConfig) -> None:
         self.shunt_r_spin.setValue(config.shunt_resistance.value_as("k"))
         self.laser_wavelength_spin.setValue(config.laser_wavelength.value_as("n"))
+        self.fixed_background_checkable_spin.setChecked(config.is_fixed_background)
+        self.fixed_background_checkable_spin.setValue(config.fixed_background_volt.value_as("m"))
         self.stabilization_time_spin.setValue(config.stabilization_time.base_value)
         self.integrated_count_spin.setValue(int(config.integration_count.base_value))
         self.integrated_interval_spin.setValue(config.integration_interval.base_value)
