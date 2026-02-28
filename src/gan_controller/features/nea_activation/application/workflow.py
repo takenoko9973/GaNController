@@ -54,6 +54,8 @@ class NEAActivationWorkflow(IExperimentWorkflow):
 
             # backendのコンテキスト管理
             with self._backend, self._backend.get_facade() as facade:
+                facade.setup_devices()
+                facade.apply_control_params(self._config.control)
                 self._measurement_loop(facade)
 
         finally:
