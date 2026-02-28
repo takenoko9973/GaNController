@@ -36,7 +36,6 @@ class MainWindow(QMainWindow):
 
         # タブウィジェット設定
         self.tab_widget = QTabWidget()
-        self.tab_widget.currentChanged.connect(self._on_tab_changed)
         self.main_layout.addWidget(self.tab_widget)
         self._last_tab_index = 0
 
