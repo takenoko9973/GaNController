@@ -111,8 +111,10 @@ class NEAActivationController(ITabController):
             workflow = NEAActivationWorkflow(backend, recorder, nea_config, self._request_queue)
             self._runner_manager.start_workflow(workflow)
 
-        except Exception as e:  # noqa: BLE001, F841
-            # self._view.show_error(f"実験開始準備エラー: {e}")
+        except Exception as e:  # noqa: BLE001
+            message = f"実験開始準備エラー: {e}"
+            self._view.show_error(message)
+            self.status_message_requested.emit(message, 10000)
             self.set_state(NEAActivationState.IDLE)
 
     @Slot()
@@ -144,6 +146,8 @@ class NEAActivationController(ITabController):
     @Slot(str)
     def on_error(self, message: str) -> None:
         """エラーメッセージ表示とログ出力処理"""
+        self._view.show_error(f"Error occurred: {message}")
+        self.status_message_requested.emit(message, 10000)
 
     @Slot()
     def on_finished(self) -> None:

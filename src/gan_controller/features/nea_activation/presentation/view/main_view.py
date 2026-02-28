@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QMessageBox, QVBoxLayout, QWidget
 
 from gan_controller.core.domain.electricity import ElectricProperties
 from gan_controller.features.nea_activation.domain.config import NEAConfig
@@ -118,6 +118,9 @@ class NEAActivationMainView(QWidget):
     def clear_view(self) -> None:
         """グラフや表示を初期化"""
         self.graph_panel.clear_graph()
+
+    def show_error(self, msg: str) -> None:
+        QMessageBox.warning(self, "エラー", msg)
 
     def _update_measure_values(self, result: NEAExperimentResult) -> None:
         """測定結果で表示を更新"""
