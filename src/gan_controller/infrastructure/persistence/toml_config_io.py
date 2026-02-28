@@ -28,6 +28,7 @@ def save_toml_config(model_instance: BaseModel, path: str | Path) -> None:
     """PydanticモデルをTOMLファイルに保存する (コメント保持)"""
     path_obj = Path(path)
     new_data = model_instance.model_dump(mode="json")
+    path_obj.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         if path_obj.exists():
