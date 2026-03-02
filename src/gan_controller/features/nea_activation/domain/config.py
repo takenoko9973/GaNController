@@ -43,7 +43,7 @@ class NEAConditionConfig(BaseModel):
     )
     fixed_background_volt: Annotated[
         Quantity[Volt], *PydanticUnit("mV"), Field(description="Photocurrentバックグラウンド[mV]")
-    ] = Voltage(1.5, "mV")
+    ] = Voltage(1.5, "m")
     stabilization_time: Annotated[
         Quantity[Second], *PydanticUnit("s"), Field(description="安定化時間[s]")
     ] = Time(1.0)
