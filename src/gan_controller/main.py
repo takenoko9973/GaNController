@@ -4,11 +4,14 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
+from gan_controller.core.constants import ensure_runtime_dirs
 from gan_controller.presentation.app_feature import FeatureFactory
 from gan_controller.presentation.main_window import MainWindow
 
 
 def run_app(argv: list[str]) -> int:
+    ensure_runtime_dirs()
+
     app = QApplication(argv)
     app.setStyle("Fusion")
 

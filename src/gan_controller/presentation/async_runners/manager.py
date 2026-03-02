@@ -18,7 +18,7 @@ class _WorkerObserver(IExperimentObserver):
         self._worker.error_occurred.emit(message)
 
     def on_finished(self) -> None:
-        self._worker.finished.emit()
+        self._worker.emit_finished_once()
 
     def is_interruption_requested(self) -> bool:
         return self._worker.interruption_requested
@@ -39,16 +39,26 @@ class _ExperimentWorker(QObject):
         super().__init__()
         self._workflow = workflow
         self.interruption_requested = False
+        self._is_finished_emitted = False
+
+    def emit_finished_once(self) -> None:
+        if self._is_finished_emitted:
+            return
+
+        self._is_finished_emitted = True
+        self.finished.emit()
 
     @Slot()
     def run(self) -> None:
         self.interruption_requested = False
+        self._is_finished_emitted = False
         observer = _WorkerObserver(self)
         try:
             self._workflow.execute(observer)
         except Exception as e:  # noqa: BLE001
             self.error_occurred.emit(str(e))
-            self.finished.emit()
+        finally:
+            self.emit_finished_once()
 
     def stop(self) -> None:
         self.interruption_requested = True
