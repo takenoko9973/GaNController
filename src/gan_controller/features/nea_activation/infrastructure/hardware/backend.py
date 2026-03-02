@@ -26,8 +26,9 @@ from .facade import NEAHardwareFacade
 class NEAHardwareBackend(IHardwareBackend[NEADevices, INEAHardwareFacade]):
     """ハードウェアの生成・接続・破棄を担う基底クラス"""
 
-    def __init__(self, config: DevicesConfig) -> None:
+    def __init__(self, config: DevicesConfig, *, connect_laser: bool = True) -> None:
         self._config = config
+        self._connect_laser = connect_laser
 
     def _disconnect_devices(self) -> None:
         """具体的な切断処理"""
@@ -54,7 +55,11 @@ class NEAHardwareBackend(IHardwareBackend[NEADevices, INEAHardwareFacade]):
             msg = "Backend is not initialized. Use 'with' statement."
             raise RuntimeError(msg)
 
-        return NEAHardwareFacade(devices=self._devices, config=self._config)
+        return NEAHardwareFacade(
+            devices=self._devices,
+            config=self._config,
+            connect_laser=self._connect_laser,
+        )
 
 
 class RealNEAHardwareBackend(NEAHardwareBackend):
@@ -75,10 +80,14 @@ class RealNEAHardwareBackend(NEAHardwareBackend):
                 aps_adapter = PFR100L50Adapter(aps)
                 stack.callback(aps_adapter.close)
 
-                laser_port = f"COM{self._config.ibeam.com_port}"
-                laser = IBeam(rm, laser_port)
-                laser_adapter = IBeamAdapter(laser)
-                stack.callback(laser_adapter.close)
+                if self._connect_laser:
+                    laser_port = f"COM{self._config.ibeam.com_port}"
+                    laser = IBeam(rm, laser_port)
+                    laser_adapter = IBeamAdapter(laser)
+                    stack.callback(laser_adapter.close)
+                else:
+                    print("Laser connection skipped (fixed background mode).")
+                    laser_adapter = MockLaserAdapter()
 
                 stack.pop_all()
 

@@ -27,15 +27,19 @@ from gan_controller.features.nea_activation.domain.models import NEADevices, NEA
 class NEAHardwareFacade(INEAHardwareFacade):
     HV_READING_CORRECTION_FACTOR = 10000.0
 
-    def __init__(self, devices: NEADevices, config: DevicesConfig) -> None:
+    def __init__(
+        self, devices: NEADevices, config: DevicesConfig, *, connect_laser: bool = True
+    ) -> None:
         self._dev = devices
         self._config = config
+        self._connect_laser = connect_laser
 
     def setup_devices(self) -> None:
         """初期設定"""
         # レーザーの静的設定
-        target_ch = self._config.ibeam.beam_ch
-        self._dev.laser.set_channel_enable(target_ch, True)
+        if self._connect_laser:
+            target_ch = self._config.ibeam.beam_ch
+            self._dev.laser.set_channel_enable(target_ch, True)
 
         # 電源(AMD)の静的設定
         aps_config = self._config.aps
@@ -46,7 +50,8 @@ class NEAHardwareFacade(INEAHardwareFacade):
     def apply_control_params(self, params: NEAControlConfig) -> None:
         """パラメータの適用"""
         # レーザー制御
-        self._dev.laser.set_channel_power(self._config.ibeam.beam_ch, params.laser_power_sv)
+        if self._connect_laser:
+            self._dev.laser.set_channel_power(self._config.ibeam.beam_ch, params.laser_power_sv)
 
         # AMD電源の制御
         if params.amd_enable:
@@ -56,6 +61,9 @@ class NEAHardwareFacade(INEAHardwareFacade):
             self._dev.aps.set_output(False)
 
     def set_laser_emission(self, enable: bool) -> None:
+        if not self._connect_laser:
+            return
+
         self._dev.laser.set_emission(enable)
 
     def read_photocurrent(
@@ -128,10 +136,11 @@ class NEAHardwareFacade(INEAHardwareFacade):
     def emergency_stop(self) -> None:
         """安全終了処理"""
         print("NEAFacade: Executing Emergency Stop")
-        try:
-            self._dev.laser.set_emission(False)
-        except Exception as e:  # noqa: BLE001
-            print(f"Failed to stop laser: {e}")
+        if self._connect_laser:
+            try:
+                self._dev.laser.set_emission(False)
+            except Exception as e:  # noqa: BLE001
+                print(f"Failed to stop laser: {e}")
 
         try:
             self._dev.aps.set_output(False)
