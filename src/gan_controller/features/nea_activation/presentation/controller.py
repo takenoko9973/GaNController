@@ -104,7 +104,10 @@ class NEAActivationController(ITabController):
             if is_sim:
                 backend = SimulationNEAHardwareBackend(app_config.devices)
             else:
-                backend = RealNEAHardwareBackend(app_config.devices)
+                should_connect_laser = not nea_config.condition.is_fixed_background
+                backend = RealNEAHardwareBackend(
+                    app_config.devices, connect_laser=should_connect_laser
+                )
 
             recorder = self._create_recorder(app_config, nea_config)
 
