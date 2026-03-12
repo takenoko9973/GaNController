@@ -6,7 +6,12 @@ import pyvisa
 import pyvisa.constants
 
 from gan_controller.core.constants import JST
-from gan_controller.features.nea_activation.domain.config import NEAConfig, NEAControlConfig
+from gan_controller.core.domain.quantity import Ampere, Current, Ohm, Quantity, Volt
+from gan_controller.features.nea_activation.domain.config import (
+    NEAConditionConfig,
+    NEAConfig,
+    NEAControlConfig,
+)
 from gan_controller.features.nea_activation.domain.interface import INEAHardwareFacade
 from gan_controller.features.nea_activation.domain.models import NEAExperimentResult
 from gan_controller.features.nea_activation.infrastructure.hardware.backend import (
@@ -125,17 +130,25 @@ class NEAActivationWorkflow(IExperimentWorkflow):
         interval = cond.integration_interval.base_value
 
         # 出力状態測定 (Bright)
-        facade.set_laser_emission(True)  # レーザー出力開始
+        if not cond.is_fixed_background:
+            facade.set_laser_emission(True)  # レーザー出力開始
         # 安定するまで待機
         if not self._wait_interruptable(stabilization_time):
             return False  # 待機中に中断されたら終了
         bright_pc_volt, bright_pc = facade.read_photocurrent(shunt_r, count, interval)
 
         # バックグラウンド測定 (Dark)
-        facade.set_laser_emission(False)
-        if not self._wait_interruptable(stabilization_time):
+        dark_result = self._resolve_dark_photocurrent(
+            facade=facade,
+            condition=cond,
+            shunt_r=shunt_r,
+            stabilization_time=stabilization_time,
+            count=count,
+            interval=interval,
+        )
+        if dark_result is None:
             return False
-        dark_pc_volt, dark_pc = facade.read_photocurrent(shunt_r, count, interval)
+        dark_pc_volt, dark_pc = dark_result
 
         result = facade.read_metrics(
             control_config=self._config.control,
@@ -155,6 +168,29 @@ class NEAActivationWorkflow(IExperimentWorkflow):
         self._notify_result(result)
 
         return True
+
+    def _resolve_dark_photocurrent(
+        self,
+        facade: INEAHardwareFacade,
+        condition: NEAConditionConfig,
+        shunt_r: Quantity[Ohm],
+        stabilization_time: float,
+        count: int,
+        interval: float,
+    ) -> tuple[Quantity[Volt], Quantity[Ampere]] | None:
+        """Dark測定値を返す。固定バックグラウンド時は設定値を利用する。"""
+        if not condition.is_fixed_background:
+            facade.set_laser_emission(False)
+
+        if not self._wait_interruptable(stabilization_time):
+            return None
+
+        if condition.is_fixed_background:
+            dark_pc_volt = condition.fixed_background_volt
+            dark_pc = Current(dark_pc_volt.base_value / shunt_r.base_value)
+            return dark_pc_volt, dark_pc
+
+        return facade.read_photocurrent(shunt_r, count, interval)
 
     def _process_pending_requests(self, facade: INEAHardwareFacade, elapsed_perf: float) -> None:
         latest_config = self._get_latest_config_from_queue()
