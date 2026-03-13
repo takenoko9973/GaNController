@@ -1,1 +1,1 @@
-"""Manual operation infrastructure layer."""
+

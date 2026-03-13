@@ -3,12 +3,12 @@ from PySide6.QtGui import QFont, QPalette
 from PySide6.QtWidgets import (
     QCheckBox,
     QDoubleSpinBox,
-    QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QMessageBox,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -81,29 +81,39 @@ class ManualOperationMainView(QWidget):
         layout = QVBoxLayout(group)
 
         # 接続操作
-        header = QHBoxLayout()
-        self.gm10_connect_button = QPushButton("Connect")
-        self.gm10_disconnect_button = QPushButton("Disconnect")
-        self.gm10_status_label = QLabel("Disconnected")
-
-        header.addWidget(self.gm10_connect_button)
-        header.addWidget(self.gm10_disconnect_button)
-        header.addStretch()
-        header.addWidget(QLabel("Status:"))
-        header.addWidget(self.gm10_status_label)
+        (
+            header,
+            self.gm10_connect_button,
+            self.gm10_disconnect_button,
+            self.gm10_status_label,
+        ) = self._create_connection_header()
 
         # 設定チャンネルの表示
-        form = QFormLayout()
+        rows = QVBoxLayout()
+        rows.setSpacing(6)
 
         for key in ["ext", "sip", "hv", "pc", "tc"]:
             label = QLabel()
-            value = ValueLabel("-", ".4g")
+            label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
+            value = ValueLabel("--", ".4g")
+            value.setMinimumWidth(90)
+            value.setMaximumWidth(120)
+
             self.gm10_label_widgets[key] = label
             self.gm10_value_labels[key] = value
-            form.addRow(label, value)
+
+            row = QHBoxLayout()
+            row.setContentsMargins(0, 0, 0, 0)
+            row.setSpacing(4)
+            row.addWidget(label)
+            row.addWidget(value)
+            row.addStretch()
+
+            rows.addLayout(row)
 
         layout.addLayout(header)
-        layout.addLayout(form)
+        layout.addLayout(rows)
 
         return group
 
@@ -112,16 +122,12 @@ class ManualOperationMainView(QWidget):
         layout = QVBoxLayout(group)
 
         # 接続操作
-        header = QHBoxLayout()
-        self.pwux_connect_button = QPushButton("Connect")
-        self.pwux_disconnect_button = QPushButton("Disconnect")
-        self.pwux_status_label = QLabel("Disconnected")
-
-        header.addWidget(self.pwux_connect_button)
-        header.addWidget(self.pwux_disconnect_button)
-        header.addStretch()
-        header.addWidget(QLabel("Status:"))
-        header.addWidget(self.pwux_status_label)
+        (
+            header,
+            self.pwux_connect_button,
+            self.pwux_disconnect_button,
+            self.pwux_status_label,
+        ) = self._create_connection_header()
 
         self.pwux_temp_label = ValueLabel(Temperature(float("nan")), ".2f")
         self.pwux_read_button = QPushButton("温度取得")
@@ -146,16 +152,12 @@ class ManualOperationMainView(QWidget):
         layout = QVBoxLayout(group)
 
         # 接続操作
-        header = QHBoxLayout()
-        self.laser_connect_button = QPushButton("Connect")
-        self.laser_disconnect_button = QPushButton("Disconnect")
-        self.laser_status_label = QLabel("Disconnected")
-
-        header.addWidget(self.laser_connect_button)
-        header.addWidget(self.laser_disconnect_button)
-        header.addStretch()
-        header.addWidget(QLabel("Status:"))
-        header.addWidget(self.laser_status_label)
+        (
+            header,
+            self.laser_connect_button,
+            self.laser_disconnect_button,
+            self.laser_status_label,
+        ) = self._create_connection_header()
 
         self.laser_power_spin = QDoubleSpinBox()
         self.laser_power_spin.setRange(0.0, 120.0)
@@ -200,29 +202,36 @@ class ManualOperationMainView(QWidget):
 
     def set_gm10_connected(self, connected: bool) -> None:
         # GM10の接続状態をUIに反映
-        self.gm10_connect_button.setEnabled(not connected)
-        self.gm10_disconnect_button.setEnabled(connected)
-        self.gm10_status_label.setText("Connected" if connected else "Disconnected")
-        self._apply_status_style(self.gm10_status_label, connected)
+        self._apply_connection_state(
+            self.gm10_connect_button,
+            self.gm10_disconnect_button,
+            self.gm10_status_label,
+            connected,
+        )
 
     def set_pwux_connected(self, connected: bool) -> None:
         # PWUXの接続状態をUIに反映
-        self.pwux_connect_button.setEnabled(not connected)
-        self.pwux_disconnect_button.setEnabled(connected)
-        self.pwux_status_label.setText("Connected" if connected else "Disconnected")
-        self.pwux_read_button.setEnabled(connected)
-        self.pwux_pointer_checkbox.setEnabled(connected)
-        self._apply_status_style(self.pwux_status_label, connected)
+        self._apply_connection_state(
+            self.pwux_connect_button,
+            self.pwux_disconnect_button,
+            self.pwux_status_label,
+            connected,
+            extra_enabled=[self.pwux_read_button, self.pwux_pointer_checkbox],
+        )
 
     def set_laser_connected(self, connected: bool) -> None:
         # Laserの接続状態をUIに反映
-        self.laser_connect_button.setEnabled(not connected)
-        self.laser_disconnect_button.setEnabled(connected)
-        self.laser_status_label.setText("Connected" if connected else "Disconnected")
-        self.laser_set_button.setEnabled(connected)
-        self.laser_power_spin.setEnabled(connected)
-        self.laser_emission_checkbox.setEnabled(connected)
-        self._apply_status_style(self.laser_status_label, connected)
+        self._apply_connection_state(
+            self.laser_connect_button,
+            self.laser_disconnect_button,
+            self.laser_status_label,
+            connected,
+            extra_enabled=[
+                self.laser_set_button,
+                self.laser_power_spin,
+                self.laser_emission_checkbox,
+            ],
+        )
         if not connected:
             self.laser_power_pv_label.setText("--")
 
@@ -243,8 +252,11 @@ class ManualOperationMainView(QWidget):
             else:
                 text = f"{label} (Ch {ch})"
                 self.gm10_enabled[key] = True
+                self.gm10_value_labels[key].setText("--")
 
             self.gm10_label_widgets[key].setText(f"{text} :")
+
+        self._fit_gm10_label_widths()
 
     def update_gm10_values(self, values: dict[str, Quantity[Volt]]) -> None:
         for key, val in values.items():
@@ -270,6 +282,46 @@ class ManualOperationMainView(QWidget):
             self.laser_power_pv_label.setText("--")
             return
         self.laser_power_pv_label.setValue(power)
+
+    def _fit_gm10_label_widths(self) -> None:
+        max_width = 0
+        for label in self.gm10_label_widgets.values():
+            max_width = max(max_width, label.sizeHint().width())
+
+        for label in self.gm10_label_widgets.values():
+            label.setFixedWidth(max_width + 4)
+
+    def _create_connection_header(
+        self,
+    ) -> tuple[QHBoxLayout, QPushButton, QPushButton, QLabel]:
+        header = QHBoxLayout()
+        connect_button = QPushButton("Connect")
+        disconnect_button = QPushButton("Disconnect")
+        status_label = QLabel("Disconnected")
+
+        header.addWidget(connect_button)
+        header.addWidget(disconnect_button)
+        header.addStretch()
+        header.addWidget(QLabel("Status:"))
+        header.addWidget(status_label)
+
+        return header, connect_button, disconnect_button, status_label
+
+    def _apply_connection_state(
+        self,
+        connect_button: QPushButton,
+        disconnect_button: QPushButton,
+        status_label: QLabel,
+        connected: bool,
+        extra_enabled: list[QWidget] | None = None,
+    ) -> None:
+        connect_button.setEnabled(not connected)
+        disconnect_button.setEnabled(connected)
+        status_label.setText("Connected" if connected else "Disconnected")
+        if extra_enabled:
+            for widget in extra_enabled:
+                widget.setEnabled(connected)
+        self._apply_status_style(status_label, connected)
 
     def _apply_status_style(self, label: QLabel, connected: bool) -> None:
         font = QFont(label.font())
