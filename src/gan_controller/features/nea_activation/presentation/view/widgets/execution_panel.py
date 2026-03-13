@@ -82,6 +82,7 @@ class NEAExecutionPanel(QGroupBox):
         self.laser_sv_spin.setSuffix(" mW")
         self.laser_sv_spin.setRange(0, 120)
         self.laser_sv_spin.setDecimals(1)
+        self.laser_sv_spin.setSingleStep(0.1)
         self.laser_pv_spin = SignificantFigureSpinBox(sig_figs=3)
         self.laser_pv_spin.setValue(3.01)
         self.laser_pv_spin.setSuffix(" mW")
