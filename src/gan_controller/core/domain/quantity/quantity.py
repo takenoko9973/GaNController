@@ -1,9 +1,12 @@
+import math
 from dataclasses import dataclass, field
 
 from gan_controller.core.domain.quantity.unit_types import UNIT_BY_SYMBOL
 
 from .parser import split_unit
 from .prefix_registry import PREFIX_REGISTRY
+
+_DEFAULT_PREFIX_TOL = 1e-6
 
 
 @dataclass
@@ -41,6 +44,26 @@ class Quantity[T]:
         """指定の接頭辞で値を取得"""
         PREFIX_REGISTRY.validate(prefix, self.unit)
         return self._value_si / PREFIX_REGISTRY.get(prefix).scale
+
+    def isclose(
+        self, other: "Quantity", *, rel_tol: float = 0.0, abs_tol: float | None = None
+    ) -> bool:
+        """Quantity同士の近似比較 (同一単位のみ比較対象)"""
+        if not isinstance(other, Quantity):
+            return False
+
+        if self.unit != other.unit:
+            return False
+
+        # 表示用プレフィックスを基準に許容幅を決める
+        if abs_tol is None:
+            abs_tol = self._default_abs_tol()
+
+        return math.isclose(self._value_si, other._value_si, rel_tol=rel_tol, abs_tol=abs_tol)
+
+    def _default_abs_tol(self) -> float:
+        """表示用プレフィックスに合わせた許容幅(SI基準)"""
+        return PREFIX_REGISTRY.get(self.display_prefix).scale * _DEFAULT_PREFIX_TOL
 
     # === 表示
 
