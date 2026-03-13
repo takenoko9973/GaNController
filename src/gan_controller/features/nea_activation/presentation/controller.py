@@ -136,6 +136,7 @@ class NEAActivationController(ITabController):
 
         if self._state == NEAActivationState.RUNNING and self._runner_manager.is_running():
             self._request_queue.put(config)
+            self._view.execution_panel.mark_applied()
 
     # =================================================
     # Runner -> View

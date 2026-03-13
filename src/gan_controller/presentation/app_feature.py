@@ -4,6 +4,12 @@ from PySide6.QtWidgets import QWidget
 
 from gan_controller.features.heat_cleaning.presentation.controller import HeatCleaningController
 from gan_controller.features.heat_cleaning.presentation.view import HeatCleaningMainView
+from gan_controller.features.manual_operation.presentation.controller import (
+    ManualOperationController,
+)
+from gan_controller.features.manual_operation.presentation.view import (
+    ManualOperationMainView,
+)
 from gan_controller.features.nea_activation.presentation.controller import NEAActivationController
 from gan_controller.features.nea_activation.presentation.view import NEAActivationMainView
 
@@ -41,6 +47,11 @@ class FeatureFactory:
         nea_view = NEAActivationMainView()
         nea_ctrl = NEAActivationController(nea_view)
         features.append(AppFeature("NEA Activation", nea_view, nea_ctrl))
+
+        # 手動操作 (Manual Control)
+        manual_view = ManualOperationMainView()
+        manual_ctrl = ManualOperationController(manual_view)
+        features.append(AppFeature("Manual Control", manual_view, manual_ctrl))
 
         # 設定 (Settings)
         setting_view = SettingMainView()

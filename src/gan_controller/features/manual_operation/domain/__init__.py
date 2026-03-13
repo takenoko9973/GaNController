@@ -1,0 +1,1 @@
+"""Manual operation domain layer."""

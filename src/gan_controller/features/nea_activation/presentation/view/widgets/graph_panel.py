@@ -34,7 +34,7 @@ class NEAGraphPanel(QWidget):
         self.time_window_spin.setKeyboardTracking(False)
         self.time_window_spin.valueChanged.connect(self._on_update_graph_settings)
 
-        setting_layout.addWidget(QLabel("表示範囲 (0s=全期間) :"))
+        setting_layout.addWidget(QLabel("表示範囲 (0 min=全期間) :"))
         setting_layout.addWidget(self.time_window_spin)
 
         layout.addLayout(setting_layout)
