@@ -13,11 +13,12 @@ from .unit_types import (
 )
 
 
-def _make(val: float, prefix: str, unit_type: type[UnitBase]) -> Quantity:
+def _make(val: float, prefix: str, unit_type: type[UnitBase]) -> Quantity[UnitBase]:
     """内部ヘルパー: 単位クラスの情報を使ってQuantityを生成"""
     # クラス定義からシンボルを取得 ("A", "V" 等)
     base_symbol = unit_type.symbol
-    return Quantity[unit_type](val, f"{prefix}{base_symbol}")
+    # tyは動的な型パラメータ指定を許容しないため、返り値はUnitBaseでまとめる
+    return Quantity(val, f"{prefix}{base_symbol}")
 
 
 # === ファクトリ関数 ===

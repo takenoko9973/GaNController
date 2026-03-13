@@ -1,7 +1,7 @@
 # 使用可能な単位
 from .unit_types import ALL_UNIT_TYPES
 
-BASE_UNITS = {u.symbol for u in ALL_UNIT_TYPES}
+BASE_UNITS: set[str] = {u.symbol for u in ALL_UNIT_TYPES}
 
 
 def split_unit(unit: str, known_prefixes: set[str]) -> tuple[str, str]:
@@ -15,12 +15,13 @@ def split_unit(unit: str, known_prefixes: set[str]) -> tuple[str, str]:
         return unit, ""
 
     # 単位部分を検索
-    dimension_units = BASE_UNITS - {""}
+    dimension_units: set[str] = BASE_UNITS - {""}
     for base in sorted(dimension_units, key=len, reverse=True):  # 長い単位から先に見る (Pa)
-        if unit.endswith(base):
-            prefix = unit[: -len(base)]
+        base_str = str(base)
+        if unit.endswith(base_str):
+            prefix = unit[: -len(base_str)]
             if prefix in known_prefixes:
-                return prefix, base
+                return prefix, base_str
 
     msg = f"Invalid unit: {unit}"
     raise ValueError(msg)
