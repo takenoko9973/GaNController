@@ -71,18 +71,17 @@ class ManualOperationController(ITabController):
         if self._gm10_runner.is_running():
             return
 
-        def do_connect(app_config: AppConfig) -> None:
-            self._view.set_gm10_channel_config(app_config.devices.gm10)
+        app_config = self._load_app_config()
+        if app_config is None:
+            return
 
-            def start_monitor() -> None:
-                workflow = GM10MonitorWorkflow(app_config, poll_interval=1.0)
-                self._gm10_runner.start_workflow(workflow)
-                self._view.set_gm10_connected(True)
+        self._view.set_gm10_channel_config(app_config.devices.gm10)
 
-            if not self._guard_action("GM10 接続エラー", start_monitor):
-                self._view.set_gm10_connected(False)
+        if self._start_gm10_monitor(app_config):
+            self._view.set_gm10_connected(True)
+            return
 
-        self._with_app_config(do_connect)
+        self._view.set_gm10_connected(False)
 
     @Slot()
     def disconnect_gm10(self) -> None:
@@ -219,6 +218,14 @@ class ManualOperationController(ITabController):
     def _has_active_connections(self) -> bool:
         return self._gm10_runner.is_running() or self._pwux.is_connected or self._laser.is_connected
 
+    def _start_gm10_monitor(self, app_config: AppConfig) -> bool:
+        # 接続成功の判定点をここに集約して、connect_gm10 の分岐を最小化する。
+        workflow = GM10MonitorWorkflow(app_config, poll_interval=1.0)
+        return self._guard_action(
+            "GM10 接続エラー",
+            lambda: self._gm10_runner.start_workflow(workflow),
+        )
+
     def _load_app_config(self, show_error: bool = True) -> AppConfig | None:
         try:
             return AppConfig.load()
@@ -226,13 +233,6 @@ class ManualOperationController(ITabController):
             if show_error:
                 self._show_error(f"設定読み込みエラー: {e}")
             return None
-
-    def _with_app_config(self, action: Callable[[AppConfig], None]) -> None:
-        # 設定読み込みに成功したときだけ処理を進める
-        app_config = self._load_app_config()
-        if app_config is None:
-            return
-        action(app_config)
 
     def _connect_device(
         self,
@@ -245,13 +245,16 @@ class ManualOperationController(ITabController):
         if is_connected:
             return
 
-        def do_connect(app_config: AppConfig) -> None:
-            if self._guard_action(f"{label} 接続エラー", lambda: connect_action(app_config)):
-                on_success()
-            else:
-                on_failure()
+        app_config = self._load_app_config()
+        if app_config is None:
+            return
 
-        self._with_app_config(do_connect)
+        if self._guard_action(f"{label} 接続エラー", lambda: connect_action(app_config)):
+            on_success()
+            return
+
+        # 接続途中で失敗した場合、UIと内部状態を確実に初期化する。
+        on_failure()
 
     def _show_error(self, message: str) -> None:
         self._view.show_error(message)

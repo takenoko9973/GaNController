@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 
 from gan_controller.features.heat_cleaning.application.protocol_manager import ProtocolManager
+from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.domain.interface import IProtocolRepository
 
 
@@ -44,3 +45,33 @@ def test_validate_name_fail_forbidden_char() -> None:
 
     assert is_valid is False
     assert "使用できない文字" in msg
+
+
+def test_save_protocol_success() -> None:
+    manager = _create_manager()
+    manager._repo.exists.return_value = False  # noqa: SLF001
+
+    ok, msg = manager.save_protocol(
+        name="TEST01",
+        config=ProtocolConfig(),
+        confirm_overwrite=lambda _: True,
+    )
+
+    assert ok is True
+    assert msg == "保存しました"
+    manager._repo.save.assert_called_once()  # noqa: SLF001
+
+
+def test_save_protocol_cancelled_when_overwrite_denied() -> None:
+    manager = _create_manager()
+    manager._repo.exists.return_value = True  # noqa: SLF001
+
+    ok, msg = manager.save_protocol(
+        name="TEST01",
+        config=ProtocolConfig(),
+        confirm_overwrite=lambda _: False,
+    )
+
+    assert ok is False
+    assert msg == "保存をキャンセルしました"
+    manager._repo.save.assert_not_called()  # noqa: SLF001

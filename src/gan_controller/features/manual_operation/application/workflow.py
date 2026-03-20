@@ -27,17 +27,11 @@ class GM10MonitorWorkflow(IExperimentWorkflow):
 
     def execute(self, observer: IExperimentObserver) -> None:
         self._observer = observer
-        adapter = None
-        rm = None
+        adapter: GM10Adapter | MockLoggerAdapter | None = None
+        resource_manager: pyvisa.ResourceManager | None = None
 
         try:
-            # 実機/シミュレーションで接続先を切り替える
-            if self._app_config.common.is_simulation_mode:
-                adapter = MockLoggerAdapter()
-            else:
-                rm = pyvisa.ResourceManager()
-                gm10 = GM10(rm, self._app_config.devices.gm10.visa)
-                adapter = GM10Adapter(gm10)
+            adapter, resource_manager = self._connect_adapter()
 
             # 監視ループを開始
             self._run_loop(adapter)
@@ -53,14 +47,25 @@ class GM10MonitorWorkflow(IExperimentWorkflow):
                 except Exception as e:  # noqa: BLE001
                     print(f"Error closing GM10 adapter: {e}")
 
-            if rm:
+            if resource_manager:
                 try:
-                    rm.close()
+                    resource_manager.close()
                 except Exception as e:  # noqa: BLE001
                     print(f"Error closing ResourceManager: {e}")
 
             if self._observer:
                 self._observer.on_finished()
+
+    def _connect_adapter(
+        self,
+    ) -> tuple[GM10Adapter | MockLoggerAdapter, pyvisa.ResourceManager | None]:
+        if self._app_config.common.is_simulation_mode:
+            return MockLoggerAdapter(), None
+
+        # close順序を明確にするため、ResourceManagerを呼び出し元へ返す。
+        resource_manager = pyvisa.ResourceManager()
+        gm10 = GM10(resource_manager, self._app_config.devices.gm10.visa)
+        return GM10Adapter(gm10), resource_manager
 
     # ==================================================================
 
