@@ -6,7 +6,7 @@ import pyvisa
 import pyvisa.constants
 
 from gan_controller.core.constants import JST
-from gan_controller.core.domain.quantity import Ampere, Current, Ohm, Quantity, Volt
+from gan_controller.core.domain.quantity import Ampere, Current, Quantity, Volt
 from gan_controller.features.nea_activation.domain.config import (
     NEAConditionConfig,
     NEAConfig,
@@ -24,6 +24,8 @@ from gan_controller.presentation.async_runners.interfaces import (
     IExperimentObserver,
     IExperimentWorkflow,
 )
+
+WAIT_CHECK_INTERVAL_SEC = 0.1
 
 
 class NEAActivationWorkflow(IExperimentWorkflow):
@@ -75,14 +77,8 @@ class NEAActivationWorkflow(IExperimentWorkflow):
 
         # メインループ
         while not self._should_stop():
-            try:
-                # 1ステップ分実行
-                success = self._execute_single_measurement(facade, start_perf)
-                if not success:
-                    break
-
-            except pyvisa.errors.VisaIOError as e:
-                self._handle_visa_error(e)
+            if not self._execute_single_measurement_with_error_handling(facade, start_perf):
+                break
 
     # =================================================================
     # Observer ヘルパーメソッド
@@ -123,29 +119,26 @@ class NEAActivationWorkflow(IExperimentWorkflow):
 
         print("\033[32m" + f"{elapsed_perf:.1f}[s]\t" + "\033[0m")
 
-        cond = self._config.condition
-        stabilization_time = cond.stabilization_time.base_value
-        shunt_r = cond.shunt_resistance
-        count = int(cond.integration_count.base_value)
-        interval = cond.integration_interval.base_value
+        condition = self._config.condition
+        stabilization_duration_sec = condition.stabilization_time.base_value
+        shunt_resistance = condition.shunt_resistance
+        integration_count = int(condition.integration_count.base_value)
+        integration_interval_sec = condition.integration_interval.base_value
 
         # 出力状態測定 (Bright)
-        if not cond.is_fixed_background:
+        if not condition.is_fixed_background:
             facade.set_laser_emission(True)  # レーザー出力開始
         # 安定するまで待機
-        if not self._wait_interruptable(stabilization_time):
+        if not self._wait_interruptable(stabilization_duration_sec):
             return False  # 待機中に中断されたら終了
-        bright_pc_volt, bright_pc = facade.read_photocurrent(shunt_r, count, interval)
+        bright_pc_volt, bright_pc = facade.read_photocurrent(
+            shunt_resistance,
+            integration_count,
+            integration_interval_sec,
+        )
 
         # バックグラウンド測定 (Dark)
-        dark_result = self._resolve_dark_photocurrent(
-            facade=facade,
-            condition=cond,
-            shunt_r=shunt_r,
-            stabilization_time=stabilization_time,
-            count=count,
-            interval=interval,
-        )
+        dark_result = self._resolve_dark_photocurrent(facade, condition)
         if dark_result is None:
             return False
         dark_pc_volt, dark_pc = dark_result
@@ -169,43 +162,60 @@ class NEAActivationWorkflow(IExperimentWorkflow):
 
         return True
 
+    def _execute_single_measurement_with_error_handling(
+        self,
+        facade: INEAHardwareFacade,
+        start_perf: float,
+    ) -> bool:
+        try:
+            return self._execute_single_measurement(facade, start_perf)
+        except pyvisa.errors.VisaIOError as e:
+            # タイムアウトは一時的な通信揺らぎとして扱い、実験全体は継続する。
+            self._handle_visa_error(e)
+            return True
+
     def _resolve_dark_photocurrent(
         self,
         facade: INEAHardwareFacade,
         condition: NEAConditionConfig,
-        shunt_r: Quantity[Ohm],
-        stabilization_time: float,
-        count: int,
-        interval: float,
     ) -> tuple[Quantity[Volt], Quantity[Ampere]] | None:
         """Dark測定値を返す。固定バックグラウンド時は設定値を利用する。"""
-        if not condition.is_fixed_background:
-            facade.set_laser_emission(False)
-
-        if not self._wait_interruptable(stabilization_time):
-            return None
+        stabilization_duration_sec = condition.stabilization_time.base_value
+        shunt_resistance = condition.shunt_resistance
+        integration_count = int(condition.integration_count.base_value)
+        integration_interval_sec = condition.integration_interval.base_value
 
         if condition.is_fixed_background:
+            if not self._wait_interruptable(stabilization_duration_sec):
+                return None
             dark_pc_volt = condition.fixed_background_volt
-            dark_pc = Current(dark_pc_volt.base_value / shunt_r.base_value)
+            dark_pc = Current(dark_pc_volt.base_value / shunt_resistance.base_value)
             return dark_pc_volt, dark_pc
 
-        return facade.read_photocurrent(shunt_r, count, interval)
+        facade.set_laser_emission(False)
+        if not self._wait_interruptable(stabilization_duration_sec):
+            return None
+
+        return facade.read_photocurrent(
+            shunt_resistance,
+            integration_count,
+            integration_interval_sec,
+        )
 
     def _process_pending_requests(self, facade: INEAHardwareFacade, elapsed_perf: float) -> None:
-        latest_config = self._get_latest_config_from_queue()
+        latest_control_config = self._get_latest_config_from_queue()
 
-        if latest_config is not None:
-            amd_current = latest_config.amd_output_current
-            laser_power = latest_config.laser_power_sv
+        if latest_control_config is not None:
+            amd_current = latest_control_config.amd_output_current
+            laser_power = latest_control_config.laser_power_sv
             msg = (
                 f"[{elapsed_perf:.1f}s] Parameters Updated: AMD = {amd_current},"
                 f"Laser = {laser_power}"
             )
             print(msg)
 
-            facade.apply_control_params(latest_config)
-            self._config.control = latest_config
+            facade.apply_control_params(latest_control_config)
+            self._config.control = latest_control_config
 
             self._notify_message(msg)
 
@@ -222,7 +232,6 @@ class NEAActivationWorkflow(IExperimentWorkflow):
             bool: 待機が完了した場合はTrue、中断された場合はFalse
 
         """
-        check_interval = 0.1  # チェック間隔 [s]
         start_perf = time.perf_counter()
 
         while True:
@@ -238,7 +247,7 @@ class NEAActivationWorkflow(IExperimentWorkflow):
                 return False  # 中断された
 
             # 次のチェックまでのスリープ (残り時間とインターバルの短い方)
-            time.sleep(min(check_interval, remaining))
+            time.sleep(min(WAIT_CHECK_INTERVAL_SEC, remaining))
 
     def _handle_visa_error(self, e: pyvisa.errors.VisaIOError) -> None:
         """VISAエラーのハンドリング"""
@@ -257,6 +266,7 @@ class NEAActivationWorkflow(IExperimentWorkflow):
             return None
 
         latest_params = None
+        # UIで連続変更された場合は古い設定を捨て、最後の値だけを反映する。
         while not self._request_queue.empty():
             try:
                 latest_params = self._request_queue.get_nowait()

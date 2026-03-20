@@ -17,6 +17,8 @@ from gan_controller.presentation.async_runners.interfaces import (
     IExperimentWorkflow,
 )
 
+DEFAULT_LOG_INTERVAL_SEC = 10.0
+
 
 class HeatCleaningWorkflow(IExperimentWorkflow):
     _backend: HCHardwareBackend
@@ -76,11 +78,6 @@ class HeatCleaningWorkflow(IExperimentWorkflow):
 
         return self._observer.is_interruption_requested()
 
-    def _notify_message(self, message: str) -> None:
-        """メッセージ通知"""
-        if self._observer:
-            self._observer.on_message(message)
-
     def _notify_result(self, result: HCExperimentResult) -> None:
         """結果通知"""
         if self._observer:
@@ -101,24 +98,37 @@ class HeatCleaningWorkflow(IExperimentWorkflow):
         total_start_time = time.perf_counter()
 
         # 各シーケンスを順番に実行
-        for i, seq in enumerate(sequences):
+        for sequence_index, sequence in enumerate(sequences, start=1):
             # 停止フラグが立っていたらループを抜ける
             if self._should_stop():
                 print("Experiment stopped by user.")
                 break
 
-            print(f"Starting Sequence {i + 1}: {seq.mode_name}")
-            self._run_single_sequence(i + 1, seq, total_start_time, facade)
+            print(f"Starting Sequence {sequence_index}: {sequence.mode_name}")
+            self._run_single_sequence(sequence_index, sequence, total_start_time, facade)
 
     def _run_single_sequence(
         self, seq_index: int, seq: Sequence, total_start_time: float, facade: IHCHardwareFacade
     ) -> None:
         """1つのシーケンスを実行するループ"""
-        # ログ設定からインターバルを取得 (なければデフォルト10s)
+        # ログ設定からインターバルを取得 (なければデフォルト値)
         interval = self._get_interval()
+        max_hc_current = (
+            self._config.condition.hc_current.base_value
+            if self._config.condition.hc_enabled
+            else 0.0
+        )
+        max_amd_current = (
+            self._config.condition.amd_current.base_value
+            if self._config.condition.amd_enabled
+            else 0.0
+        )
+        should_record_pyrometer = self._config.log.record_pyrometer
 
         # シーケンス開始時間
         seq_start_time = time.perf_counter()
+        # 実測時刻ではなく「次に実行すべき理想時刻」を進めることで、
+        # 1ステップの処理時間ぶんの遅延が累積しないようにする。
         next_target_perf = seq_start_time
 
         while not self._should_stop():
@@ -132,8 +142,15 @@ class HeatCleaningWorkflow(IExperimentWorkflow):
             total_elapsed = now - total_start_time
 
             # 処理実行
-            self._control_hardware(seq, seq_elapsed, facade)
-            result = self._create_result(seq_index, seq, seq_elapsed, total_elapsed, facade)
+            self._control_hardware(seq, seq_elapsed, max_hc_current, max_amd_current, facade)
+            result = self._create_result(
+                seq_index,
+                seq,
+                seq_elapsed,
+                total_elapsed,
+                should_record_pyrometer,
+                facade,
+            )
 
             # Result 処理
             if result:
@@ -148,25 +165,18 @@ class HeatCleaningWorkflow(IExperimentWorkflow):
                 break
 
     def _control_hardware(
-        self, seq: Sequence, seq_elapsed: float, facade: IHCHardwareFacade
+        self,
+        seq: Sequence,
+        seq_elapsed: float,
+        max_hc_current: float,
+        max_amd_current: float,
+        facade: IHCHardwareFacade,
     ) -> None:
         """1ステップ分の制御を行う"""
         try:
             # 目標電流値の計算
-            # Conditionの設定値 (最大電流) をConfigから取得
-            max_hc = (
-                self._config.condition.hc_current.base_value
-                if self._config.condition.hc_enabled
-                else 0.0
-            )
-            max_amd = (
-                self._config.condition.amd_current.base_value
-                if self._config.condition.amd_enabled
-                else 0.0
-            )
-
-            target_hc = seq.calculate_current(max_hc, seq_elapsed)
-            target_amd = seq.calculate_current(max_amd, seq_elapsed)
+            target_hc = seq.calculate_current(max_hc_current, seq_elapsed)
+            target_amd = seq.calculate_current(max_amd_current, seq_elapsed)
 
             # ハードウェア制御 (Interface経由)
             facade.set_currents(Current(target_hc), Current(target_amd))
@@ -182,12 +192,13 @@ class HeatCleaningWorkflow(IExperimentWorkflow):
         seq: Sequence,
         seq_elapsed: float,
         total_elapsed: float,
+        should_record_pyrometer: bool,
         facade: IHCHardwareFacade,
     ) -> HCExperimentResult | None:
         """1ステップ分の測定を行う"""
         try:
             result = facade.read_metrics()
-            if not self._config.log.record_pyrometer:
+            if not should_record_pyrometer:
                 # 放射温度計を使用しない場合は、nanに上書き
                 result.temperature_case = Temperature(float("nan"))
 
@@ -205,7 +216,7 @@ class HeatCleaningWorkflow(IExperimentWorkflow):
 
     def _get_interval(self) -> float:
         val = self._config.condition.logging_interval.base_value
-        return val if val > 0 else 10.0
+        return val if val > 0 else DEFAULT_LOG_INTERVAL_SEC
 
     def _wait_for_next_tick(self, target_perf: float) -> None:
         sleep_duration = target_perf - time.perf_counter()
