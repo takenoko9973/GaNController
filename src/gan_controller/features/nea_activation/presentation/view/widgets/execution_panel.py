@@ -158,8 +158,7 @@ class NEAExecutionPanel(QGroupBox):
     def _update_apply_state(self) -> None:
         # 変更検知が無効なときは表示変化を出さない
         if not self._dirty_tracking_enabled:
-            self.apply_button.setEnabled(False)
-            self.apply_button.setStyleSheet("")
+            self._set_apply_dirty_state(False)
             return
 
         self._set_apply_dirty_state(self._is_dirty())
@@ -188,9 +187,6 @@ class NEAExecutionPanel(QGroupBox):
     def set_dirty_tracking(self, enabled: bool) -> None:
         # 実験状態に応じて変更検知の有効/無効を切り替える
         self._dirty_tracking_enabled = enabled
-        if not enabled:
-            self.apply_button.setEnabled(False)
-            self.apply_button.setStyleSheet("")
         self._update_apply_state()
 
     # =============================================================================

@@ -85,38 +85,30 @@ class NEAActivationMainView(QWidget):
     def set_running(self, state: NEAActivationState) -> None:
         """実験表示 (ボタン) 切り替え"""
         if state == NEAActivationState.IDLE:
-            # 設定パネルの有効化
             self.condition_setting_panel.setEnabled(True)
             self.log_setting_panel.setEnabled(True)
-
-            self.execution_panel.start_button.setEnabled(True)  # 実行ボタン
-            self.execution_panel.stop_button.setEnabled(False)  # 停止ボタン
+            self.execution_panel.start_button.setEnabled(True)
+            self.execution_panel.stop_button.setEnabled(False)
             self.measure_panel.set_status("待機中", False)
-            # 停止中はApplyの表示変化を抑制
             self.execution_panel.set_dirty_tracking(False)
-        elif state == NEAActivationState.RUNNING:
-            # 設定パネルの無効化
+            return
+
+        if state == NEAActivationState.RUNNING:
             self.condition_setting_panel.setEnabled(False)
             self.log_setting_panel.setEnabled(False)
-
             self.execution_panel.start_button.setEnabled(False)
             self.execution_panel.stop_button.setEnabled(True)
             self.measure_panel.set_status("実行中", True)
-            # 実験中のみ変更検知を有効化
             self.execution_panel.set_dirty_tracking(True)
-            # 実験開始時点の値を反映済みとして扱う
             self.execution_panel.mark_applied()
-        elif state == NEAActivationState.STOPPING:
-            # 停止中もパネル操作不可
-            self.condition_setting_panel.setEnabled(False)
-            self.log_setting_panel.setEnabled(False)
+            return
 
-            # 停止中はどちらも操作不可
-            self.execution_panel.start_button.setEnabled(False)
-            self.execution_panel.stop_button.setEnabled(False)
-            self.measure_panel.set_status("停止処理中", False)
-            # 停止処理中もApplyの表示変化を抑制
-            self.execution_panel.set_dirty_tracking(False)
+        self.condition_setting_panel.setEnabled(False)
+        self.log_setting_panel.setEnabled(False)
+        self.execution_panel.start_button.setEnabled(False)
+        self.execution_panel.stop_button.setEnabled(False)
+        self.measure_panel.set_status("停止処理中", False)
+        self.execution_panel.set_dirty_tracking(False)
 
     def update_view(self, result: NEAExperimentResult) -> None:
         """結果をUIに反映"""

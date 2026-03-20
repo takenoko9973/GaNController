@@ -56,7 +56,7 @@ class NEAConditionConfig(BaseModel):
 
     @field_validator("shunt_resistance")
     @classmethod
-    def validate_resistance(cls, v: Quantity[Dimensionless]) -> Quantity[Dimensionless]:
+    def validate_resistance(cls, v: Quantity[Ohm]) -> Quantity[Ohm]:
         """抵抗値は正の数"""
         if v.base_value <= 0:
             msg = "Resistance must be > 0"
@@ -66,7 +66,7 @@ class NEAConditionConfig(BaseModel):
 
     @field_validator("laser_wavelength")
     @classmethod
-    def validate_wavelength(cls, v: Quantity[Dimensionless]) -> Quantity[Dimensionless]:
+    def validate_wavelength(cls, v: Quantity[Meter]) -> Quantity[Meter]:
         """波長は正の数"""
         if v.base_value <= 0:
             msg = "Wavelength must be > 0"
@@ -76,7 +76,7 @@ class NEAConditionConfig(BaseModel):
 
     @field_validator("integration_count")
     @classmethod
-    def validate_count(cls, v: Quantity[Dimensionless]) -> Quantity[Dimensionless]:
+    def validate_integration_count(cls, v: Quantity[Dimensionless]) -> Quantity[Dimensionless]:
         """積算回数は正の整数"""
         if v.base_value < 1:
             msg = "Integration count must be >= 1"
@@ -123,7 +123,7 @@ class NEAControlConfig(BaseModel):
 
     @field_validator("amd_output_current")
     @classmethod
-    def validate_count(cls, v: Quantity[Dimensionless]) -> Quantity[Dimensionless]:
+    def validate_amd_output_current(cls, v: Quantity[Ampere]) -> Quantity[Ampere]:
         """電流値は非負"""
         if v.base_value < 0:
             msg = "Current cannot be negative"
@@ -133,7 +133,7 @@ class NEAControlConfig(BaseModel):
 
     @field_validator("laser_power_sv", "laser_power_pv")
     @classmethod
-    def validate_time(cls, v: Quantity[Second]) -> Quantity[Second]:
+    def validate_laser_power(cls, v: Quantity[Watt]) -> Quantity[Watt]:
         """電力は非負"""
         if v.base_value < 0:
             msg = "Power cannot be negative"

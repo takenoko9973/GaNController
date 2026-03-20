@@ -1,19 +1,8 @@
 import re
 from collections.abc import Callable
-from dataclasses import dataclass
 
 from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.domain.interface import IProtocolRepository
-
-
-@dataclass
-class SaveContext:
-    """保存操作に必要なコンテキスト情報"""
-
-    name: str
-    config: ProtocolConfig
-    # ユーザーへの問いかけを行うコールバック関数を受け取る
-    confirm_overwrite: Callable[[str], bool]
 
 
 class ProtocolManager:
@@ -28,24 +17,29 @@ class ProtocolManager:
         """プロトコル設定をロード"""
         return self._repo.load(name)
 
-    def save_protocol(self, context: SaveContext) -> tuple[bool, str]:
+    def save_protocol(
+        self,
+        name: str,
+        config: ProtocolConfig,
+        confirm_overwrite: Callable[[str], bool],
+    ) -> tuple[bool, str]:
         """
         保存処理実行
 
         Returns: (成功したか, メッセージ)
         """
         # 1. バリデーション
-        is_valid, msg = self._validate_name(context.name)
+        is_valid, msg = self._validate_name(name)
         if not is_valid:
             return False, msg
 
         # 2. 重複チェックと確認
-        if self._repo.exists(context.name) and not context.confirm_overwrite(context.name):
+        if self._repo.exists(name) and not confirm_overwrite(name):
             return False, "保存をキャンセルしました"
 
         # 3. 保存実行
         try:
-            self._repo.save(context.name, context.config)
+            self._repo.save(name, config)
             return True, "保存しました"
         except Exception as e:  # noqa: BLE001
             return False, f"保存失敗: {e}"

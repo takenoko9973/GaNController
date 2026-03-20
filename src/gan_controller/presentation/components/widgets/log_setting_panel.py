@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QEvent, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QGroupBox,
@@ -20,14 +20,18 @@ class CommonLogSettingPanel(QGroupBox):
     comment_edit: QLineEdit
 
     next_num_label: QLabel
+    _preview_refresh_timer: QTimer
 
     # 設定変更通知用シグナル
     config_changed = Signal()
+    # プレビュー更新要求用シグナル
+    preview_refresh_requested = Signal()
 
     def __init__(self, title: str = "Log Setting", parent: QWidget | None = None) -> None:
         super().__init__(title, parent)
         self._init_ui()
         self._init_signals()
+        self._init_timer()
 
     def _init_ui(self) -> None:
         self._main_layout = QVBoxLayout(self)
@@ -69,6 +73,25 @@ class CommonLogSettingPanel(QGroupBox):
 
     def _on_changed(self) -> None:
         self.config_changed.emit()
+
+    def _init_timer(self) -> None:
+        self._preview_refresh_timer = QTimer(self)
+        self._preview_refresh_timer.setInterval(3000)
+        self._preview_refresh_timer.timeout.connect(self._emit_preview_refresh_if_needed)
+        self._preview_refresh_timer.start()
+
+    def _emit_preview_refresh_if_needed(self) -> None:
+        if self.isVisible() and self.isEnabled():
+            self.preview_refresh_requested.emit()
+
+    def showEvent(self, event: QEvent) -> None:  # noqa: N802
+        super().showEvent(event)
+        self._emit_preview_refresh_if_needed()
+
+    def changeEvent(self, event: QEvent) -> None:  # noqa: N802
+        super().changeEvent(event)
+        if event.type() == QEvent.Type.EnabledChange and self.isEnabled():
+            self._emit_preview_refresh_if_needed()
 
     def set_preview_text(self, text: str) -> None:
         """ログファイル名プレビューを設定"""

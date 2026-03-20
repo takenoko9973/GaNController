@@ -52,6 +52,7 @@ class NEAActivationController(ITabController):
 
         # ログ設定変更時のプレビュー更新
         self._view.log_setting_panel.config_changed.connect(self._update_log_preview)
+        self._view.log_setting_panel.preview_refresh_requested.connect(self._update_log_preview)
 
     def _connect_manager_signals(self) -> None:
         """実験ロジックからの通知を受け取るシグナルの接続"""
@@ -64,6 +65,7 @@ class NEAActivationController(ITabController):
         """起動時に設定ファイルを読み込んでUIにセットする"""
         config = NEAConfig.load(NEA_CONFIG_PATH)
         self._view.set_full_config(config)
+        self._update_log_preview()
 
     def set_state(self, state: NEAActivationState) -> None:
         """状態変更"""
@@ -95,11 +97,10 @@ class NEAActivationController(ITabController):
         self.set_state(NEAActivationState.RUNNING)
         self._view.clear_view()  # 前回のグラフ等をクリア
 
-        # 設定読み込み
-        app_config = AppConfig.load()
-        nea_config = self._view.get_full_config()
-
         try:
+            app_config = AppConfig.load()
+            nea_config = self._view.get_full_config()
+
             is_sim = getattr(app_config.common, "is_simulation_mode", False)
             if is_sim:
                 backend = SimulationNEAHardwareBackend(app_config.devices)
@@ -132,11 +133,12 @@ class NEAActivationController(ITabController):
     @Slot()
     def setting_apply(self) -> None:
         """実験途中での値更新"""
-        config = self._view.execution_panel.get_config()
+        if self._state != NEAActivationState.RUNNING or not self._runner_manager.is_running():
+            return
 
-        if self._state == NEAActivationState.RUNNING and self._runner_manager.is_running():
-            self._request_queue.put(config)
-            self._view.execution_panel.mark_applied()
+        config = self._view.execution_panel.get_config()
+        self._request_queue.put(config)
+        self._view.execution_panel.mark_applied()
 
     # =================================================
     # Runner -> View

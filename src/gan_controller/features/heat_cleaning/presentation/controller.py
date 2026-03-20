@@ -4,7 +4,6 @@ from gan_controller.core.constants import LOG_DIR
 from gan_controller.core.domain.app_config import AppConfig
 from gan_controller.features.heat_cleaning.application.protocol_manager import (
     ProtocolManager,
-    SaveContext,
 )
 from gan_controller.features.heat_cleaning.application.workflow import HeatCleaningWorkflow
 from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
@@ -61,6 +60,7 @@ class HeatCleaningController(ITabController):
 
         # ログ設定変更時のプレビュー更新
         self._view.log_setting_panel.config_changed.connect(self._update_log_preview)
+        self._view.log_setting_panel.preview_refresh_requested.connect(self._update_log_preview)
 
     def _connect_manager_signals(self) -> None:
         """実験ロジックからの通知を受け取るシグナルの接続"""
@@ -125,10 +125,11 @@ class HeatCleaningController(ITabController):
         if current_name == NEW_PROTOCOL_TEXT:
             # 新規作成
             self._on_save_as()
-        else:
-            # 上書き保存
-            current_name = current_name.strip().upper()  # 大文字化
-            self._save_protocol(current_name)
+            return
+
+        # 上書き保存
+        normalized_name = current_name.strip().upper()
+        self._save_protocol(normalized_name)
 
     @Slot()
     def _on_save_as(self) -> None:
@@ -139,18 +140,19 @@ class HeatCleaningController(ITabController):
             current_name = ""
 
         new_name = self._view.ask_new_name(current_name).strip().upper()
-        if new_name != "":
-            # 保存処理
-            self._save_protocol(new_name)
+        if new_name == "":
+            return
+
+        # 保存処理
+        self._save_protocol(new_name)
 
     def _save_protocol(self, name: str) -> None:
         """保存処理を行い、通知する"""
-        context = SaveContext(
-            name,
-            self._view.get_full_config(),
-            self._view.confirm_overwrite,
+        success, msg = self._protocol_manager.save_protocol(
+            name=name,
+            config=self._view.get_full_config(),
+            confirm_overwrite=self._view.confirm_overwrite,
         )
-        success, msg = self._protocol_manager.save_protocol(context)
 
         if success:
             self._refresh_protocol_list()
@@ -169,15 +171,16 @@ class HeatCleaningController(ITabController):
         if self._state != HeatCleaningState.IDLE:  # 二重起動防止
             return
 
+        # 準備中も操作競合を防ぐため、先に実行中状態へ遷移する。
+        # 失敗時は except 側で必ず IDLE に戻す。
         self.set_state(HeatCleaningState.RUNNING)
         self._view.clear_view()
 
-        # 設定読み込み
-        app_config = AppConfig.load()
-        protocol_config = self._view.get_full_config()
-
         # 2. ハードウェアの接続 (Context Managerの手動制御)
         try:
+            app_config = AppConfig.load()
+            protocol_config = self._view.get_full_config()
+
             is_sim = getattr(app_config.common, "is_simulation_mode", False)
             if is_sim:
                 backend = SimulationHCHardwareBackend(app_config.devices)
