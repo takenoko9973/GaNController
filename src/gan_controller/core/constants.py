@@ -15,6 +15,22 @@ def _find_project_root(start: Path) -> Path | None:
     return None
 
 
+def _resolve_home_from_env() -> Path | None:
+    env_home = os.environ.get(APP_HOME_ENV_VAR)
+    if not env_home:
+        return None
+    return Path(env_home).expanduser().resolve(strict=False)
+
+
+def _resolve_home_from_project_root() -> Path | None:
+    # 開発実行では「今の作業ディレクトリ」基準で解決しないと、
+    # エディタ/CI の起動位置によって保存先がぶれやすい。
+    project_root = _find_project_root(Path.cwd())
+    if project_root is None:
+        return None
+    return project_root.resolve(strict=False)
+
+
 def _resolve_platform_data_home() -> Path:
     if os.name == "nt":
         default_home = Path.home() / "AppData" / "Local"
@@ -33,13 +49,13 @@ def resolve_app_home() -> Path:
     2. 開発実行時のプロジェクトルート (pyproject.toml 検出)
     3. OS標準のユーザーデータディレクトリ配下
     """
-    env_home = os.environ.get(APP_HOME_ENV_VAR)
-    if env_home:
-        return Path(env_home).expanduser().resolve(strict=False)
+    env_home = _resolve_home_from_env()
+    if env_home is not None:
+        return env_home
 
-    project_root = _find_project_root(Path.cwd())
-    if project_root is not None:
-        return project_root.resolve(strict=False)
+    project_home = _resolve_home_from_project_root()
+    if project_home is not None:
+        return project_home
 
     return (_resolve_platform_data_home() / APP_DIR_NAME).expanduser().resolve(strict=False)
 

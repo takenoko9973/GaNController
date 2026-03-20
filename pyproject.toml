@@ -90,3 +90,7 @@ quote-style = "double"
 
 [tool.ruff.pylint]
 max-args = 10
+
+[tool.pytest.ini_options]
+# test_controller.py など同名テストモジュールの衝突を避けるため importlib モードを使う
+addopts = "--import-mode=importlib"
