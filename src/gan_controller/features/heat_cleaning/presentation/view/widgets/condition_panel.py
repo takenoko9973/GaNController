@@ -76,8 +76,12 @@ class HCConditionPanel(QGroupBox):
         config_layout1.addWidget(self.logging_interval_spin, 1, 1)
 
         config_layout2 = QGridLayout()
-        self.hc_checked_spin = CheckableSpinBox("HC 電流", minimum=0, decimals=1, suffix=" A")
-        self.amd_checked_spin = CheckableSpinBox("AMD 電流", minimum=0, decimals=1, suffix=" A")
+        self.hc_checked_spin = CheckableSpinBox(
+            "HC 電流", minimum=0, decimals=1, single_step=0.1, suffix=" A"
+        )
+        self.amd_checked_spin = CheckableSpinBox(
+            "AMD 電流", minimum=0, decimals=1, single_step=0.1, suffix=" A"
+        )
         config_layout2.addWidget(self.hc_checked_spin, 0, 0, 1, 2)
         config_layout2.addWidget(self.amd_checked_spin, 1, 0, 1, 2)
 
