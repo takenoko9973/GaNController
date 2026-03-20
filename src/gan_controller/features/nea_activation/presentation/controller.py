@@ -52,6 +52,7 @@ class NEAActivationController(ITabController):
 
         # ログ設定変更時のプレビュー更新
         self._view.log_setting_panel.config_changed.connect(self._update_log_preview)
+        self._view.log_setting_panel.preview_refresh_requested.connect(self._update_log_preview)
 
     def _connect_manager_signals(self) -> None:
         """実験ロジックからの通知を受け取るシグナルの接続"""
