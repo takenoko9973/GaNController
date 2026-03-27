@@ -22,6 +22,9 @@ class LogColumn:
 class NEALogRecorder:
     """NEA実験データの記録を担当するクラス (Recorder)"""
 
+    file: LogFile
+    config: NEAConfig
+
     def __init__(self, log_file: LogFile, config: NEAConfig) -> None:
         self.file = log_file
         self.config = config
@@ -61,7 +64,7 @@ class NEALogRecorder:
 
         # パラメータの取得 (Quantity -> float/int)
         wavelength = int(self.config.condition.laser_wavelength.value_as("n"))
-        laser_power_sv = int(self.config.control.laser_power_sv.value_as("m"))
+        laser_power_sv = self.config.control.laser_power_sv.value_as("m")
         stabilization_time = self.config.condition.stabilization_time.base_value
         integrated_count = int(self.config.condition.integration_count.base_value)
         interval = self.config.condition.integration_interval.base_value
@@ -83,7 +86,7 @@ class NEALogRecorder:
 
         lf.write("#Condition\n")
         lf.write(f"#Wavelength:\t{wavelength:d}[nm]\n")
-        lf.write(f"#InitLaserPower(SV):\t{laser_power_sv:d}[mW]\n")
+        lf.write(f"#InitLaserPower(SV):\t{laser_power_sv:.1f}[mW]\n")
 
         lf.write(f"#StabilizationTime:\t{stabilization_time:.1f}[s]\n")
         lf.write(f"#IntegratedTimes:\t{integrated_count:d}[-]\n")
