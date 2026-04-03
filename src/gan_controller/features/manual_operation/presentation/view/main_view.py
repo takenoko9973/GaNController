@@ -1,3 +1,5 @@
+import math
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QPalette
 from PySide6.QtWidgets import (
@@ -15,7 +17,8 @@ from PySide6.QtWidgets import (
 
 from gan_controller.core.domain.app_config import GM10Config
 from gan_controller.core.domain.quantity import Power, Quantity, Temperature, Volt, Watt
-from gan_controller.presentation.components.widgets import ValueLabel
+from gan_controller.core.services.physics import calculate_quantum_efficiency
+from gan_controller.presentation.components.widgets import SignificantFigureSpinBox, ValueLabel
 
 
 class ManualOperationMainView(QWidget):
@@ -55,6 +58,11 @@ class ManualOperationMainView(QWidget):
     laser_emission_checkbox: QCheckBox
     laser_power_pv_label: ValueLabel
 
+    qe_pc_spin: SignificantFigureSpinBox
+    qe_laser_power_spin: QDoubleSpinBox
+    qe_wavelength_spin: QDoubleSpinBox
+    qe_value_label: ValueLabel
+
     def __init__(self) -> None:
         super().__init__()
         self.gm10_label_widgets = {}
@@ -74,6 +82,7 @@ class ManualOperationMainView(QWidget):
         layout.addWidget(self._create_gm10_group())
         layout.addWidget(self._create_pwux_group())
         layout.addWidget(self._create_laser_group())
+        layout.addWidget(self._create_qe_group())
         layout.addStretch()
 
     def _create_gm10_group(self) -> QGroupBox:
@@ -186,6 +195,50 @@ class ManualOperationMainView(QWidget):
 
         return group
 
+    def _create_qe_group(self) -> QGroupBox:
+        group = QGroupBox("QE Calculator")
+        layout = QHBoxLayout(group)
+
+        self.qe_pc_spin = SignificantFigureSpinBox(sig_figs=4)
+        self.qe_pc_spin.setRange(-1e9, 1e9)
+        self.qe_pc_spin.setValue(0.0)
+        self.qe_pc_spin.setSuffix(" nA")
+
+        self.qe_laser_power_spin = QDoubleSpinBox()
+        self.qe_laser_power_spin.setRange(0.0, 120.0)
+        self.qe_laser_power_spin.setDecimals(3)
+        self.qe_laser_power_spin.setSingleStep(0.1)
+        self.qe_laser_power_spin.setValue(10.0)
+        self.qe_laser_power_spin.setSuffix(" mW")
+
+        self.qe_wavelength_spin = QDoubleSpinBox()
+        self.qe_wavelength_spin.setRange(1.0, 1000.0)
+        self.qe_wavelength_spin.setDecimals(0)
+        self.qe_wavelength_spin.setSingleStep(1.0)
+        self.qe_wavelength_spin.setValue(406.0)
+        self.qe_wavelength_spin.setSuffix(" nm")
+
+        self.qe_value_label = ValueLabel("--")
+        self.qe_value_label.setMinimumWidth(120)
+        self.qe_value_label.setMaximumWidth(160)
+
+        layout.addWidget(QLabel("PC:"))
+        layout.addWidget(self.qe_pc_spin)
+        layout.addSpacing(8)
+        layout.addWidget(QLabel("Laser:"))
+        layout.addWidget(self.qe_laser_power_spin)
+        layout.addSpacing(8)
+        layout.addWidget(QLabel("Wavelength:"))
+        layout.addWidget(self.qe_wavelength_spin)
+        layout.addSpacing(16)
+        layout.addWidget(QLabel("QE:"))
+        layout.addWidget(self.qe_value_label)
+        layout.addStretch()
+
+        self._update_qe_value()
+
+        return group
+
     def _connect_signals(self) -> None:
         self.gm10_connect_button.clicked.connect(self.gm10_connect_requested.emit)
         self.gm10_disconnect_button.clicked.connect(self.gm10_disconnect_requested.emit)
@@ -197,6 +250,9 @@ class ManualOperationMainView(QWidget):
         self.pwux_pointer_checkbox.toggled.connect(self.pwux_pointer_toggled.emit)
         self.laser_set_button.clicked.connect(self.laser_set_requested.emit)
         self.laser_emission_checkbox.toggled.connect(self.laser_emission_toggled.emit)
+        self.qe_pc_spin.valueChanged.connect(self._update_qe_value)
+        self.qe_laser_power_spin.valueChanged.connect(self._update_qe_value)
+        self.qe_wavelength_spin.valueChanged.connect(self._update_qe_value)
 
     # =============================================================================
 
@@ -282,6 +338,19 @@ class ManualOperationMainView(QWidget):
             self.laser_power_pv_label.setText("--")
             return
         self.laser_power_pv_label.setValue(power)
+
+    def _update_qe_value(self, _value: float | None = None) -> None:
+        qe_percent = calculate_quantum_efficiency(
+            current_amp=self.qe_pc_spin.value() * 1e-9,
+            laser_power_watt=self.qe_laser_power_spin.value() * 1e-3,
+            wavelength_nm=self.qe_wavelength_spin.value(),
+        )
+
+        if not math.isfinite(qe_percent):
+            self.qe_value_label.setText("--")
+            return
+
+        self.qe_value_label.setText(f"{qe_percent:.4g} %")
 
     def _fit_gm10_label_widths(self) -> None:
         max_width = 0
