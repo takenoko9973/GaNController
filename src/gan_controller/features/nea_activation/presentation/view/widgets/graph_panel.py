@@ -1,6 +1,6 @@
 import math
 
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget
 
 from gan_controller.features.nea_activation.domain.models import NEAExperimentResult
@@ -18,7 +18,9 @@ class NEAGraphPanel(QWidget):
     QE_AXIS_MODE_VISIBLE_MAX = "visible_max"
     QE_AXIS_MODE_FIXED_MAX = "fixed_max"
 
-    QE_SAFE_FALLBACK_MAX = 1.0
+    QE_SAFE_FALLBACK_MAX = 1e-0
+    QE_FIXED_MAX_LIMIT = 100.0
+    QE_FIXED_MAX_MIN = 1e-3
 
     _history_pc: GraphData
     _history_qe: GraphData
@@ -37,7 +39,6 @@ class NEAGraphPanel(QWidget):
 
         # === 表示設定
         setting_layout = QHBoxLayout()
-        setting_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         # グラフ表示幅
         self.time_window_spin = QSpinBox(minimum=0, maximum=180, value=10, suffix=" min")
@@ -48,6 +49,7 @@ class NEAGraphPanel(QWidget):
 
         setting_layout.addWidget(QLabel("表示範囲 (0 min=全期間) :"))
         setting_layout.addWidget(self.time_window_spin)
+        setting_layout.addStretch(1)
 
         self.qe_axis_mode_combo = QComboBox()
         self.qe_axis_mode_combo.addItem("通常", self.QE_AXIS_MODE_NORMAL)
@@ -55,17 +57,18 @@ class NEAGraphPanel(QWidget):
         self.qe_axis_mode_combo.addItem("固定最大", self.QE_AXIS_MODE_FIXED_MAX)
         self.qe_axis_mode_combo.currentIndexChanged.connect(self._on_update_graph_settings)
 
-        self.qe_fixed_max_spin = SignificantFigureSpinBox(sig_figs=3)
+        self.qe_fixed_max_spin = SignificantFigureSpinBox(sig_figs=2)
         self.qe_fixed_max_spin.setSuffix(" %")
-        self.qe_fixed_max_spin.setRange(1e-9, 1e6)
+        self.qe_fixed_max_spin.setRange(self.QE_FIXED_MAX_MIN, self.QE_FIXED_MAX_LIMIT)
         self.qe_fixed_max_spin.setValue(self.QE_SAFE_FALLBACK_MAX)
+        self.qe_fixed_max_spin.setMaximumWidth(110)
         self.qe_fixed_max_spin.setEnabled(False)
         self.qe_fixed_max_spin.valueChanged.connect(self._on_qe_fixed_max_changed)
+        self.qe_fixed_max_label = QLabel("固定最大 :")
 
-        setting_layout.addSpacing(12)
         setting_layout.addWidget(QLabel("QE左軸 :"))
         setting_layout.addWidget(self.qe_axis_mode_combo)
-        setting_layout.addWidget(QLabel("固定最大 :"))
+        setting_layout.addWidget(self.qe_fixed_max_label)
         setting_layout.addWidget(self.qe_fixed_max_spin)
 
         layout.addLayout(setting_layout)
@@ -194,9 +197,8 @@ class NEAGraphPanel(QWidget):
         return mode if isinstance(mode, str) else self.QE_AXIS_MODE_NORMAL
 
     def _sync_qe_fixed_max_enabled(self) -> None:
-        self.qe_fixed_max_spin.setEnabled(
-            self._current_qe_axis_mode() == self.QE_AXIS_MODE_FIXED_MAX
-        )
+        is_fixed_mode = self._current_qe_axis_mode() == self.QE_AXIS_MODE_FIXED_MAX
+        self.qe_fixed_max_spin.setEnabled(is_fixed_mode)
 
     def _initialize_qe_fixed_max(self) -> None:
         max_val = self._visible_qe_max()
