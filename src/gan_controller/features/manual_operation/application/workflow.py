@@ -1,10 +1,11 @@
 import time
 
-import pyvisa
-
 from gan_controller.core.domain.app_config import AppConfig
 from gan_controller.core.domain.quantity import Quantity, Volt
 from gan_controller.features.manual_operation.domain.models import ManualResult
+from gan_controller.features.manual_operation.infrastructure.visa_provider import (
+    get_shared_resource_manager,
+)
 from gan_controller.infrastructure.hardware.adapters.logger_adapter import (
     GM10Adapter,
     MockLoggerAdapter,
@@ -28,10 +29,9 @@ class GM10MonitorWorkflow(IExperimentWorkflow):
     def execute(self, observer: IExperimentObserver) -> None:
         self._observer = observer
         adapter: GM10Adapter | MockLoggerAdapter | None = None
-        resource_manager: pyvisa.ResourceManager | None = None
 
         try:
-            adapter, resource_manager = self._connect_adapter()
+            adapter = self._connect_adapter()
 
             # 監視ループを開始
             self._run_loop(adapter)
@@ -47,25 +47,16 @@ class GM10MonitorWorkflow(IExperimentWorkflow):
                 except Exception as e:  # noqa: BLE001
                     print(f"Error closing GM10 adapter: {e}")
 
-            if resource_manager:
-                try:
-                    resource_manager.close()
-                except Exception as e:  # noqa: BLE001
-                    print(f"Error closing ResourceManager: {e}")
-
             if self._observer:
                 self._observer.on_finished()
 
-    def _connect_adapter(
-        self,
-    ) -> tuple[GM10Adapter | MockLoggerAdapter, pyvisa.ResourceManager | None]:
+    def _connect_adapter(self) -> GM10Adapter | MockLoggerAdapter:
         if self._app_config.common.is_simulation_mode:
-            return MockLoggerAdapter(), None
+            return MockLoggerAdapter()
 
-        # close順序を明確にするため、ResourceManagerを呼び出し元へ返す。
-        resource_manager = pyvisa.ResourceManager()
+        resource_manager = get_shared_resource_manager()
         gm10 = GM10(resource_manager, self._app_config.devices.gm10.visa)
-        return GM10Adapter(gm10), resource_manager
+        return GM10Adapter(gm10)
 
     # ==================================================================
 
