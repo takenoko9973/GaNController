@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from contextlib import ExitStack
 
 import pyvisa
@@ -30,24 +31,22 @@ class NEAHardwareBackend(IHardwareBackend[NEADevices, INEAHardwareFacade]):
         self._config = config
         self._connect_laser = connect_laser
 
+    def _close_device_with_log(self, label: str, close_action: Callable[[], None]) -> None:
+        try:
+            close_action()
+            print(f"[DISCONNECT][{label}] success")
+        except Exception as e:  # noqa: BLE001
+            print(f"[DISCONNECT][{label}] failed: {e}")
+
     def _disconnect_devices(self) -> None:
         """具体的な切断処理"""
         if self._devices:
             if self._devices.laser:
-                try:
-                    self._devices.laser.close()
-                except Exception as e:  # noqa: BLE001
-                    print(f"Error closing laser: {e}")
+                self._close_device_with_log("laser", self._devices.laser.close)
             if self._devices.aps:
-                try:
-                    self._devices.aps.close()
-                except Exception as e:  # noqa: BLE001
-                    print(f"Error closing APS: {e}")
+                self._close_device_with_log("APS", self._devices.aps.close)
             if self._devices.logger:
-                try:
-                    self._devices.logger.close()
-                except Exception as e:  # noqa: BLE001
-                    print(f"Error closing logger: {e}")
+                self._close_device_with_log("logger", self._devices.logger.close)
 
     def get_facade(self) -> INEAHardwareFacade:
         """Facadeを構築して返す"""

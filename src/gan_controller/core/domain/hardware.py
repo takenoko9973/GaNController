@@ -29,8 +29,9 @@ class IHardwareBackend[T_Devices, T_Facade](ABC):
         if self._rm:
             try:
                 self._rm.close()
+                print("[DISCONNECT][ResourceManager] success")
             except Exception as e:  # noqa: BLE001
-                print(f"Error closing ResourceManager: {e}")
+                print(f"[DISCONNECT][ResourceManager] failed: {e}")
 
     @abstractmethod
     def _connect_devices(self) -> tuple[T_Devices, pyvisa.ResourceManager | None]:

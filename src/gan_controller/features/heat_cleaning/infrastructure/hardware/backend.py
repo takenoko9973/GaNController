@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from contextlib import ExitStack
 
 import pyvisa
@@ -29,34 +30,29 @@ class HCHardwareBackend(IHardwareBackend[HCDevices, IHCHardwareFacade]):
     def __init__(self, config: DevicesConfig) -> None:
         self._config = config
 
+    def _close_device_with_log(self, label: str, close_action: Callable[[], None]) -> None:
+        try:
+            close_action()
+            print(f"[DISCONNECT][{label}] success")
+        except Exception as e:  # noqa: BLE001
+            print(f"[DISCONNECT][{label}] failed: {e}")
+
     def _disconnect_devices(self) -> None:
         """具体的な切断処理"""
         # デバイスのクローズ処理
         if self._devices:
             # 各デバイスのクローズ (エラーがあっても続行)
             if self._devices.pyrometer:
-                try:
-                    self._devices.pyrometer.close()
-                except Exception as e:  # noqa: BLE001
-                    print(f"Error closing pyrometer: {e}")
+                self._close_device_with_log("pyrometer", self._devices.pyrometer.close)
 
             if self._devices.aps:
-                try:
-                    self._devices.aps.close()
-                except Exception as e:  # noqa: BLE001
-                    print(f"Error closing APS: {e}")
+                self._close_device_with_log("APS", self._devices.aps.close)
 
             if self._devices.hps:
-                try:
-                    self._devices.hps.close()
-                except Exception as e:  # noqa: BLE001
-                    print(f"Error closing HPS: {e}")
+                self._close_device_with_log("HPS", self._devices.hps.close)
 
             if self._devices.logger:
-                try:
-                    self._devices.logger.close()
-                except Exception as e:  # noqa: BLE001
-                    print(f"Error closing logger: {e}")
+                self._close_device_with_log("logger", self._devices.logger.close)
 
     def get_facade(self) -> IHCHardwareFacade:
         """Facadeを構築して返す"""
