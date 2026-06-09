@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Literal
 
 import numpy as np
 from matplotlib.axes import Axes
@@ -52,6 +52,10 @@ class DebouncedFigureCanvas(FigureCanvasQTAgg):
 
 class DualAxisGraph(QWidget):
     """2軸データ(左・右) を表示するグラフウィジェット"""
+
+    _FALLBACK_X_LIMITS = (0.0, 1.0)
+    _DEFAULT_X_PADDING = 0.5
+    _VISIBLE_X_PADDING_RATIO = 0.05
 
     _layout: QVBoxLayout
 
@@ -134,19 +138,13 @@ class DualAxisGraph(QWidget):
         display_name = legend_label if legend_label is not None else label
 
         # オプション引数
-        plot_kwargs: dict[str, Any] = {
-            "label": display_name,
-            "color": color,
-            "linewidth": 1.5,
-            **kwargs,
-        }
         if marker is not None:
-            plot_kwargs["marker"] = marker
+            kwargs["marker"] = marker
         if linestyle is not None:
-            plot_kwargs["linestyle"] = linestyle
+            kwargs["linestyle"] = linestyle
 
         # 要素登録
-        (line,) = ax.plot([], [], **plot_kwargs)
+        (line,) = ax.plot([], [], label=display_name, color=color, linewidth=1.5, **kwargs)
         self._series_map[label] = {"line": line, "target_axis": target_axis}
 
         self.set_legend_location()
@@ -166,13 +164,54 @@ class DualAxisGraph(QWidget):
         self.ax_right.relim()
         self.ax_right.autoscale_view()
 
-        x_data = df["x"].values
-        if self._visible_x_span is not None and len(x_data) > 1:
-            current_x = x_data[-1]
-            min_x = max(min(x_data), current_x - self._visible_x_span)
-            self.ax_left.set_xlim(min_x, current_x)
+        x_limits = self._calculate_x_limits(df["x"].values)
+        self.ax_left.set_xlim(*x_limits)
+
+    def _calculate_x_limits(self, raw_x_data: np.ndarray) -> tuple[float, float]:
+        """表示設定を反映した安全なX軸範囲を返す"""
+        finite_x_data = self._finite_x_data(raw_x_data)
+        if len(finite_x_data) == 0:
+            # 有効なX値がない場合は、最低限描画できる既定範囲に戻す。
+            return self._FALLBACK_X_LIMITS
+
+        min_x, max_x = self._raw_x_limits(finite_x_data)
+        return self._safe_x_limits(min_x, max_x)
+
+    def _finite_x_data(self, raw_x_data: np.ndarray) -> np.ndarray:
+        """X軸範囲の計算に使える有限値だけを返す"""
+        x_data = np.asarray(raw_x_data, dtype=float)
+        return x_data[np.isfinite(x_data)]  # NaNやinfは除外する。
+
+    def _raw_x_limits(self, finite_x_data: np.ndarray) -> tuple[float, float]:
+        """表示幅指定を反映した補正前のX軸範囲を返す"""
+        if self._visible_x_span is not None and len(finite_x_data) > 1:
+            # 表示幅指定がある場合は、最新点を右端にして範囲をスライドする。
+            current_x = float(finite_x_data[-1])
+            min_x = max(float(np.min(finite_x_data)), current_x - self._visible_x_span)
+            return min_x, current_x
+
+        # 全期間表示または1点のみの場合は、有効なX値全体を表示対象にする。
+        return float(np.min(finite_x_data)), float(np.max(finite_x_data))
+
+    def _safe_x_limits(self, min_x: float, max_x: float) -> tuple[float, float]:
+        """Matplotlibが扱える有限かつ非ゼロ幅のX軸範囲に補正する"""
+        if not np.isfinite(min_x) or not np.isfinite(max_x):
+            return self._FALLBACK_X_LIMITS
+
+        if min_x != max_x:
+            return min_x, max_x
+
+        # データ1点目や同一timestamp連続時は上下限が同じになり、表示範囲が特異になる。
+        # 表示幅指定がある場合はその幅に合わせ、ない場合は小さな既定余白で描画可能にする。
+        if self._visible_x_span is not None and self._visible_x_span > 0:
+            pad = self._visible_x_span * self._VISIBLE_X_PADDING_RATIO
         else:
-            self.ax_left.set_xlim(min(x_data), max(x_data))
+            pad = self._DEFAULT_X_PADDING
+
+        if not np.isfinite(pad) or pad <= 0:
+            pad = self._DEFAULT_X_PADDING
+
+        return min_x - pad, max_x + pad
 
     def update_plot(self, data_source: GraphData) -> None:
         """データソースをもとにグラフを再描画"""
@@ -192,7 +231,6 @@ class DualAxisGraph(QWidget):
 
         # 軸範囲の更新
         self._update_axes_limits()
-        self.figure.tight_layout()
         self.canvas.draw_idle()
 
     def clear_view(self) -> None:
