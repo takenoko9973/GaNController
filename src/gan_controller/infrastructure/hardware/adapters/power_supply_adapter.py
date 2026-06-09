@@ -1,6 +1,7 @@
 import random
 from abc import ABC, abstractmethod
 
+from gan_controller.core.console_logger import get_logger
 from gan_controller.core.domain.quantity import (
     Ampere,
     Current,
@@ -11,6 +12,8 @@ from gan_controller.core.domain.quantity import (
     Watt,
 )
 from gan_controller.infrastructure.hardware.drivers import PFR100L50
+
+logger = get_logger(__name__)
 
 
 # Interface
@@ -99,7 +102,7 @@ class MockPowerSupplyAdapter(IPowerSupplyAdapter):
 
     def set_output(self, on: bool) -> None:
         self._output_on = on
-        print(f"[Mock] Power Supply Output: {on}")
+        logger.info("[Mock] Power Supply Output: %s", on)
 
     def set_voltage(self, voltage: Quantity[Volt]) -> None:
         self._setting_voltage = voltage.value_as("")
@@ -129,4 +132,4 @@ class MockPowerSupplyAdapter(IPowerSupplyAdapter):
         return Power(v * i)
 
     def close(self) -> None:
-        print("[Mock] Power Supply Closed")
+        logger.info("[Mock] Power Supply Closed")

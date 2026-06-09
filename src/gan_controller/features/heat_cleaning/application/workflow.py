@@ -1,10 +1,10 @@
 import datetime
 import time
-import traceback
 
 import pyvisa
 import pyvisa.constants
 
+from gan_controller.core.console_logger import get_logger
 from gan_controller.core.constants import JST
 from gan_controller.core.domain.quantity import Current, Temperature, Time
 from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
@@ -18,6 +18,7 @@ from gan_controller.presentation.async_runners.interfaces import (
 )
 
 DEFAULT_LOG_INTERVAL_SEC = 10.0
+logger = get_logger(__name__)
 
 
 class HeatCleaningWorkflow(IExperimentWorkflow):
@@ -45,7 +46,7 @@ class HeatCleaningWorkflow(IExperimentWorkflow):
 
         start_time = datetime.datetime.now(JST)
         self._recorder.record_header(start_time)
-        print(f"\033[32m{start_time:%Y/%m/%d %H:%M:%S} Start\033[0m")
+        logger.info("%s Start", start_time.strftime("%Y/%m/%d %H:%M:%S"), extra={"color": "green"})
 
         try:
             with self._backend, self._backend.get_facade() as facade:
@@ -55,14 +56,17 @@ class HeatCleaningWorkflow(IExperimentWorkflow):
                 # シーケンス実行ループへ
                 self._execute_sequences(facade)
 
-        except Exception as e:
-            print(f"\033[31mExperiment Error: {e}\033[0m")
-            print(traceback.format_exc())
+        except Exception:
+            logger.exception("Experiment Error", extra={"color": "red"})
             raise
 
         finally:
             finish_time = datetime.datetime.now(JST)
-            print(f"\033[31m{finish_time:%Y/%m/%d %H:%M:%S} Finish\033[0m")
+            logger.info(
+                "%s Finish",
+                finish_time.strftime("%Y/%m/%d %H:%M:%S"),
+                extra={"color": "red"},
+            )
 
             self._observer.on_finished()
 
@@ -91,7 +95,7 @@ class HeatCleaningWorkflow(IExperimentWorkflow):
         # シーケンスの取得
         sequences = self._config.get_sequences()
         if not sequences:
-            print("No sequences found.")
+            logger.info("No sequences found.")
             return
 
         # 実験開始
@@ -101,10 +105,10 @@ class HeatCleaningWorkflow(IExperimentWorkflow):
         for sequence_index, sequence in enumerate(sequences, start=1):
             # 停止フラグが立っていたらループを抜ける
             if self._should_stop():
-                print("Experiment stopped by user.")
+                logger.info("Experiment stopped by user.")
                 break
 
-            print(f"Starting Sequence {sequence_index}: {sequence.mode_name}")
+            logger.info("Starting Sequence %s: %s", sequence_index, sequence.mode_name)
             self._run_single_sequence(sequence_index, sequence, total_start_time, facade)
 
     def _run_single_sequence(
@@ -226,7 +230,11 @@ class HeatCleaningWorkflow(IExperimentWorkflow):
     def _handle_visa_error(self, e: pyvisa.errors.VisaIOError) -> None:
         """VISAエラーのハンドリング"""
         if e.error_code == pyvisa.constants.VI_ERROR_TMO:
-            print(f"\033[33m[WARNING] Device Timeout occurred. Retrying... ({e})\033[0m")
+            logger.warning(
+                "[WARNING] Device Timeout occurred. Retrying... (%s)",
+                e,
+                extra={"color": "yellow"},
+            )
             # タイムアウト時は続行 (呼び出し元のループが継続する)
         else:
             # それ以外は再送出

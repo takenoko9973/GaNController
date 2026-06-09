@@ -5,10 +5,13 @@ from typing import TYPE_CHECKING
 
 import pyvisa
 
+from gan_controller.core.console_logger import get_logger
+
 if TYPE_CHECKING:
     from pyvisa.resources.messagebased import MessageBasedResource
 
 VISA_ADDRESS = "TCPIP0::" + "192.168.1.111" + "::" + "2268" + "::SOCKET"
+logger = get_logger(__name__)
 
 
 class PFR100L50:
@@ -37,10 +40,10 @@ class PFR100L50:
 
             # 応答確認 (TEXIO,PFR-100L50,<serial number>,<version>)
             self.idn = self.check_connection()
-            print(self.idn)
+            logger.info("%s", self.idn)
 
-        except pyvisa.VisaIOError as e:
-            print(f"初期化接続エラー: {e}")
+        except pyvisa.VisaIOError:
+            logger.exception("初期化接続エラー", extra={"color": "red"})
             raise
 
     def __enter__(self) -> "PFR100L50":
@@ -66,7 +69,14 @@ class PFR100L50:
                 break  # 通信成功時はループを抜ける
 
             except pyvisa.VisaIOError as e:
-                print(f"Write Error (Attempt {attempt + 1}/{self.retry_count}): {command} -> {e}")
+                logger.warning(
+                    "Write Error (Attempt %s/%s): %s -> %s",
+                    attempt + 1,
+                    self.retry_count,
+                    command,
+                    e,
+                    extra={"color": "yellow"},
+                )
                 self._recover_connection()
                 if attempt == self.retry_count - 1:
                     raise  # リトライ上限に達したら例外を送出
@@ -82,7 +92,14 @@ class PFR100L50:
                 break
 
             except pyvisa.VisaIOError as e:
-                print(f"Query Error (Attempt {attempt + 1}/{self.retry_count}): {command} -> {e}")
+                logger.warning(
+                    "Query Error (Attempt %s/%s): %s -> %s",
+                    attempt + 1,
+                    self.retry_count,
+                    command,
+                    e,
+                    extra={"color": "yellow"},
+                )
                 self._recover_connection()
                 if attempt == self.retry_count - 1:
                     raise

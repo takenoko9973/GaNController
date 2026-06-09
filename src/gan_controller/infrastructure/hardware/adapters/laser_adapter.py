@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
 
+from gan_controller.core.console_logger import get_logger
 from gan_controller.core.domain.quantity import Power, Quantity, Watt
 from gan_controller.infrastructure.hardware.drivers import IBeam
+
+logger = get_logger(__name__)
 
 
 # Interface
@@ -55,17 +58,17 @@ class MockLaserAdapter(ILaserAdapter):
 
     def set_emission(self, on: bool) -> None:
         self._emission = on
-        print(f"[Mock] Laser Emission: {on}")
+        logger.info("[Mock] Laser Emission: %s", on)
 
     def set_channel_enable(self, channel: int, enable: bool) -> None:
-        print(f"[Mock] Laser CH{channel} Enable: {enable}")
+        logger.info("[Mock] Laser CH%s Enable: %s", channel, enable)
 
     def set_channel_power(self, channel: int, power: Quantity[Watt]) -> None:
         self._power = power
-        print(f"[Mock] Laser CH{channel} Power: {self._power.value_as('m')}mW")
+        logger.info("[Mock] Laser CH%s Power: %smW", channel, self._power.value_as("m"))
 
     def get_channel_power(self, channel: int) -> Quantity[Watt]:  # noqa: ARG002
         return self._power
 
     def close(self) -> None:
-        print("[Mock] Laser Closed")
+        logger.info("[Mock] Laser Closed")

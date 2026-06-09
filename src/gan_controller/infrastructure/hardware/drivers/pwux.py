@@ -4,10 +4,13 @@ from typing import TYPE_CHECKING
 
 import pyvisa
 
+from gan_controller.core.console_logger import get_logger
+
 if TYPE_CHECKING:
     from pyvisa.resources import SerialInstrument
 
 PWUX_COM = 1  # デバイスマネージャーで確認
+logger = get_logger(__name__)
 
 
 class PWUX:
@@ -33,11 +36,10 @@ class PWUX:
 
             # 応答確認 ('GM10',<serial number>,<MAC address>,<version> <crlf>)
             # self.idn = self.check_connection()
-            # print(self.idn)
-            print("PWUX init")
+            logger.info("PWUX init")
 
-        except pyvisa.VisaIOError as e:
-            print(f"PWUX 接続エラー: {e}")
+        except pyvisa.VisaIOError:
+            logger.exception("PWUX 接続エラー", extra={"color": "red"})
             raise
 
     def __enter__(self) -> "PWUX":
@@ -62,7 +64,14 @@ class PWUX:
                 break
 
             except pyvisa.VisaIOError as e:
-                print(f"Query Error (Attempt {attempt + 1}/{self.retry_count}): {send_msg} -> {e}")
+                logger.warning(
+                    "Query Error (Attempt %s/%s): %s -> %s",
+                    attempt + 1,
+                    self.retry_count,
+                    send_msg,
+                    e,
+                    extra={"color": "yellow"},
+                )
                 self._recover_connection()
                 if attempt == self.retry_count - 1:
                     raise

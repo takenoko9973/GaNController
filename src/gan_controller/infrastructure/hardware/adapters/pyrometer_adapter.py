@@ -1,8 +1,11 @@
 import random
 from abc import ABC, abstractmethod
 
+from gan_controller.core.console_logger import get_logger
 from gan_controller.core.domain.quantity import Celsius, Quantity, Temperature
 from gan_controller.infrastructure.hardware.drivers import PWUX
+
+logger = get_logger(__name__)
 
 
 # Interface
@@ -52,7 +55,7 @@ class MockPyrometerAdapter(IPyrometerAdapter):
 
     def set_pointer(self, enable: bool) -> None:
         self._pointer = enable
-        print(f"[Mock pyrometer] Point: {enable}")
+        logger.info("[Mock pyrometer] Point: %s", enable)
 
     def close(self) -> None:
-        print("Mock pyrometer closed.")
+        logger.info("Mock pyrometer closed.")

@@ -1,3 +1,4 @@
+from gan_controller.core.console_logger import get_logger
 from gan_controller.core.domain.app_config import DevicesConfig
 from gan_controller.core.domain.electricity import ElectricMeasurement
 from gan_controller.core.domain.quantity import (
@@ -15,6 +16,8 @@ from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.domain.interface import IHCHardwareFacade
 from gan_controller.features.heat_cleaning.domain.models import HCDevices, HCExperimentResult
 
+logger = get_logger(__name__)
+
 
 class HCHardwareFacade(IHCHardwareFacade):
     def __init__(self, devices: HCDevices, config: DevicesConfig) -> None:
@@ -22,7 +25,7 @@ class HCHardwareFacade(IHCHardwareFacade):
         self._config = config
 
     def setup_for_protocol(self, protocol: ProtocolConfig) -> None:
-        print("Setting up hardware for protocol...")
+        logger.info("Setting up hardware for protocol...")
 
         # プロトコルで利用するデバイスの初期化
         if protocol.condition.hc_enabled:
@@ -92,13 +95,13 @@ class HCHardwareFacade(IHCHardwareFacade):
 
     def emergency_stop(self) -> None:
         """インターフェースの実装: 安全停止"""
-        print("HCFacade: Executing Emergency Stop")
+        logger.warning("HCFacade: Executing Emergency Stop", extra={"color": "yellow"})
         try:
             self._dev.hps.set_output(False)
         except Exception as e:  # noqa: BLE001
-            print(f"Failed to stop HPS: {e}")
+            logger.warning("Failed to stop HPS: %s", e, extra={"color": "yellow"})
 
         try:
             self._dev.aps.set_output(False)
         except Exception as e:  # noqa: BLE001
-            print(f"Failed to stop APS: {e}")
+            logger.warning("Failed to stop APS: %s", e, extra={"color": "yellow"})

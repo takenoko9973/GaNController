@@ -3,7 +3,10 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from gan_controller.core.console_logger import get_logger
 from gan_controller.core.constants import JST, LOG_DIR
+
+logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Helpers / Parsers (状態を持たない純粋なロジック群)
@@ -87,8 +90,12 @@ class LogFile:
             with self.path.open("a", encoding=self.encoding, newline="") as f:
                 f.write(content)
 
-        except OSError as e:
-            print(f"Error writing to log file {self.path}: {e}")
+        except OSError:
+            logger.exception(
+                "Error writing to log file %s",
+                self.path,
+                extra={"color": "red"},
+            )
 
 
 class DateLogDirectory:
@@ -114,7 +121,12 @@ class DateLogDirectory:
                     log_files.append(LogFile(entry, self.encoding))  # noqa: PERF401
 
         except OSError as e:
-            print(f"Error reading directory {self.path}: {e}")
+            logger.warning(
+                "Error reading directory %s: %s",
+                self.path,
+                e,
+                extra={"color": "yellow"},
+            )
 
         # 必要に応じてファイル名や作成日時でソートして返す
         return sorted(log_files, key=lambda log: log.path.name)
@@ -141,7 +153,12 @@ class DateLogDirectory:
                 versions.append((metadata.major, metadata.minor))
 
         except OSError as e:
-            print(f"Error scanning directory {self.path} for versions: {e}")
+            logger.warning(
+                "Error scanning directory %s for versions: %s",
+                self.path,
+                e,
+                extra={"color": "yellow"},
+            )
 
         # タプルの比較を利用して最大値を一括取得
         return max(versions) if versions else (0, 0)
@@ -219,7 +236,12 @@ class LogManager:
                 if parsed_date:
                     directories.append(DateLogDirectory(entry, parsed_date, self.encoding))
         except OSError as e:
-            print(f"Error scanning log directory {self.base_path}: {e}")
+            logger.warning(
+                "Error scanning log directory %s: %s",
+                self.base_path,
+                e,
+                extra={"color": "yellow"},
+            )
 
         return directories
 

@@ -3,6 +3,7 @@ from contextlib import ExitStack
 
 import pyvisa
 
+from gan_controller.core.console_logger import get_logger
 from gan_controller.core.domain.app_config import DevicesConfig
 from gan_controller.core.domain.hardware import IHardwareBackend
 from gan_controller.features.heat_cleaning.domain.interface import IHCHardwareFacade
@@ -23,6 +24,8 @@ from gan_controller.infrastructure.hardware.drivers import GM10, PFR100L50, PWUX
 
 from .facade import HCHardwareFacade
 
+logger = get_logger(__name__)
+
 
 class HCHardwareBackend(IHardwareBackend[HCDevices, IHCHardwareFacade]):
     """ハードウェアの生成・接続・破棄を担う基底クラス"""
@@ -33,9 +36,14 @@ class HCHardwareBackend(IHardwareBackend[HCDevices, IHCHardwareFacade]):
     def _close_device_with_log(self, label: str, close_action: Callable[[], None]) -> None:
         try:
             close_action()
-            print(f"[DISCONNECT][{label}] success")
+            logger.info("[DISCONNECT][%s] success", label)
         except Exception as e:  # noqa: BLE001
-            print(f"[DISCONNECT][{label}] failed: {e}")
+            logger.warning(
+                "[DISCONNECT][%s] failed: %s",
+                label,
+                e,
+                extra={"color": "yellow"},
+            )
 
     def _disconnect_devices(self) -> None:
         """具体的な切断処理"""
@@ -72,7 +80,7 @@ class RealHCHardwareBackend(HCHardwareBackend):
         self._use_pyrometer = use_pyrometer
 
     def _connect_devices(self) -> tuple[HCDevices, pyvisa.ResourceManager]:
-        print("Connecting to Real Hardware...")
+        logger.info("Connecting to Real Hardware...")
         rm = pyvisa.ResourceManager()
 
         # 失敗した場合、デバイスとの接続を切るスタックを作成
@@ -109,7 +117,7 @@ class RealHCHardwareBackend(HCHardwareBackend):
                     pyrometer_adapter = PWUXAdapter(pyrometer)
                     stack.callback(pyrometer_adapter.close)
                 else:
-                    print("Pyrometer initialization skipped.")
+                    logger.info("Pyrometer initialization skipped.")
                     pyrometer_adapter = MockPyrometerAdapter()
 
                 # 成功したら、スタックをすべて削除
@@ -124,7 +132,11 @@ class RealHCHardwareBackend(HCHardwareBackend):
                 return devices, rm
 
             except Exception as e:
-                print(f"[CRITICAL] Device creation failed: {e}")
+                logger.critical(
+                    "[CRITICAL] Device creation failed: %s",
+                    e,
+                    extra={"color": "red"},
+                )
                 # withから出ると、スタックされた処理が実行される
                 raise
 
@@ -133,7 +145,7 @@ class SimulationHCHardwareBackend(HCHardwareBackend):
     """シミュレーション用バックエンド"""
 
     def _connect_devices(self) -> tuple[HCDevices, pyvisa.ResourceManager | None]:
-        print("Initializing Simulation Hardware...")
+        logger.info("Initializing Simulation Hardware...")
 
         # Mockアダプタを生成
         devices = HCDevices(
