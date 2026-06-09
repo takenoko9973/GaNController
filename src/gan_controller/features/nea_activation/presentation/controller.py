@@ -2,6 +2,7 @@ import queue
 
 from PySide6.QtCore import Slot
 
+from gan_controller.core.console_logger import get_logger
 from gan_controller.core.constants import LOG_DIR, NEA_CONFIG_PATH
 from gan_controller.core.domain.app_config import AppConfig
 from gan_controller.features.nea_activation.application.workflow import NEAActivationWorkflow
@@ -21,6 +22,8 @@ from gan_controller.features.nea_activation.presentation.view import NEAActivati
 from gan_controller.infrastructure.persistence.log_manager import LogManager
 from gan_controller.presentation.async_runners.manager import AsyncExperimentManager
 from gan_controller.presentation.components.tab_controller import ITabController
+
+logger = get_logger(__name__)
 
 
 class NEAActivationController(ITabController):
@@ -182,7 +185,7 @@ class NEAActivationController(ITabController):
             major_update=major_update,
         )
 
-        print(f"Log file created: {log_file.path}")
+        logger.info("Log file created: %s", log_file.path)
         return NEALogRecorder(log_file, nea_config)
 
     def _update_log_preview(self) -> None:
@@ -201,5 +204,5 @@ class NEAActivationController(ITabController):
             self._view.log_setting_panel.set_preview_text(number_text)
 
         except Exception as e:  # noqa: BLE001
-            print(f"Preview update failed: {e}")
+            logger.warning("Preview update failed: %s", e, extra={"color": "yellow"})
             self._view.log_setting_panel.set_preview_text("Error")

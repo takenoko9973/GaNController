@@ -5,6 +5,7 @@ import time
 import pyvisa
 import pyvisa.constants
 
+from gan_controller.core.console_logger import get_logger
 from gan_controller.core.constants import JST
 from gan_controller.core.domain.quantity import Ampere, Current, Quantity, Volt
 from gan_controller.features.nea_activation.domain.config import (
@@ -26,6 +27,7 @@ from gan_controller.presentation.async_runners.interfaces import (
 )
 
 WAIT_CHECK_INTERVAL_SEC = 0.1
+logger = get_logger(__name__)
 
 
 class NEAActivationWorkflow(IExperimentWorkflow):
@@ -57,7 +59,11 @@ class NEAActivationWorkflow(IExperimentWorkflow):
         try:
             start_time = datetime.datetime.now(JST)
             self._recorder.record_header(start_time)
-            print(f"\033[32m{start_time:%Y/%m/%d %H:%M:%S} Experiment start\033[0m")
+            logger.info(
+                "%s Experiment start",
+                start_time.strftime("%Y/%m/%d %H:%M:%S"),
+                extra={"color": "green"},
+            )
 
             # backendのコンテキスト管理
             with self._backend, self._backend.get_facade() as facade:
@@ -67,7 +73,11 @@ class NEAActivationWorkflow(IExperimentWorkflow):
 
         finally:
             finish_time = datetime.datetime.now(JST)
-            print(f"\033[31m{finish_time:%Y/%m/%d %H:%M:%S} Finish\033[0m")
+            logger.info(
+                "%s Finish",
+                finish_time.strftime("%Y/%m/%d %H:%M:%S"),
+                extra={"color": "red"},
+            )
 
             self._observer.on_finished()
 
@@ -117,8 +127,6 @@ class NEAActivationWorkflow(IExperimentWorkflow):
         elapsed_perf = time.perf_counter() - start_perf
         self._process_pending_requests(facade, elapsed_perf)  # 設定に変更があるか確認
 
-        print("\033[32m" + f"{elapsed_perf:.1f}[s]\t" + "\033[0m")
-
         condition = self._config.condition
         stabilization_duration_sec = condition.stabilization_time.base_value
         shunt_resistance = condition.shunt_resistance
@@ -153,9 +161,13 @@ class NEAActivationWorkflow(IExperimentWorkflow):
             dark_pc_voltage=dark_pc_volt,
         )
 
-        qe = result.quantum_efficiency
-        pc = result.photocurrent
-        print(f"{qe:.3e}, {pc:.3e}, {result.ext_pressure:.2e} (EXT)")
+        logger.info("%.1f[s]\t", elapsed_perf, extra={"color": "green"})
+        logger.info(
+            "%s, %s, %s (EXT)",
+            format(result.quantum_efficiency, ".3e"),
+            format(result.photocurrent, ".3e"),
+            format(result.ext_pressure, ".2e"),
+        )
 
         self._recorder.record_data(result, "")
         self._notify_result(result)
@@ -205,19 +217,20 @@ class NEAActivationWorkflow(IExperimentWorkflow):
     def _process_pending_requests(self, facade: INEAHardwareFacade, elapsed_perf: float) -> None:
         latest_control_config = self._get_latest_config_from_queue()
 
-        if latest_control_config is not None:
-            amd_current = latest_control_config.amd_output_current
-            laser_power = latest_control_config.laser_power_sv
-            msg = (
-                f"[{elapsed_perf:.1f}s] Parameters Updated: AMD = {amd_current},"
-                f"Laser = {laser_power}"
-            )
-            print(msg)
+        if latest_control_config is None:
+            return
 
-            facade.apply_control_params(latest_control_config)
-            self._config.control = latest_control_config
+        amd_current = latest_control_config.amd_output_current
+        laser_power = latest_control_config.laser_power_sv
+        msg = (
+            f"[{elapsed_perf:.1f}s] Parameters Updated: AMD = {amd_current}, Laser = {laser_power}"
+        )
+        logger.info(msg, extra={"color": "orange"})
 
-            self._notify_message(msg)
+        facade.apply_control_params(latest_control_config)
+        self._config.control = latest_control_config
+
+        self._notify_message(msg)
 
     # =================================================================
 
@@ -252,7 +265,11 @@ class NEAActivationWorkflow(IExperimentWorkflow):
     def _handle_visa_error(self, e: pyvisa.errors.VisaIOError) -> None:
         """VISAエラーのハンドリング"""
         if e.error_code == pyvisa.constants.VI_ERROR_TMO:
-            print(f"\033[33m[WARNING] Device Timeout occurred. Retrying... ({e})\033[0m")
+            logger.warning(
+                "[WARNING] Device Timeout occurred. Retrying... (%s)",
+                e,
+                extra={"color": "yellow"},
+            )
             # タイムアウト時は続行 (呼び出し元のループが継続する)
         else:
             # それ以外は再送出

@@ -2,8 +2,11 @@ import random
 import time
 from abc import ABC, abstractmethod
 
+from gan_controller.core.console_logger import get_logger
 from gan_controller.core.domain.quantity import Quantity, Volt, Voltage
 from gan_controller.infrastructure.hardware.drivers import GM10
+
+logger = get_logger(__name__)
 
 
 # Interface
@@ -39,7 +42,12 @@ class GM10Adapter(ILoggerAdapter):
         except (RuntimeError, ValueError) as e:
             # チャンネル設定ミスや、機器からのエラー応答(E1など)があった場合
             # ログを出力して NaN (欠損値) を返す
-            print(f"\033[33m[WARNING] GM10 Read Error (Ch: {channel}): {e}\033[0m")
+            logger.warning(
+                "[WARNING] GM10 Read Error (Ch: %s): %s",
+                channel,
+                e,
+                extra={"color": "yellow"},
+            )
             return Voltage(float("nan"))
 
     def read_integrated_voltage(
@@ -80,7 +88,12 @@ class GM10Adapter(ILoggerAdapter):
 
         except (RuntimeError, ValueError) as e:
             # 積算中にエラーが発生した場合 (チャンネル無効など)
-            print(f"GM10 Integrated Read Error (Ch: {channel}): {e}")
+            logger.warning(
+                "GM10 Integrated Read Error (Ch: %s): %s",
+                channel,
+                e,
+                extra={"color": "yellow"},
+            )
             return Voltage(float("nan"))
 
     def close(self) -> None:
@@ -121,4 +134,4 @@ class MockLoggerAdapter(ILoggerAdapter):
         return self.read_voltage(channel)
 
     def close(self) -> None:
-        print("Mock logger closed.")
+        logger.info("Mock logger closed.")

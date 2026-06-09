@@ -1,5 +1,6 @@
 from PySide6.QtCore import Slot
 
+from gan_controller.core.console_logger import get_logger
 from gan_controller.core.constants import LOG_DIR
 from gan_controller.core.domain.app_config import AppConfig
 from gan_controller.features.heat_cleaning.application.protocol_manager import (
@@ -24,6 +25,8 @@ from gan_controller.features.heat_cleaning.presentation.view import HeatCleaning
 from gan_controller.infrastructure.persistence.log_manager import LogManager
 from gan_controller.presentation.async_runners.manager import AsyncExperimentManager
 from gan_controller.presentation.components.tab_controller import ITabController
+
+logger = get_logger(__name__)
 
 
 class HeatCleaningController(ITabController):
@@ -112,7 +115,7 @@ class HeatCleaningController(ITabController):
             try:
                 config = self._protocol_manager.load_protocol(protocol_name)
             except Exception as e:  # noqa: BLE001
-                print(f"Load failed: {e}")
+                logger.warning("Load failed: %s", e, extra={"color": "yellow"})
                 config = ProtocolConfig()
 
         self._view.set_full_config(config)
@@ -251,7 +254,7 @@ class HeatCleaningController(ITabController):
             major_update=major_update,
         )
 
-        print(f"Log file created: {log_file.path}")
+        logger.info("Log file created: %s", log_file.path)
         return HCLogRecorder(log_file, protocol_config)
 
     def _update_log_preview(self) -> None:
@@ -270,5 +273,5 @@ class HeatCleaningController(ITabController):
             self._view.log_setting_panel.set_preview_text(number_text)
 
         except Exception as e:  # noqa: BLE001
-            print(f"Preview update failed: {e}")
+            logger.warning("Preview update failed: %s", e, extra={"color": "yellow"})
             self._view.log_setting_panel.set_preview_text("Error")

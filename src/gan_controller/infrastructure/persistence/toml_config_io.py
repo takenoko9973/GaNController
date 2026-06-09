@@ -8,6 +8,10 @@ from pydantic import BaseModel
 from tomlkit import TOMLDocument, item
 from tomlkit.items import Item, Table
 
+from gan_controller.core.console_logger import get_logger
+
+logger = get_logger(__name__)
+
 
 def load_toml_config[T: BaseModel](model_cls: type[T], path: str | Path) -> T:
     """TOMLファイルからPydanticモデルを読み込む"""
@@ -20,7 +24,12 @@ def load_toml_config[T: BaseModel](model_cls: type[T], path: str | Path) -> T:
             data = tomllib.load(f)
         return model_cls.model_validate(data)
     except Exception as e:  # noqa: BLE001
-        print(f"Config load error ({model_cls.__name__}): {e}")
+        logger.warning(
+            "Config load error (%s): %s",
+            model_cls.__name__,
+            e,
+            extra={"color": "yellow"},
+        )
         return model_cls()
 
 
@@ -46,7 +55,12 @@ def save_toml_config(model_instance: BaseModel, path: str | Path) -> None:
             tomlkit.dump(doc, f)
 
     except Exception as e:  # noqa: BLE001
-        print(f"Config save error ({model_instance.__class__.__name__}): {e}")
+        logger.warning(
+            "Config save error (%s): %s",
+            model_instance.__class__.__name__,
+            e,
+            extra={"color": "yellow"},
+        )
 
 
 # ==========================================
