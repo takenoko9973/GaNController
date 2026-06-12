@@ -1,7 +1,9 @@
+from collections.abc import Callable
 from contextlib import ExitStack
 
 import pyvisa
 
+from gan_controller.core.console_logger import get_logger
 from gan_controller.core.domain.app_config import DevicesConfig
 from gan_controller.core.domain.hardware import IHardwareBackend
 from gan_controller.features.nea_activation.domain.interface import INEAHardwareFacade
@@ -22,6 +24,8 @@ from gan_controller.infrastructure.hardware.drivers import GM10, PFR100L50, IBea
 
 from .facade import NEAHardwareFacade
 
+logger = get_logger(__name__)
+
 
 class NEAHardwareBackend(IHardwareBackend[NEADevices, INEAHardwareFacade]):
     """ハードウェアの生成・接続・破棄を担う基底クラス"""
@@ -30,24 +34,27 @@ class NEAHardwareBackend(IHardwareBackend[NEADevices, INEAHardwareFacade]):
         self._config = config
         self._connect_laser = connect_laser
 
+    def _close_device_with_log(self, label: str, close_action: Callable[[], None]) -> None:
+        try:
+            close_action()
+            logger.info("[DISCONNECT][%s] success", label)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "[DISCONNECT][%s] failed: %s",
+                label,
+                e,
+                extra={"color": "yellow"},
+            )
+
     def _disconnect_devices(self) -> None:
         """具体的な切断処理"""
         if self._devices:
             if self._devices.laser:
-                try:
-                    self._devices.laser.close()
-                except Exception as e:  # noqa: BLE001
-                    print(f"Error closing laser: {e}")
+                self._close_device_with_log("laser", self._devices.laser.close)
             if self._devices.aps:
-                try:
-                    self._devices.aps.close()
-                except Exception as e:  # noqa: BLE001
-                    print(f"Error closing APS: {e}")
+                self._close_device_with_log("APS", self._devices.aps.close)
             if self._devices.logger:
-                try:
-                    self._devices.logger.close()
-                except Exception as e:  # noqa: BLE001
-                    print(f"Error closing logger: {e}")
+                self._close_device_with_log("logger", self._devices.logger.close)
 
     def get_facade(self) -> INEAHardwareFacade:
         """Facadeを構築して返す"""
@@ -65,7 +72,7 @@ class NEAHardwareBackend(IHardwareBackend[NEADevices, INEAHardwareFacade]):
 class RealNEAHardwareBackend(NEAHardwareBackend):
     def _connect_devices(self) -> tuple[NEADevices, pyvisa.ResourceManager]:
         """具体的な接続処理"""
-        print("Connecting to Real Hardware...")
+        logger.info("Connecting to Real Hardware...")
         rm = pyvisa.ResourceManager()
 
         with ExitStack() as stack:
@@ -86,7 +93,7 @@ class RealNEAHardwareBackend(NEAHardwareBackend):
                     laser_adapter = IBeamAdapter(laser)
                     stack.callback(laser_adapter.close)
                 else:
-                    print("Laser connection skipped (fixed background mode).")
+                    logger.info("Laser connection skipped (fixed background mode).")
                     laser_adapter = MockLaserAdapter()
 
                 stack.pop_all()
@@ -95,13 +102,17 @@ class RealNEAHardwareBackend(NEAHardwareBackend):
                 return devices, rm
 
             except Exception as e:
-                print(f"[CRITICAL] Device creation failed: {e}")
+                logger.critical(
+                    "[CRITICAL] Device creation failed: %s",
+                    e,
+                    extra={"color": "red"},
+                )
                 raise
 
 
 class SimulationNEAHardwareBackend(NEAHardwareBackend):
     def _connect_devices(self) -> tuple[NEADevices, pyvisa.ResourceManager | None]:
-        print("Initializing Simulation Hardware...")
+        logger.info("Initializing Simulation Hardware...")
         devices = NEADevices(
             logger=MockLoggerAdapter(),
             aps=MockPowerSupplyAdapter(),

@@ -1,5 +1,6 @@
 import time
 
+from gan_controller.core.console_logger import get_logger
 from gan_controller.core.domain.app_config import AppConfig
 from gan_controller.core.domain.quantity import Quantity, Volt
 from gan_controller.features.manual_operation.domain.models import ManualResult
@@ -15,6 +16,8 @@ from gan_controller.presentation.async_runners.interfaces import (
     IExperimentObserver,
     IExperimentWorkflow,
 )
+
+logger = get_logger(__name__)
 
 
 class GM10MonitorWorkflow(IExperimentWorkflow):
@@ -45,7 +48,11 @@ class GM10MonitorWorkflow(IExperimentWorkflow):
                 try:
                     adapter.close()
                 except Exception as e:  # noqa: BLE001
-                    print(f"Error closing GM10 adapter: {e}")
+                    logger.warning(
+                        "Error closing GM10 adapter: %s",
+                        e,
+                        extra={"color": "yellow"},
+                    )
 
             if self._observer:
                 self._observer.on_finished()

@@ -46,6 +46,27 @@ def test_initial_qe_axis_mode_is_normal(qtbot: QtBot) -> None:
     assert panel.qe_fixed_max_spin.isEnabled() is False
 
 
+def test_single_point_update_keeps_x_limits_nonzero_width(qtbot: QtBot) -> None:
+    panel = NEAGraphPanel()
+    qtbot.addWidget(panel)
+
+    panel.append_data(_make_result(1.0, 8.0))
+
+    x_min, x_max = panel.graph_qe.ax_left.get_xlim()
+    assert x_min < x_max
+
+
+def test_duplicate_timestamp_update_keeps_visible_x_limits_nonzero_width(qtbot: QtBot) -> None:
+    panel = NEAGraphPanel()
+    qtbot.addWidget(panel)
+
+    panel.append_data(_make_result(1.0, 8.0))
+    panel.append_data(_make_result(1.0, 2.0))
+
+    x_min, x_max = panel.graph_qe.ax_left.get_xlim()
+    assert x_min < x_max
+
+
 def test_visible_max_mode_uses_values_within_time_window(qtbot: QtBot) -> None:
     panel = NEAGraphPanel()
     qtbot.addWidget(panel)

@@ -5,10 +5,13 @@ from typing import TYPE_CHECKING
 
 import pyvisa  # pyvisa > pyvisa-py > zeroconf > psutil
 
+from gan_controller.core.console_logger import get_logger
+
 if TYPE_CHECKING:
     from pyvisa.resources import TCPIPInstrument
 
 VISA_ADDRESS = "TCPIP0::" + "192.168.1.105" + "::" + "34434" + "::SOCKET"
+logger = get_logger(__name__)
 
 
 class GM10:
@@ -36,10 +39,10 @@ class GM10:
 
             # 応答確認 ('GM10',<serial number>,<MAC address>,<version> <crlf>)
             self.idn = self.check_connection()
-            print(self.idn)
+            logger.info("%s", self.idn)
 
-        except pyvisa.VisaIOError as e:
-            print(f"GM10 接続エラー: {e}")
+        except pyvisa.VisaIOError:
+            logger.exception("GM10 接続エラー", extra={"color": "red"})
             raise
 
     def __enter__(self) -> "GM10":
@@ -79,7 +82,12 @@ class GM10:
                 break
 
             except pyvisa.VisaIOError as e:
-                print(f"Query Error (Attempt {attempt + 1}): {e}")
+                logger.warning(
+                    "Query Error (Attempt %s): %s",
+                    attempt + 1,
+                    e,
+                    extra={"color": "yellow"},
+                )
                 if attempt == self.retry_count - 1:
                     raise
 
@@ -191,7 +199,11 @@ class GM10:
             return data_dict[ch_str]
 
         # 取得できなかった場合 (レスポンスに含まれていない場合)
-        print(f"GM10 Warning: Channel {ch_str} not found in response.")
+        logger.warning(
+            "GM10 Warning: Channel %s not found in response.",
+            ch_str,
+            extra={"color": "yellow"},
+        )
         return (float("nan"), "")
 
     def close(self) -> None:

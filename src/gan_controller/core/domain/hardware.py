@@ -4,6 +4,10 @@ from typing import Self
 
 import pyvisa
 
+from gan_controller.core.console_logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class IHardwareBackend[T_Devices, T_Facade](ABC):
     """すべてのハードウェアBackendが満たすべき共通インターフェース"""
@@ -29,8 +33,13 @@ class IHardwareBackend[T_Devices, T_Facade](ABC):
         if self._rm:
             try:
                 self._rm.close()
+                logger.info("[DISCONNECT][ResourceManager] success")
             except Exception as e:  # noqa: BLE001
-                print(f"Error closing ResourceManager: {e}")
+                logger.warning(
+                    "[DISCONNECT][ResourceManager] failed: %s",
+                    e,
+                    extra={"color": "yellow"},
+                )
 
     @abstractmethod
     def _connect_devices(self) -> tuple[T_Devices, pyvisa.ResourceManager | None]:

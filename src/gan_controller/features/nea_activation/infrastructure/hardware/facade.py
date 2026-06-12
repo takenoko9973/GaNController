@@ -1,3 +1,4 @@
+from gan_controller.core.console_logger import get_logger
 from gan_controller.core.domain.app_config import DevicesConfig
 from gan_controller.core.domain.electricity import ElectricMeasurement
 from gan_controller.core.domain.quantity import (
@@ -22,6 +23,8 @@ from gan_controller.features.nea_activation.domain.config import (
 )
 from gan_controller.features.nea_activation.domain.interface import INEAHardwareFacade
 from gan_controller.features.nea_activation.domain.models import NEADevices, NEAExperimentResult
+
+logger = get_logger(__name__)
 
 
 class NEAHardwareFacade(INEAHardwareFacade):
@@ -135,14 +138,14 @@ class NEAHardwareFacade(INEAHardwareFacade):
 
     def emergency_stop(self) -> None:
         """安全終了処理"""
-        print("NEAFacade: Executing Emergency Stop")
+        logger.warning("NEAFacade: Executing Emergency Stop", extra={"color": "yellow"})
         if self._connect_laser:
             try:
                 self._dev.laser.set_emission(False)
             except Exception as e:  # noqa: BLE001
-                print(f"Failed to stop laser: {e}")
+                logger.warning("Failed to stop laser: %s", e, extra={"color": "yellow"})
 
         try:
             self._dev.aps.set_output(False)
         except Exception as e:  # noqa: BLE001
-            print(f"Failed to stop APS: {e}")
+            logger.warning("Failed to stop APS: %s", e, extra={"color": "yellow"})

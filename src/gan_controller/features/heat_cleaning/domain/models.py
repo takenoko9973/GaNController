@@ -34,6 +34,7 @@ class HeatCleaningState(Enum):
     """実験の進行状態"""
 
     IDLE = auto()
+    DELAYING = auto()
     RUNNING = auto()
     STOPPING = auto()
 

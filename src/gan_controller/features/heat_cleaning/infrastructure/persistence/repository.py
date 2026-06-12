@@ -1,8 +1,11 @@
 from pathlib import Path
 
+from gan_controller.core.console_logger import get_logger
 from gan_controller.core.constants import PROTOCOLS_DIR
 from gan_controller.features.heat_cleaning.domain.config import ProtocolConfig
 from gan_controller.features.heat_cleaning.domain.interface import IProtocolRepository
+
+logger = get_logger(__name__)
 
 
 class ProtocolRepository(IProtocolRepository):
@@ -22,7 +25,12 @@ class ProtocolRepository(IProtocolRepository):
             return ProtocolConfig.load(f"{name}.toml", config_dir=self.base_dir)
         except Exception as e:  # noqa: BLE001
             # 読み込みに失敗したら、初期値を返す
-            print(f"Failed to load protocol {name}: {e}")
+            logger.warning(
+                "Failed to load protocol %s: %s",
+                name,
+                e,
+                extra={"color": "yellow"},
+            )
             return ProtocolConfig()
 
     def save(self, name: str, config: ProtocolConfig) -> None:

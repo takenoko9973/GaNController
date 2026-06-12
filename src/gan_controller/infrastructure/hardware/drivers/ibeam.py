@@ -6,7 +6,10 @@ import pyvisa
 from pyvisa.constants import Parity, StopBits
 from pyvisa.resources import SerialInstrument
 
+from gan_controller.core.console_logger import get_logger
+
 IBEAM_COM = 3  # デバイスマネージャーで確認
+logger = get_logger(__name__)
 
 
 class IBeam:
@@ -58,7 +61,7 @@ class IBeam:
             # 接続直後のゴミデータを掃除 (inst.clear()は使用しない)
             self._flush_buffer()
 
-            print(f"[iBeam] Connected to {self.resource_name}")
+            logger.info("[iBeam] Connected to %s", self.resource_name)
 
             # 自動化モードへ移行
             self._set_protocol_mode(interactive=False)
@@ -148,8 +151,8 @@ class IBeam:
 
                 response_lines.append(line)
 
-        except pyvisa.VisaIOError as e:
-            print(f"[Error] Communication failed: {e}")
+        except pyvisa.VisaIOError:
+            logger.exception("[Error] Communication failed", extra={"color": "red"})
             return []
 
         else:
@@ -185,7 +188,12 @@ class IBeam:
                 self._flush_buffer()
 
         except Exception as e:  # noqa: BLE001
-            print(f"[Warning] Mode switch to '{cmd}' failed: {e}")
+            logger.warning(
+                "[Warning] Mode switch to '%s' failed: %s",
+                cmd,
+                e,
+                extra={"color": "yellow"},
+            )
 
     # ============================================================
     # ユーザー用メソッド
@@ -256,7 +264,11 @@ class IBeam:
             prefix_correct = 1e-3 if match[2].lower() == "uw" else 1
             return float(match[1]) * prefix_correct  # mW に変換
 
-        print(f"[Warning] Can not parse output replay '{reply}'")
+        logger.warning(
+            "[Warning] Can not parse output replay '%s'",
+            reply,
+            extra={"color": "yellow"},
+        )
         return float("nan")
 
     # ============================================================
@@ -293,16 +305,16 @@ class IBeam:
         """接続を終了する。終了前に必ず対話モード(prom on)に戻す。"""
         if hasattr(self, "inst"):
             try:
-                print("\n[iBeam] Restoring device settings...")
+                logger.info("[iBeam] Restoring device settings...")
                 self._set_protocol_mode(interactive=True)
 
-            except Exception as e:  # noqa: BLE001
-                print(f"[Error] Failed to restore settings: {e}")
+            except Exception:
+                logger.exception("[Error] Failed to restore settings", extra={"color": "red"})
 
             finally:
                 self.inst.close()
                 del self.inst
-                print("[iBeam] Connection closed.")
+                logger.info("[iBeam] Connection closed.")
 
 
 def main() -> None:

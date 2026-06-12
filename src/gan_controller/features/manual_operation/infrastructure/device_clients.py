@@ -1,5 +1,6 @@
 from typing import Protocol
 
+from gan_controller.core.console_logger import get_logger
 from gan_controller.core.domain.app_config import AppConfig
 from gan_controller.core.domain.quantity import Celsius, Quantity, Watt
 from gan_controller.features.manual_operation.infrastructure.visa_provider import (
@@ -15,6 +16,8 @@ from gan_controller.infrastructure.hardware.adapters.pyrometer_adapter import (
 )
 from gan_controller.infrastructure.hardware.drivers import PWUX, IBeam
 
+logger = get_logger(__name__)
+
 
 class _Closable(Protocol):
     def close(self) -> None: ...
@@ -27,7 +30,7 @@ def _safe_close(name: str, resource: _Closable | None) -> None:
     try:
         resource.close()
     except Exception as e:  # noqa: BLE001
-        print(f"Error closing {name}: {e}")
+        logger.warning("Error closing %s: %s", name, e, extra={"color": "yellow"})
 
 
 class PwuxClient:
@@ -61,7 +64,7 @@ class PwuxClient:
         try:
             self._adapter.set_pointer(False)
         except Exception as e:  # noqa: BLE001
-            print(f"Failed to disable PWUX pointer: {e}")
+            logger.warning("Failed to disable PWUX pointer: %s", e, extra={"color": "yellow"})
 
         self._close_adapter()
 
@@ -120,13 +123,17 @@ class LaserClient:
         try:
             self._adapter.set_emission(False)
         except Exception as e:  # noqa: BLE001
-            print(f"Failed to stop laser emission: {e}")
+            logger.warning("Failed to stop laser emission: %s", e, extra={"color": "yellow"})
 
         if self._beam_ch is not None:
             try:
                 self._adapter.set_channel_enable(self._beam_ch, False)
             except Exception as e:  # noqa: BLE001
-                print(f"Failed to disable laser channel: {e}")
+                logger.warning(
+                    "Failed to disable laser channel: %s",
+                    e,
+                    extra={"color": "yellow"},
+                )
 
         self._close_adapter()
         self._beam_ch = None
