@@ -1,4 +1,7 @@
-from PySide6.QtCore import Slot
+import math
+import time
+
+from PySide6.QtCore import QTimer, Slot
 
 from gan_controller.core.console_logger import get_logger
 from gan_controller.core.constants import LOG_DIR
@@ -35,6 +38,8 @@ class HeatCleaningController(ITabController):
     _state: HeatCleaningState
 
     _runner_manager: AsyncExperimentManager
+    _delay_timer: QTimer
+    _delay_end_time: float | None
 
     def __init__(self, view: HeatCleaningMainView) -> None:
         super().__init__()
@@ -43,6 +48,10 @@ class HeatCleaningController(ITabController):
         repository = ProtocolRepository()
         self._protocol_manager = ProtocolManager(repository)
         self._runner_manager = AsyncExperimentManager()
+        self._delay_timer = QTimer(self)
+        self._delay_timer.setInterval(1000)
+        self._delay_timer.timeout.connect(self._on_delay_timer_timeout)
+        self._delay_end_time = None
 
         self._connect_view_signals()
         self._connect_manager_signals()
@@ -174,6 +183,90 @@ class HeatCleaningController(ITabController):
         if self._state != HeatCleaningState.IDLE:  # 二重起動防止
             return
 
+        delay_sec = self._delay_seconds_from_ui()
+        if self._should_delay_start(delay_sec):
+            self._start_delayed_experiment(delay_sec)
+            return
+
+        self._start_experiment_now()
+
+    def _delay_seconds_from_ui(self) -> float:
+        """遅延実行UIの設定から待機秒数を取得する"""
+        delay_input = self._view.execution_panel.delay_start_spinbox
+        if not delay_input.isChecked():
+            return 0.0
+
+        return delay_input.value() * 3600
+
+    def _should_delay_start(self, delay_sec: float) -> bool:
+        """実験開始前に遅延待機へ入るか判定する"""
+        return delay_sec > 0
+
+    def _start_delayed_experiment(self, delay_sec: float) -> None:
+        """実験本体を開始せず、指定秒数のカウントダウンを開始する"""
+        # 遅延中はハードウェア接続やログ作成を始めず、UI側のタイマーだけで待機する。
+        self._start_delay(delay_sec)
+
+    def _start_delay(self, delay_sec: float) -> None:
+        """遅延待機状態へ遷移し、ステータスバー更新用タイマーを開始する"""
+        # システム時刻変更の影響を避けるため、残り時間の基準には単調時計を使う。
+        self._delay_end_time = time.monotonic() + delay_sec
+        self.set_state(HeatCleaningState.DELAYING)
+        self._view.clear_view()
+        self._update_delay_status()
+        self._delay_timer.start()
+
+    @Slot()
+    def _on_delay_timer_timeout(self) -> None:
+        """遅延タイマーの周期通知を処理し、残り時間更新または実験開始を行う"""
+        if self._state != HeatCleaningState.DELAYING:
+            self._stop_delay_timer()
+            return
+
+        if not self._is_delay_finished():
+            self._update_delay_status()
+            return
+
+        self._finish_delay_and_start_experiment()
+
+    def _is_delay_finished(self) -> bool:
+        """遅延待機時間が終了したか判定する"""
+        return self._remaining_delay_seconds() <= 0
+
+    def _finish_delay_and_start_experiment(self) -> None:
+        """遅延待機を終了し、通常の実験開始処理へ進む"""
+        self._stop_delay_timer()
+        self._start_experiment_now()
+
+    def _remaining_delay_seconds(self) -> int:
+        """遅延実行までの残り秒数をステータス表示用に返す"""
+        if self._delay_end_time is None:
+            return 0
+
+        # 表示は秒単位なので、ユーザーに短く見えないよう切り上げる。
+        return max(0, math.ceil(self._delay_end_time - time.monotonic()))
+
+    def _update_delay_status(self) -> None:
+        """遅延実行までの残り時間をステータスバーへ表示する"""
+        remaining_sec = self._remaining_delay_seconds()
+        self.status_message_requested.emit(f"遅延実行まで残り {remaining_sec} 秒", 1500)
+
+    def _stop_delay_timer(self) -> None:
+        """遅延タイマーを停止し、終了時刻をクリアする"""
+        self._delay_timer.stop()
+        self._delay_end_time = None
+
+    def _cancel_delay(self) -> None:
+        """遅延待機をキャンセルして待機状態へ戻す"""
+        self._stop_delay_timer()
+        self.set_state(HeatCleaningState.IDLE)
+        self.status_message_requested.emit("遅延実行をキャンセルしました", 5000)
+
+    def _start_experiment_now(self) -> None:
+        """実験本体を開始する"""
+        if self._state not in {HeatCleaningState.IDLE, HeatCleaningState.DELAYING}:
+            return
+
         # 準備中も操作競合を防ぐため、先に実行中状態へ遷移する。
         # 失敗時は except 側で必ず IDLE に戻す。
         self.set_state(HeatCleaningState.RUNNING)
@@ -205,6 +298,10 @@ class HeatCleaningController(ITabController):
     @Slot()
     def experiment_stop(self) -> None:
         """実験中断処理"""
+        if self._state == HeatCleaningState.DELAYING:
+            self._cancel_delay()
+            return
+
         if self._state != HeatCleaningState.RUNNING or not self._runner_manager.is_running():
             return
 

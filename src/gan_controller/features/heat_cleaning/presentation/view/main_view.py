@@ -116,7 +116,18 @@ class HeatCleaningMainView(QWidget):
 
             self.execution_panel.start_button.setEnabled(True)  # 実行ボタン
             self.execution_panel.stop_button.setEnabled(False)  # 停止ボタン
+            self.execution_panel.delay_start_spinbox.setEnabled(True)
             self.measure_panel.set_status("待機中", False)
+        elif state == HeatCleaningState.DELAYING:
+            # 遅延待機中も設定変更不可
+            self.protocol_select_panel.setEnabled(False)
+            self.condition_panel.setEnabled(False)
+            self.log_setting_panel.setEnabled(False)
+
+            self.execution_panel.start_button.setEnabled(False)
+            self.execution_panel.stop_button.setEnabled(True)
+            self.execution_panel.delay_start_spinbox.setEnabled(False)
+            self.measure_panel.set_status("遅延待機中", True)
         elif state == HeatCleaningState.RUNNING:
             # 設定パネルの無効化
             self.protocol_select_panel.setEnabled(False)
@@ -125,6 +136,7 @@ class HeatCleaningMainView(QWidget):
 
             self.execution_panel.start_button.setEnabled(False)
             self.execution_panel.stop_button.setEnabled(True)
+            self.execution_panel.delay_start_spinbox.setEnabled(False)
             self.measure_panel.set_status("実行中", True)
         elif state == HeatCleaningState.STOPPING:
             # 停止中もパネル操作不可
@@ -135,6 +147,7 @@ class HeatCleaningMainView(QWidget):
             # 停止中はどちらも操作不可
             self.execution_panel.start_button.setEnabled(False)
             self.execution_panel.stop_button.setEnabled(False)
+            self.execution_panel.delay_start_spinbox.setEnabled(False)
             self.measure_panel.set_status("停止処理中", False)
 
     def update_view(self, result: HCExperimentResult) -> None:
