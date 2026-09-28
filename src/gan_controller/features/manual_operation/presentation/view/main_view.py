@@ -212,14 +212,14 @@ class ManualOperationMainView(QWidget):
         layout = QHBoxLayout(group)
 
         self.qe_pc_spin = SignificantFigureSpinBox(sig_figs=4)
-        self.qe_pc_spin.setRange(-1e9, 1e9)
+        self.qe_pc_spin.setRange(0.0, 1e9)
         self.qe_pc_spin.setValue(0.0)
         self.qe_pc_spin.setSuffix(" nA")
 
         self.qe_laser_power_spin = QDoubleSpinBox()
-        self.qe_laser_power_spin.setRange(0.0, 120.0)
+        self.qe_laser_power_spin.setRange(0.0, 10000)
         self.qe_laser_power_spin.setDecimals(3)
-        self.qe_laser_power_spin.setSingleStep(0.1)
+        self.qe_laser_power_spin.setSingleStep(1.0)
         self.qe_laser_power_spin.setValue(10.0)
         self.qe_laser_power_spin.setSuffix(" mW")
 
