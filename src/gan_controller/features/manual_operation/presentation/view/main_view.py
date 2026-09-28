@@ -16,8 +16,12 @@ from PySide6.QtWidgets import (
 )
 
 from gan_controller.core.domain.app_config import GM10Config
-from gan_controller.core.domain.quantity import Power, Quantity, Temperature, Volt, Watt
+from gan_controller.core.domain.quantity import Power, Pressure, Quantity, Temperature, Volt, Watt
 from gan_controller.core.services.physics import calculate_quantum_efficiency
+from gan_controller.core.services.vacuum import (
+    calc_ext_pressure_from_voltage,
+    calc_sip_pressure_from_voltage,
+)
 from gan_controller.presentation.components.widgets import SignificantFigureSpinBox, ValueLabel
 
 
@@ -46,6 +50,7 @@ class ManualOperationMainView(QWidget):
     laser_status_label: QLabel
 
     gm10_label_widgets: dict[str, QLabel]
+    gm10_pressure_labels: dict[str, ValueLabel]
     gm10_value_labels: dict[str, ValueLabel]
     gm10_enabled: dict[str, bool]
 
@@ -66,6 +71,7 @@ class ManualOperationMainView(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self.gm10_label_widgets = {}
+        self.gm10_pressure_labels = {}
         self.gm10_value_labels = {}
         self.gm10_enabled = {}
 
@@ -117,6 +123,12 @@ class ManualOperationMainView(QWidget):
             row.setSpacing(4)
             row.addWidget(label)
             row.addWidget(value)
+            if key in ("ext", "sip"):
+                pressure = ValueLabel("--")
+                pressure.setMinimumWidth(90)
+                pressure.setMaximumWidth(120)
+                self.gm10_pressure_labels[key] = pressure
+                row.addWidget(pressure)
             row.addStretch()
 
             rows.addLayout(row)
@@ -200,14 +212,14 @@ class ManualOperationMainView(QWidget):
         layout = QHBoxLayout(group)
 
         self.qe_pc_spin = SignificantFigureSpinBox(sig_figs=4)
-        self.qe_pc_spin.setRange(-1e9, 1e9)
+        self.qe_pc_spin.setRange(0.0, 1e9)
         self.qe_pc_spin.setValue(0.0)
         self.qe_pc_spin.setSuffix(" nA")
 
         self.qe_laser_power_spin = QDoubleSpinBox()
-        self.qe_laser_power_spin.setRange(0.0, 120.0)
+        self.qe_laser_power_spin.setRange(0.0, 10000)
         self.qe_laser_power_spin.setDecimals(3)
-        self.qe_laser_power_spin.setSingleStep(0.1)
+        self.qe_laser_power_spin.setSingleStep(1.0)
         self.qe_laser_power_spin.setValue(10.0)
         self.qe_laser_power_spin.setSuffix(" mW")
 
@@ -301,6 +313,9 @@ class ManualOperationMainView(QWidget):
         }
 
         for key, (label, ch) in mapping.items():
+            if key in self.gm10_pressure_labels:
+                self.gm10_pressure_labels[key].setText("--")
+
             if ch <= 0:
                 text = f"{label} (Disabled)"
                 self.gm10_enabled[key] = False
@@ -318,6 +333,14 @@ class ManualOperationMainView(QWidget):
         for key, val in values.items():
             if not self.gm10_enabled.get(key, False):
                 continue
+
+            if key == "ext":
+                pressure = Pressure(calc_ext_pressure_from_voltage(val.base_value))
+                self.gm10_pressure_labels[key].setValue(pressure, ".2e")
+            elif key == "sip":
+                pressure = Pressure(calc_sip_pressure_from_voltage(val.base_value))
+                self.gm10_pressure_labels[key].setValue(pressure, ".2e")
+
             self.gm10_value_labels[key].setValue(val)
 
     def set_pwux_temperature(self, temperature) -> None:  # noqa: ANN001
